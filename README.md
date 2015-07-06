@@ -5,7 +5,7 @@
 
 # build
 
-    mpi=/home/cwsmith/sysSoftware/mpich/3.1.2/installGcc
+    mpi=/path/to/mpi/install
     export PATH=$mpi/bin:$PATH
     opt="-Wextra -pedantic -g -O2 -isystem $mpi/include "
 
@@ -22,13 +22,13 @@
     -DENABLE_ZOLTAN=ON \
     -DENABLE_VIZ=ON \
     -DIS_TESTING=True \
-    -DMESHES=/home/cwsmith/develop/testMeshes \
+    -DMESHES=/path/to/core/testMeshes \
     -DCMAKE_INSTALL_PREFIX=$PWD/install_nothread/ \
     \
     -DPHASTA_INCOMPRESSIBLE=ON \
     -DPHASTA_COMPRESSIBLE=ON \
-    -DACUSOLVE_LIB=/home/cwsmith/develop/libles/lib/libles.a \
-    -DCASES=/home/cwsmith/develop/pt1/phastaCases/ \
+    -DACUSOLVE_LIB=/path/to/libles.a \
+    -DCASES=/path/to/phastaCases/ \
     ..  
  
     make
