@@ -16,14 +16,12 @@
     -DCMAKE_C_FLAGS="$opt" \
     -DCMAKE_CXX_FLAGS="$opt" \
     -DCMAKE_EXE_LINKER_FLAGS="-ldl $opt" \
+    -DCMAKE_INSTALL_PREFIX=$PWD/install_nothread/ \
     \
     -DPCU_COMPRESS=ON \
     -DENABLE_THREADS=OFF \
-    -DENABLE_ZOLTAN=ON \
-    -DENABLE_VIZ=ON \
     -DIS_TESTING=True \
     -DMESHES=/path/to/core/testMeshes \
-    -DCMAKE_INSTALL_PREFIX=$PWD/install_nothread/ \
     \
     -DPHASTA_INCOMPRESSIBLE=ON \
     -DPHASTA_COMPRESSIBLE=ON \
