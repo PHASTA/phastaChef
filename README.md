@@ -1,0 +1,34 @@
+# setup 
+
+    git clone git@github.com:cwsmith/phasta.git
+    git clone git@github.com:SCOREC/core.git
+
+# build
+
+    mpi=/home/cwsmith/sysSoftware/mpich/3.1.2/installGcc
+    export PATH=$mpi/bin:$PATH
+    opt="-Wextra -pedantic -g -O2 -isystem $mpi/include "
+
+    cmake .. \
+    -DCMAKE_C_COMPILER=mpicc \
+    -DCMAKE_CXX_COMPILER=mpicxx \
+    -DCMAKE_Fortran_COMPILER=gfortran \
+    -DCMAKE_C_FLAGS="$opt" \
+    -DCMAKE_CXX_FLAGS="$opt" \
+    -DCMAKE_EXE_LINKER_FLAGS="-ldl $opt" \
+    \
+    -DPCU_COMPRESS=ON \
+    -DENABLE_THREADS=OFF \
+    -DENABLE_ZOLTAN=ON \
+    -DENABLE_VIZ=ON \
+    -DIS_TESTING=True \
+    -DMESHES=/home/cwsmith/develop/testMeshes \
+    -DCMAKE_INSTALL_PREFIX=$PWD/install_nothread/ \
+    \
+    -DPHASTA_INCOMPRESSIBLE=ON \
+    -DPHASTA_COMPRESSIBLE=ON \
+    -DACUSOLVE_LIB=/home/cwsmith/develop/libles/lib/libles.a \
+    -DCASES=/home/cwsmith/develop/pt1/phastaCases/ \
+    ..  
+ 
+    make
