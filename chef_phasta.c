@@ -1,5 +1,6 @@
+#include "PCU.h"
 #include "phasta.h"
-#include "chef.h"
+#include <assert.h>
 
 int main(int argc, char** argv) {
   int provided;
@@ -7,12 +8,8 @@ int main(int argc, char** argv) {
   assert(provided == MPI_THREAD_MULTIPLE);
   PCU_Comm_Init();
   PCU_Protect();
-  chef(argc,argv);
-  phasta();
+  //chef(argc,argv);
+  phasta(argc,argv);
   PCU_Comm_Free();
   MPI_Finalize();
 }
-
-
-
-
