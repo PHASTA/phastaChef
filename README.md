@@ -1,7 +1,7 @@
 # setup 
 
     git clone git@github.com:cwsmith/phasta.git
-    git clone git@github.com:SCOREC/core.git
+    git clone git@github.com:SCOREC/core.git --branch chefLib core
 
 # build
 
