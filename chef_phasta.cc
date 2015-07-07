@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
   gmi_model* g = 0;
   apf::Mesh2* m = 0;
   chef::cook(g,m);
-  //phasta(argc,argv);
+  phasta(argc,argv);
   freeMesh(m);
   PCU_Comm_Free();
   MPI_Finalize();
