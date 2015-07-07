@@ -1,9 +1,18 @@
 #Setting Version Number, Project Name
 cmake_minimum_required (VERSION 2.8)
-project(phastaChef Fortran C CXX)
+project(PHASTACHEF Fortran C CXX)
 enable_language(Fortran)
 enable_language(CXX)
 enable_language(C)
+
+enable_testing()
+include(CTest)
+set(MPIRUN "mpirun"
+  CACHE string
+  "the mpirun or srun executable")
+set(MPIRUN_PROCFLAG "-np"
+  CACHE string
+  "the command line flag to give process count to MPIRUN")
 
 add_subdirectory(core)
 add_subdirectory(phasta)
@@ -38,3 +47,4 @@ if(PHASTA_BUILD_PHSHAPE)
 endif(PHASTA_BUILD_PHSHAPE)
 target_link_libraries(chef_phasta ${ACUSOLVE_LIB} incompressible)
 
+add_subdirectory(test)
