@@ -1,5 +1,6 @@
 # setup 
-
+    git clone git@github.com:cwsmith/phastaChef.git
+    cd phastaChef
     git clone git@github.com:cwsmith/phasta.git
     git clone git@github.com:SCOREC/core.git --branch chefLib core
 
