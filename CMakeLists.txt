@@ -8,7 +8,7 @@ enable_language(C)
 add_subdirectory(core)
 add_subdirectory(phasta)
 
-add_executable(chef_phasta chef_phasta.c)
+add_executable(chef_phasta chef_phasta.cc)
 set_target_properties(phastaIC.exe PROPERTIES HAS_CXX TRUE)
 set_target_properties(incompressible PROPERTIES HAS_CXX TRUE)
 set_target_properties(phastaIC.exe PROPERTIES LINKER_LANGUAGE Fortran)
