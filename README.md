@@ -1,10 +1,16 @@
-# setup 
+# setup
     git clone git@github.com:cwsmith/phastaChef.git
     cd phastaChef
     git clone git@github.com:cwsmith/phasta.git
     git clone git@github.com:SCOREC/core.git --branch chefLib core
 
-# build
+    wget www.scorec.rpi.edu/~cwsmith/phastaCases.tar.gz .
+    tar xzf phastaCases.tar.gz # use for CASES path
+
+    wget https://www.scorec.rpi.edu/pumi/pumi_test_meshes.tar.gz
+    tar xzf pumi_test_meshes.tar.gz # use for MESHES path
+
+# build and test
 
     mpi=/path/to/mpi/install
     export PATH=$mpi/bin:$PATH
@@ -28,6 +34,7 @@
     -DPHASTA_COMPRESSIBLE=ON \
     -DACUSOLVE_LIB=/path/to/libles.a \
     -DCASES=/path/to/phastaCases/ \
-    ..  
- 
+    ..
+
     make
+    make test
