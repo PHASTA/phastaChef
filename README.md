@@ -38,3 +38,8 @@
 
     make
     make test
+
+
+# development discussion
+
+http://fluid.colorado.edu/wiki/index.php/Work_Plan_In_Memory_Adapt#Detailed_Description_of_Phases
