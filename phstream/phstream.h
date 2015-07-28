@@ -28,5 +28,5 @@ FILE* openGRStreamRead(GRStream* grs, const char* named);
 FILE* openGRStreamWrite(GRStream* grs, const char* named);
 
 /** @brief dev function */
-RStream* attachRStream(GRStream* grs);
+void attachRStream(GRStream* grs, RStream* rs);
 #endif 
