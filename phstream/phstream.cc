@@ -47,6 +47,8 @@ void destroyRStream(RStream* rs) {
 void attachRStream(GRStream* grs, RStream* rs) {
   rs->restart = grs->restart;
   rs->rSz = grs->rSz;
+  grs->restart = NULL;
+  grs->rSz = 0;
 }
 
 
