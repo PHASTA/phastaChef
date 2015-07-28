@@ -5,6 +5,8 @@ enable_language(Fortran)
 enable_language(CXX)
 enable_language(C)
 
+set(PHASTA_CHEF_ENABLED ON)
+
 enable_testing()
 include(CTest)
 set(MPIRUN "mpirun"
@@ -14,6 +16,7 @@ set(MPIRUN_PROCFLAG "-np"
   CACHE string
   "the command line flag to give process count to MPIRUN")
 
+add_subdirectory(phstream)
 add_subdirectory(core)
 add_subdirectory(phasta)
 
