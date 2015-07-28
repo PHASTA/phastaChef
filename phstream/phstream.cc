@@ -1,9 +1,18 @@
+#include <stdlib.h>
+#include <string>
 #include "phstream.h" 
 
-extern C {
+extern "C" {
   struct RStream{
     char* restart;
     size_t rSz;
+  };
+}
+
+extern "C" {
+  struct GRStream{
+    char *geom, *restart;
+    size_t gSz, rSz;
   };
 }
 
@@ -31,7 +40,7 @@ void clearRStream(RStream* rs) {
 }
 
 void destroyRStream(RStream* rs) {
-  clearRstream(rs);
+  clearRStream(rs);
   free(rs);
 }
 
@@ -40,12 +49,6 @@ void attachRStream(GRStream* grs, RStream* rs) {
   rs->rSz = grs->rSz;
 }
 
-extern C {
-  struct GRStream{
-    char *geom, *restart;
-    size_t gSz, rSz;
-  };
-}
 
 GRStream* makeGRStream() {
   GRStream* grs = (GRStream*) malloc(sizeof(GRStream));
@@ -57,7 +60,7 @@ GRStream* makeGRStream() {
 }
 
 void whichStream(const char* name, bool& isR, bool& isG) {
-  std::string fname(named);
+  std::string fname(name);
   std::string restartStr("restart");
   std::string geombcStr("geombc");
   isR = (fname.find(restartStr) != std::string::npos);
@@ -88,7 +91,6 @@ FILE* openGRStreamRead(GRStream* grs, const char* named) {
 FILE* openGRStreamWrite(GRStream* grs, const char* named) {
   bool isR, isG;
   whichStream(named, isR, isG);
-  FILE* f = NULL;
   FILE* f = NULL;
   if( isR && !isG )
     f = open_memstream(&(grs->restart), &(grs->rSz));
