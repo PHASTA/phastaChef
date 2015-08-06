@@ -8,9 +8,20 @@ macro(serve TESTNAME PARTS FACTOR WORKDIR)
     WORKING_DIRECTORY "${WORKDIR}")
 endmacro()
 
+macro(dinner TESTNAME PARTS FACTOR WORKDIR)
+  set(exe ${PHASTACHEF_BINARY_DIR}/chef_phasta_stream)
+  math(EXPR OUTPARTS "${PARTS} * ${FACTOR}")
+  add_test(${TESTNAME}_copyInpCfg
+    cp ${PHASTA_SOURCE_DIR}/phSolver/common/input.config ${WORKDIR})
+  add_test(NAME "${TESTNAME}"
+    COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} ${OUTPARTS} ${exe}
+    WORKING_DIRECTORY "${WORKDIR}")
+endmacro()
+
 if (PCU_COMPRESS)
   set(MDIR ${CASES}/crossflow/1-1-Chef-Tet-Part/run)
   serve(chef_phasta0 1 1 ${MDIR})
+  dinner(chef_phasta_stream0 1 1 ${MDIR})
   set(MDIR ${CASES}/crossflow/1-1-Chef-Tet-Part)
   add_test(NAME chef_phasta1
     COMMAND diff -r -x .svn out_mesh/ good_mesh/

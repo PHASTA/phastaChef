@@ -55,5 +55,6 @@ macro(setup_exe exename srcname)
 endmacro(setup_exe)
 
 setup_exe(chef_phasta chef_phasta.cc)
+setup_exe(chef_phasta_stream chef_phasta_stream.cc)
 
 add_subdirectory(test)
