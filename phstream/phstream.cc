@@ -67,6 +67,7 @@ void whichStream(const char* name, bool& isR, bool& isG) {
   std::string geombcStr("geombc");
   isR = (fname.find(restartStr) != std::string::npos);
   isG = (fname.find(geombcStr)  != std::string::npos);
+  assert(isR != isG);
 }
 
 void writeUnknown(const char* fname) {
