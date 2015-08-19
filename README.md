@@ -5,10 +5,10 @@
     git clone git@github.com:SCOREC/core.git --branch chefLib core
 
     wget www.scorec.rpi.edu/~cwsmith/phastaChefTests.tar.gz .
-    tar xzf phastaChefTests.tar.gz # use for CASES path
+    tar xzf phastaChefTests.tar.gz # use for CASES path below
 
-    wget https://www.scorec.rpi.edu/pumi/pumi_test_meshes.tar.gz
-    tar xzf pumi_test_meshes.tar.gz # use for MESHES path
+    wget www.scorec.rpi.edu/~cwsmith/testMeshes.tar.gz .
+    tar xzf testMeshes.tar.gz # use for MESHES path below
 
 # build and test
 
