@@ -1,43 +1,14 @@
-macro(serve TESTNAME PARTS FACTOR WORKDIR)
-  set(exe ${PHASTACHEF_BINARY_DIR}/chef_phasta)
-  math(EXPR OUTPARTS "${PARTS} * ${FACTOR}")
-  add_test(${TESTNAME}_copyInpCfg
-    cp ${PHASTA_SOURCE_DIR}/phSolver/common/input.config ${WORKDIR})
-  add_test(NAME "${TESTNAME}"
-    COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} ${OUTPARTS} ${exe}
-    WORKING_DIRECTORY "${WORKDIR}")
-endmacro()
-
-macro(dinner TESTNAME PARTS FACTOR WORKDIR)
-  set(exe ${PHASTACHEF_BINARY_DIR}/chef_phasta_stream)
-  math(EXPR OUTPARTS "${PARTS} * ${FACTOR}")
-  add_test(${TESTNAME}_copyInpCfg
-    cp ${PHASTA_SOURCE_DIR}/phSolver/common/input.config ${WORKDIR})
-  add_test(NAME "${TESTNAME}"
-    COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} ${OUTPARTS} ${exe}
-    WORKING_DIRECTORY "${WORKDIR}")
-endmacro()
-
-if (PCU_COMPRESS)
-  set(MDIR ${CASES}/crossflow/1-1-Chef-Tet-Part/run)
-  serve(chef_phasta0 1 1 ${MDIR})
-  dinner(chef_phasta_stream0 1 1 ${MDIR})
-  set(MDIR ${CASES}/crossflow/1-1-Chef-Tet-Part)
-  add_test(NAME chef_phasta1
-    COMMAND diff -r -x .svn out_mesh/ good_mesh/
-    WORKING_DIRECTORY ${MDIR})
-  set(MDIR ${CASES}/crossflow/2-1-Chef-Tet-Part/run)
-  serve(chef_phasta2 1 2 ${MDIR})
-  set(MDIR ${CASES}/crossflow/2-1-Chef-Tet-Part/4-2-Chef-Part/run)
-  serve(chef_phasta3 2 2 ${MDIR})
-  set(MDIR ${CASES}/crossflow/4-1-Chef-Tet-Part/run)
-  serve(chef_phasta4 1 4 ${MDIR})
-  set(MDIR ${CASES}/crossflow/4-1-Chef-Tet-Part/4-4-Chef-Part-ts20/run)
-  serve(chef_phasta5 4 1 ${MDIR})
-  set(MDIR ${CASES}/crossflow/4-1-Chef-Tet-Part/4-4-Chef-Part-ts20)
-  add_test(NAME chef_phasta6
-    COMMAND diff -r -x .svn out_mesh/ good_mesh/
-    WORKING_DIRECTORY ${MDIR})
-else()
-  message(WARNING "Testing disabled. Build with PCU_COMPRESS=ON.")
-endif()
+set(CDIR ${CASES}/incompressible)
+set(chef_phasta_stream ${PHASTACHEF_BINARY_DIR}/chef_phasta_stream)
+add_test(chefPhastaStream_copyInpCfg
+  cp ${PHASTA_SOURCE_DIR}/phSolver/common/input.config ${CDIR})
+add_test(
+  NAME chefPhastaStream_incompressible-sync
+  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${chef_phasta_stream}
+  WORKING_DIRECTORY ${CDIR}
+)
+set(cmd
+  ${PHASTA_BINARY_DIR}/bin/checkphasta
+  ${CDIR}/4-procs_case-SyncIO-2/
+  ${CDIR}/4-procs_case-SyncIO-2_ref/
+  2 1e-6)
