@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string>
+#include <assert.h>
 #include "phstream.h" 
 
 extern "C" {
