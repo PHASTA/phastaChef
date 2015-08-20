@@ -9,6 +9,11 @@ add_test(
 )
 set(cmd
   ${PHASTA_BINARY_DIR}/bin/checkphasta
-  ${CDIR}/4-procs_case-SyncIO-2/
+  ${CDIR}/4-procs_case/
   ${CDIR}/4-procs_case-SyncIO-2_ref/
   2 1e-6)
+add_test(
+  NAME chefPhastaStream_compareIncompressibleSync
+  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${cmd}
+  WORKING_DIRECTORY ${CDIR}
+)
