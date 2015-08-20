@@ -40,7 +40,7 @@ macro(setup_exe exename srcname IC)
   target_link_libraries(${exename} ${PH_LIBS})
 
   #phasta
-  if( IC )
+  if( ${IC} )
     include_directories(${PHASTAIC_INCLUDE_DIRS})
     target_link_libraries(${exename} ${PHASTAIC_LIBS})
   else()
@@ -50,7 +50,7 @@ macro(setup_exe exename srcname IC)
 endmacro(setup_exe)
 
 set(ic true)
-setup_exe(chef_phasta chef_phasta.cc ic)
-setup_exe(chef_phasta_stream chef_phasta_stream.cc ic)
+setup_exe(chef_phasta chef_phasta.cc ${ic})
+setup_exe(chef_phasta_stream chef_phasta_stream.cc ${ic})
 
 add_subdirectory(test)
