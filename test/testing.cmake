@@ -1,11 +1,11 @@
 set(CDIR ${CASES}/incompressible)
 
-set(chef_phasta ${PHASTACHEF_BINARY_DIR}/chef_phasta)
+set(chefPhasta_posix ${PHASTACHEF_BINARY_DIR}/chefPhasta_posix)
 add_test(chefPhastaStream_copyInpCfg
   cp ${PHASTA_SOURCE_DIR}/phSolver/common/input.config ${CDIR})
 add_test(
   NAME chefPhasta_incompressible
-  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${chef_phasta}
+  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${chefPhasta_posix}
   WORKING_DIRECTORY ${CDIR}
 )
 set(cmd
@@ -19,10 +19,10 @@ add_test(
   WORKING_DIRECTORY ${CDIR}
 )
 
-set(chef_phasta_stream ${PHASTACHEF_BINARY_DIR}/chef_phasta_stream)
+set(chefPhasta_stream ${PHASTACHEF_BINARY_DIR}/chefPhasta_stream)
 add_test(
   NAME chefPhastaStream_incompressible
-  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${chef_phasta_stream}
+  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${chefPhasta_stream}
   WORKING_DIRECTORY ${CDIR}
 )
 set(cmd
