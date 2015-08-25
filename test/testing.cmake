@@ -35,3 +35,10 @@ add_test(
   COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${cmd}
   WORKING_DIRECTORY ${CDIR}
 )
+
+set(chefPhastaChef_stream ${PHASTACHEF_BINARY_DIR}/chefPhastaChef_stream)
+add_test(
+  NAME chefPhastaChefStream_incompressible
+  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${chefPhastaChef_stream}
+  WORKING_DIRECTORY ${CDIR}
+)

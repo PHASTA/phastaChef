@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
   chef::cook(g,m,"adapt.inp",grs);
   rstream rs = makeRStream();
   phasta(argc,argv,grs,rs);
-  //chef::cook(g,m,"adaptUR.inp",rs);
+  chef::cook(g,m,"adaptParma.inp",rs);
   destroyGRStream(grs);
   destroyRStream(rs);
   freeMesh(m);
