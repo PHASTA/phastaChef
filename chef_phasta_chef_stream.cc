@@ -37,7 +37,8 @@ int main(int argc, char** argv) {
   ctrl.load("adapt.inp");
   chef::cook(g,m,ctrl,grs);
   rstream rs = makeRStream();
-  int step = phasta(grs,rs);
+  phSolver::Input inp("solver.inp", "input.config");
+  int step = phasta(inp,grs,rs);
   if(!PCU_Comm_Self())
     fprintf(stderr, "CAKE ran to step %d\n", step);
   setupChefParma(ctrl,step);

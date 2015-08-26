@@ -22,7 +22,8 @@ int main(int argc, char** argv) {
   ph::Input ctrl;
   ctrl.load("adapt.inp");
   chef::cook(g,m,ctrl,grs);
-  int step = phasta(grs);
+  phSolver::Input inp("solver.inp", "input.config");
+  int step = phasta(inp,grs);
   if(!PCU_Comm_Self())
     fprintf(stderr, "CAKE ran to step %d\n", step);
   destroyGRStream(grs);
