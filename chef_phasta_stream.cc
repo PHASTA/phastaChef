@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
   apf::Mesh2* m = 0;
   GRStream* grs = makeGRStream();
   chef::cook(g,m,"adapt.inp",grs);
-  phasta(argc,argv,grs);
+  phasta(grs);
   destroyGRStream(grs);
   freeMesh(m);
   PCU_Comm_Free();

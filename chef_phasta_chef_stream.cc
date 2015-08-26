@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
   grstream grs = makeGRStream();
   chef::cook(g,m,"adapt.inp",grs);
   rstream rs = makeRStream();
-  phasta(argc,argv,grs,rs);
+  phasta(grs,rs);
   chef::cook(g,m,"adaptParma.inp",rs);
   destroyGRStream(grs);
   destroyRStream(rs);
