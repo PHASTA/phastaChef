@@ -1,12 +1,10 @@
 macro(moveDir name work src)
   set(tgtdir ${work}/${src}_${name})
-  if(EXISTS ${work}/$)
-    add_test(
-      NAME ${name}_rmProcsCaseDir
-      COMMAND rm -rf ${tgtdir}
-      WORKING_DIRECTORY ${work}
-      )
-  endif()
+  add_test(
+    NAME ${name}_rmProcsCaseDir
+    COMMAND rm -rf ${tgtdir} && true #don't report a failure of rm
+    WORKING_DIRECTORY ${work}
+  )
   add_test(
     NAME ${name}_mvProcsCaseDir
     COMMAND mv ${work}/${src} ${tgtdir}
