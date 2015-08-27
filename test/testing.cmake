@@ -1,3 +1,19 @@
+macro(moveDir name work src)
+  set(tgtdir ${work}/${src}_${name})
+  if(EXISTS ${work}/$)
+    add_test(
+      NAME ${name}_rmProcsCaseDir
+      COMMAND rm -rf ${tgtdir}
+      WORKING_DIRECTORY ${work}
+      )
+  endif()
+  add_test(
+    NAME ${name}_mvProcsCaseDir
+    COMMAND mv ${work}/${src} ${tgtdir}
+    WORKING_DIRECTORY ${work}
+  )
+endmacro(moveDir)
+
 set(CDIR ${CASES}/incompressible)
 
 set(chefPhasta_posix ${PHASTACHEF_BINARY_DIR}/chefPhasta_posix)
@@ -19,11 +35,7 @@ add_test(
   COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${cmd}
   WORKING_DIRECTORY ${CDIR}
 )
-add_test(
-  NAME chefPhasta_mvProcsCaseDir
-  COMMAND mv ${CDIR}/4-procs_case ${CDIR}/4-procs_case_chefPhasta
-  WORKING_DIRECTORY ${CDIR}
-)
+moveDir(chefPhasta ${CDIR} 4-procs_case)
 
 set(chefPhasta_stream ${PHASTACHEF_BINARY_DIR}/chefPhasta_stream)
 add_test(
@@ -41,11 +53,7 @@ add_test(
   COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${cmd}
   WORKING_DIRECTORY ${CDIR}
 )
-add_test(
-  NAME chefPhastaStream_mvProcsCaseDir
-  COMMAND mv ${CDIR}/4-procs_case ${CDIR}/4-procs_case_chefPhastaStream
-  WORKING_DIRECTORY ${CDIR}
-)
+moveDir(chefPhastaStream ${CDIR} 4-procs_case)
 
 set(chefPhastaChef_stream ${PHASTACHEF_BINARY_DIR}/chefPhastaChef_stream)
 add_test(
@@ -53,8 +61,5 @@ add_test(
   COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${chefPhastaChef_stream}
   WORKING_DIRECTORY ${CDIR}
 )
-add_test(
-  NAME chefPhastaChefStream_mvProcsCaseDir
-  COMMAND mv ${CDIR}/4-procs_case ${CDIR}/4-procs_case_chefPhastaChefStream
-  WORKING_DIRECTORY ${CDIR}
-)
+moveDir(chefPhastaChefStream ${CDIR} 4-procs_case)
+
