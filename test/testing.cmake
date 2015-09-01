@@ -61,3 +61,12 @@ add_test(
 )
 moveDir(chefPhastaChefStream ${CDIR} 4-procs_case)
 
+set(chefPhastaLoop_stream ${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_stream)
+set(maxTimeStep 8)
+add_test(
+  NAME chefPhastaLoopStream_incompressible
+  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${chefPhastaLoop_stream} ${maxTimeStep}
+  WORKING_DIRECTORY ${CDIR}
+)
+moveDir(chefPhastaLoopStream ${CDIR} 4-procs_case)
+

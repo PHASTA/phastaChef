@@ -53,5 +53,6 @@ set(ic true)
 setup_exe(chefPhasta_posix chef_phasta_posix.cc ${ic})
 setup_exe(chefPhasta_stream chef_phasta_stream.cc ${ic})
 setup_exe(chefPhastaChef_stream chef_phasta_chef_stream.cc ${ic})
+setup_exe(chefPhastaLoop_stream chef_phasta_loop_stream.cc ${ic})
 
 add_subdirectory(test)
