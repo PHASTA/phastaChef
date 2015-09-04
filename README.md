@@ -27,12 +27,14 @@
     \
     -DPCU_COMPRESS=ON \
     -DENABLE_THREADS=OFF \
+    -DENABLE_ZOLTAN=ON \
     -DIS_TESTING=True \
     -DMESHES=/path/to/core/testMeshes \
     \
     -DPHASTA_INCOMPRESSIBLE=ON \
     -DPHASTA_COMPRESSIBLE=ON \
     -DACUSOLVE_LIB=/path/to/libles.a \
+    -DPHASTA_TESTING=ON \
     -DCASES=/path/to/phastaChefTests/ \
     ..
 
