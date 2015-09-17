@@ -1,12 +1,12 @@
 macro(moveDir name work src)
   set(tgtdir ${work}/${src}_${name})
   add_test(
-    NAME ${name}_rmProcsCaseDir
+    NAME ${name}_rm${src}
     COMMAND rm -rf ${tgtdir} && true #don't report a failure of rm
     WORKING_DIRECTORY ${work}
   )
   add_test(
-    NAME ${name}_mvProcsCaseDir
+    NAME ${name}_mv${src}
     COMMAND mv ${work}/${src} ${tgtdir}
     WORKING_DIRECTORY ${work}
   )
@@ -78,5 +78,4 @@ add_test(
   WORKING_DIRECTORY ${CDIR}
 )
 moveDir(chefPhastaLoopStreamUR ${CDIR} 4-procs_case)
-
-
+moveDir(chefPhastaLoopStreamUR ${CDIR} 4)
