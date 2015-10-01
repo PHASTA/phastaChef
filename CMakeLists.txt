@@ -21,9 +21,9 @@ add_subdirectory(core)
 add_subdirectory(phasta)
 
 #test to see if simmetrix models are supported
-find_package(gmi_sim PATHS ${CMAKE_BINARY_DIR})
-message(STATUS "gmi_sim was ${GMI_SIM_FOUND}")
+find_package(gmi_sim QUIET PATHS ${CMAKE_BINARY_DIR})
 if( ${GMI_SIM_FOUND} )
+  message(STATUS "Found gmi_sim package - enabling Simmetrix modeler support")
   add_definitions(-DGMI_SIM_FOUND)
 endif()
 
