@@ -1,10 +1,11 @@
 #include <PCU.h>
 #include <chef.h>
-#include <gmi_mesh.h>
 #include <phasta.h>
 #include <phstream.h>
 #include <iostream>
 #include <sstream>
+#include <stdlib.h>
+#include "chefPhasta.h"
 
 namespace {
   void freeMesh(apf::Mesh* m) {
@@ -46,7 +47,7 @@ int main(int argc, char** argv) {
     exit(EXIT_FAILURE);
   }
   int maxStep = atoi(argv[1]);
-  gmi_register_mesh();
+  chefPhasta::initModelers();
   gmi_model* g = 0;
   apf::Mesh2* m = 0;
   grstream grs = makeGRStream();
@@ -68,6 +69,7 @@ int main(int argc, char** argv) {
   destroyGRStream(grs);
   destroyRStream(rs);
   freeMesh(m);
+  chefPhasta::finalizeModelers();
   PCU_Comm_Free();
   MPI_Finalize();
 }

@@ -20,6 +20,13 @@ add_subdirectory(phstream)
 add_subdirectory(core)
 add_subdirectory(phasta)
 
+#test to see if simmetrix models are supported
+find_package(gmi_sim PATHS ${CMAKE_BINARY_DIR})
+message(STATUS "gmi_sim was ${GMI_SIM_FOUND}")
+if( ${GMI_SIM_FOUND} )
+  add_definitions(-DGMI_SIM_FOUND)
+endif()
+
 find_package(phastaIC REQUIRED PATHS ${CMAKE_BINARY_DIR})
 message(STATUS "PHASTAIC_LIBS ${PHASTAIC_LIBS}")
 find_package(phastaC REQUIRED PATHS ${CMAKE_BINARY_DIR})
