@@ -1,8 +1,8 @@
 # setup
     git clone git@github.com:cwsmith/phastaChef.git
     cd phastaChef
-    git clone git@github.com:cwsmith/phasta.git
-    git clone git@github.com:SCOREC/core.git --branch chefLib core
+    git clone git@github.com:PHASTA/phasta.git
+    git clone git@github.com:SCOREC/core.git
 
     wget www.scorec.rpi.edu/~cwsmith/phastaChefTests.tar.gz .
     tar xzf phastaChefTests.tar.gz # use for CASES path below
