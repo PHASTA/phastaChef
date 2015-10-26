@@ -80,14 +80,16 @@ add_test(
 moveDir(chefPhastaLoopStreamUR ${CDIR} 4-procs_case)
 moveDir(chefPhastaLoopStreamUR ${CDIR} 4)
 
-set(CDIR ${CASES}/incompressibleAdapt)
-set(chefPhastaLoop_stream_adapt ${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_stream_adapt)
-set(maxTimeStep 8)
-add_test(
-  NAME chefPhastaLoopStreamAdapt_incompressible
-  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 2 ${chefPhastaLoop_stream_adapt} ${maxTimeStep}
-  WORKING_DIRECTORY ${CDIR}
-)
-moveDir(chefPhastaLoopStreamAdapt ${CDIR} 2-procs_case)
-moveDir(chefPhastaLoopStreamAdapt ${CDIR} 4)
-moveDir(chefPhastaLoopStreamAdapt ${CDIR} 8)
+if( ${GMI_SIM_FOUND} )
+  set(CDIR ${CASES}/incompressibleAdapt)
+  set(chefPhastaLoop_stream_adapt ${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_stream_adapt)
+  set(maxTimeStep 8)
+  add_test(
+    NAME chefPhastaLoopStreamAdapt_incompressible
+    COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 2 ${chefPhastaLoop_stream_adapt} ${maxTimeStep}
+    WORKING_DIRECTORY ${CDIR}
+    )
+  moveDir(chefPhastaLoopStreamAdapt ${CDIR} 2-procs_case)
+  moveDir(chefPhastaLoopStreamAdapt ${CDIR} 4)
+  moveDir(chefPhastaLoopStreamAdapt ${CDIR} 8)
+endif()
