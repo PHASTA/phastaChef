@@ -5,6 +5,7 @@
 #include <iostream>
 #include <sstream>
 #include "chefPhasta.h"
+#include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -25,6 +26,12 @@ namespace {
     }
   }
 
+  std::string makeMeshName(int step, const char* prefix="") {
+    std::stringstream meshname;
+    meshname  << "bz2:" << prefix << "t" << step << "p" << PCU_Comm_Peers() << "/";
+    return meshname.str();
+  }
+
   void setupChef(ph::Input& ctrl, int step) {
     //don't split or tetrahedronize
     ctrl.splitFactor = 1;
@@ -41,15 +48,13 @@ namespace {
       ctrl.adaptStrategy = 1; //error field adapt
       ctrl.adaptFlag = 1;
     }
-    //std::stringstream meshname;
-    //meshname  << "bz2:t" << step << "p" << PCU_Comm_Peers() << "/";
-    //ctrl.outMeshFileName = meshname.str();
+    ctrl.outMeshFileName = makeMeshName(step);
   }
+
 }
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   PCU_Comm_Init();
-  fprintf(stdout, "----you made it----\n");
   PCU_Protect();
   if( argc != 2 ) {
     if(!PCU_Comm_Self())
@@ -62,18 +67,22 @@ int main(int argc, char** argv) {
   apf::Mesh2* m = 0;
   ph::Input ctrl;
   ctrl.load("adapt.inp");
+  ctrl.outMeshFileName = makeMeshName(0);
   chef::cook(g,m,ctrl);
+  freeMesh(m); m = NULL;
   phSolver::Input inp("solver.inp", "input.config");
   int step = 0;
   do {
+    ctrl.meshFileName = makeMeshName(step, "../");
     step = phasta(inp);
+    assert(step >= 0);
     if(!PCU_Comm_Self())
       fprintf(stderr, "CAKE ran to step %d\n", step);
     setupChef(ctrl,step);
     chef::cook(g,m,ctrl);
+    freeMesh(m); m = NULL;
     mychdir(step);
   } while( step < maxStep );
-  freeMesh(m);
   chefPhasta::finalizeModelers();
   PCU_Comm_Free();
   MPI_Finalize();
