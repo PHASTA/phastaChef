@@ -20,7 +20,7 @@ namespace {
   inline printTime(const char* key, double t) {
 #if PHSTREAM_TIMERS_ON==1
     if( isRankZero() )
-      fprintf(stderr, "%s %f\n", key, t);
+      fprintf(stderr, "%s %f seconds\n", key, t);
 #endif
   }
 }

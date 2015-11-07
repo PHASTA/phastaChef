@@ -30,9 +30,6 @@ void setupChef(ph::Input& ctrl, int step) {
     ctrl.adaptStrategy = 1; //error field adapt
     ctrl.adaptFlag = 1;
   }
-  std::stringstream meshname;
-  meshname  << "bz2:t" << step << "p" << PCU_Comm_Peers() << "/";
-  ctrl.outMeshFileName = meshname.str();
 }
 
 int main(int argc, char** argv) {
