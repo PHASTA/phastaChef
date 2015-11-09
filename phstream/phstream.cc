@@ -17,7 +17,7 @@ namespace {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     return !rank;
   }
-  inline printTime(const char* key, double t) {
+  inline void printTime(const char* key, double t) {
 #if PHSTREAM_TIMERS_ON==1
     if( isRankZero() )
       fprintf(stderr, "%s %f seconds\n", key, t);
