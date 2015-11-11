@@ -34,8 +34,8 @@ cp_parallel_test(${casename} 4 ${CDIR} ${exe})
 cp_parallel_test(check_${casename} 4 ${CDIR}
   ${PHASTA_BINARY_DIR}/bin/checkphasta
   ${CDIR}/4-procs_case/
-  ${CDIR}/4-procs_case-SyncIO-2_ref/
-  2 1e-6)
+  ${CDIR}/4-procs_case-PosixChefPhasta_ref/
+  0 1e-6)
 cp_move_dir(${casename} ${CDIR} 4-procs_case)
 
 set(exe ${PHASTACHEF_BINARY_DIR}/chefPhasta_stream)
