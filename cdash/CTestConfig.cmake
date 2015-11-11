@@ -1,4 +1,4 @@
-/et(CTEST_PROJECT_NAME "PhastaChef")
+set(CTEST_PROJECT_NAME "PhastaChef")
 set(CTEST_NIGHTLY_START_TIME "03:00:00 EST")
 
 set(CTEST_DROP_METHOD "http")
