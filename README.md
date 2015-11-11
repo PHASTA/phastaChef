@@ -2,7 +2,7 @@
 Check the nightly status on the
 [CDash page](http://my.cdash.org/index.php?project=phastaChef)
 
-# setup
+# Setup
     git clone git@github.com:cwsmith/phastaChef.git
     cd phastaChef
     git clone git@github.com:PHASTA/phasta.git
@@ -14,7 +14,7 @@ Check the nightly status on the
     wget https://www.scorec.rpi.edu/pumi/pumi_test_meshes.tar.gz
     tar xzf pumi_test_meshes.tar.gz # use for MESHES path below
 
-# build and test
+# Build and Test
 
     mpi=/path/to/mpi/install
     export PATH=$mpi/bin:$PATH
