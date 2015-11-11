@@ -115,7 +115,7 @@ SET(CONFIGURE_OPTIONS
   "-DCMAKE_C_FLAGS=${flags}"
   "-DCMAKE_CXX_FLAGS=${flags}"
   "-DCMAKE_Fortran_FLAGS=${flags}"
-  "-DCMAKE_EXE_LINKER_FLAGS=${flags}"
+  "-DCMAKE_EXE_LINKER_FLAGS=-ldl ${flags}"
   "-DCORE_SRC_DIR=${CTEST_SOURCE_DIRECTORY}/core-sim" ##change this to core for a non-sim build
   "-DSIM_MPI=mpich3.1.2"
   "-DPCU_COMPRESS=ON"
