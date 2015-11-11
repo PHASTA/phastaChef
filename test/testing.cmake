@@ -25,11 +25,11 @@ macro(cp_move_dir name work src)
 endmacro(cp_move_dir)
 
 set(CDIR ${CASES}/incompressible)
+cp_serial_test(copy_inpConfig
+  cp ${PHASTA_SOURCE_DIR}/phSolver/common/input.config ${CDIR})
 
 set(exe ${PHASTACHEF_BINARY_DIR}/chefPhasta_posix)
 set(casename posix_incompressible)
-cp_serial_test(copy_${casename}
-  cp ${PHASTA_SOURCE_DIR}/phSolver/common/input.config ${CDIR})
 cp_parallel_test(${casename} 4 ${CDIR} ${exe})
 cp_parallel_test(check_${casename} 4 ${CDIR}
   ${PHASTA_BINARY_DIR}/bin/checkphasta
