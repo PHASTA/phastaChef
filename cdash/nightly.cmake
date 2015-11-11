@@ -123,13 +123,13 @@ SET(CONFIGURE_OPTIONS
   "-DENABLE_THREADS=OFF"
   "-DENABLE_ZOLTAN=ON"
   "-DIS_TESTING=True"
-  "-DMESHES=/lore/cwsmith/develop/streamInMem/meshes"
+  "-DMESHES=/lore/cwsmith/cdash/meshes"
   "-DPHASTA_SRC_DIR=${CTEST_SOURCE_DIRECTORY}/phasta"
   "-DPHASTA_INCOMPRESSIBLE=ON"
   "-DPHASTA_COMPRESSIBLE=ON"
   "-DPHASTA_TESTING=ON"
   "-DACUSOLVE_LIB=/users/cwsmith/develop/libLes/libles_gcc_nolic.a"
-  "-DCASES=/lore/cwsmith/develop/streamInMem/phastaChefTests"
+  "-DCASES=/lore/cwsmith/cdash/phastaChefTests"
 )
 message(STATUS "configure options ${CONFIGURE_OPTIONS}")
 build_subproject(phastaChef-sim "${CONFIGURE_OPTIONS}")
