@@ -15,11 +15,13 @@ endmacro(cp_serial_test)
 
 macro(cp_move_dir name work src) 
   set(mname chefphasta_${name})
+  set(tname ${mname}_mv${src})
   set(tgtdir ${work}/${src}_${mname}) 
   add_test(
-    NAME ${mname}_mv${src}
+    NAME ${tname}
     COMMAND rm -rf ${tgtdir} && mv ${work}/${src} ${tgtdir}
     WORKING_DIRECTORY ${work})
+  set_tests_properties(${tname} PROPERTIES LABELS "chefphasta")
 endmacro(cp_move_dir)
 
 set(CDIR ${CASES}/incompressible)
