@@ -1,0 +1,7 @@
+<Project name="PhastaChef">
+  <SubProject name="phastaChef">
+  </SubProject>
+  <SubProject name="phastaChef-sim">
+  </SubProject>
+</Project>
+
