@@ -1,3 +1,7 @@
+# Code Status
+Check the nightly status on the
+[CDash page](http://my.cdash.org/index.php?project=phastaChef)
+
 # setup
     git clone git@github.com:cwsmith/phastaChef.git
     cd phastaChef
