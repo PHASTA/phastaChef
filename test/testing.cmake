@@ -1,95 +1,71 @@
-macro(moveDir name work src)
-  set(tgtdir ${work}/${src}_${name})
+macro(cp_parallel_test name procs dir exe)
+  set(tname chefphasta_${name})
   add_test(
-    NAME ${name}_rm${src}
-    COMMAND rm -rf ${tgtdir} && true #don't report a failure of rm
-    WORKING_DIRECTORY ${work}
-  )
+    NAME ${tname}
+    COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} ${procs} ${exe} ${ARGN}
+    WORKING_DIRECTORY ${dir} )
+  set_tests_properties(${tname} PROPERTIES LABELS "chefphasta")
+endmacro(cp_parallel_test)
+
+macro(cp_serial_test name exe)
+  set(tname chefphasta_${name})
+  add_test( NAME ${tname} COMMAND ${exe} ${ARGN} )
+  set_tests_properties(${tname} PROPERTIES LABELS "chefphasta")
+endmacro(cp_serial_test)
+
+macro(cp_move_dir name work src) 
+  set(mname chefphasta_${name})
+  set(tgtdir ${work}/${src}_${mname}) 
   add_test(
-    NAME ${name}_mv${src}
-    COMMAND mv ${work}/${src} ${tgtdir}
-    WORKING_DIRECTORY ${work}
-  )
-endmacro(moveDir)
+    NAME ${mname}_mv${src}
+    COMMAND rm -rf ${tgtdir} && mv ${work}/${src} ${tgtdir}
+    WORKING_DIRECTORY ${work})
+endmacro(cp_move_dir)
 
 set(CDIR ${CASES}/incompressible)
 
-set(chefPhasta_posix ${PHASTACHEF_BINARY_DIR}/chefPhasta_posix)
-add_test(chefPhastaStream_copyInpCfg
+set(exe ${PHASTACHEF_BINARY_DIR}/chefPhasta_posix)
+set(casename posix_incompressible)
+cp_serial_test(copy_${casename}
   cp ${PHASTA_SOURCE_DIR}/phSolver/common/input.config ${CDIR})
-
-add_test(
-  NAME chefPhasta_incompressible
-  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${chefPhasta_posix}
-  WORKING_DIRECTORY ${CDIR}
-)
-set(cmd
+cp_parallel_test(${casename} 4 ${CDIR} ${exe})
+cp_parallel_test(check_${casename} 4 ${CDIR}
   ${PHASTA_BINARY_DIR}/bin/checkphasta
   ${CDIR}/4-procs_case/
   ${CDIR}/4-procs_case-SyncIO-2_ref/
   2 1e-6)
-add_test(
-  NAME chefPhasta_compareIncompressible
-  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${cmd}
-  WORKING_DIRECTORY ${CDIR}
-)
-moveDir(chefPhasta ${CDIR} 4-procs_case)
+cp_move_dir(${casename} ${CDIR} 4-procs_case)
 
-set(chefPhasta_stream ${PHASTACHEF_BINARY_DIR}/chefPhasta_stream)
-add_test(
-  NAME chefPhastaStream_incompressible
-  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${chefPhasta_stream}
-  WORKING_DIRECTORY ${CDIR}
-)
-set(cmd
+set(exe ${PHASTACHEF_BINARY_DIR}/chefPhasta_stream)
+set(casename stream_incompressible)
+cp_parallel_test(${casename} 4 ${CDIR} ${exe})
+cp_parallel_test(check_${casename} 4 ${CDIR} 
   ${PHASTA_BINARY_DIR}/bin/checkphasta
   ${CDIR}/4-procs_case/
   ${CDIR}/4-procs_case-SyncIO-2_ref/
   2 1e-6)
-add_test(
-  NAME chefPhastaStream_compareIncompressible
-  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${cmd}
-  WORKING_DIRECTORY ${CDIR}
-)
-moveDir(chefPhastaStream ${CDIR} 4-procs_case)
+cp_move_dir(${casename} ${CDIR} 4-procs_case)
 
-set(chefPhastaChef_stream ${PHASTACHEF_BINARY_DIR}/chefPhastaChef_stream)
-add_test(
-  NAME chefPhastaChefStream_incompressible
-  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${chefPhastaChef_stream}
-  WORKING_DIRECTORY ${CDIR}
-)
-moveDir(chefPhastaChefStream ${CDIR} 4-procs_case)
-
-set(chefPhastaLoop_stream ${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_stream)
+set(exe ${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_stream)
 set(maxTimeStep 8)
-add_test(
-  NAME chefPhastaLoopStream_incompressible
-  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${chefPhastaLoop_stream} ${maxTimeStep}
-  WORKING_DIRECTORY ${CDIR}
-)
-moveDir(chefPhastaLoopStream ${CDIR} 4-procs_case)
+set(casename loopStream_incompressible)
+cp_parallel_test(${casename} 4 ${CDIR} ${exe} ${maxTimeStep})
+cp_move_dir(${casename} ${CDIR} 4-procs_case)
 
-set(chefPhastaLoop_stream_ur ${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_stream_ur)
+set(exe ${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_stream_ur)
 set(maxTimeStep 12)
-add_test(
-  NAME chefPhastaLoopStreamUR_incompressible
-  COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 4 ${chefPhastaLoop_stream_ur} ${maxTimeStep}
-  WORKING_DIRECTORY ${CDIR}
-)
-moveDir(chefPhastaLoopStreamUR ${CDIR} 4-procs_case)
-moveDir(chefPhastaLoopStreamUR ${CDIR} 4)
+set(casename loopStreamUR_incompressible)
+cp_parallel_test(${casename} 4 ${CDIR} ${exe} ${maxTimeStep})
+cp_move_dir(${casename} ${CDIR} 4-procs_case)
+cp_move_dir(${casename} ${CDIR} 4)
 
 if( ${GMI_SIM_FOUND} )
   set(CDIR ${CASES}/incompressibleAdapt)
-  set(chefPhastaLoop_stream_adapt ${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_stream_adapt)
+  set(exe ${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_stream_adapt)
   set(maxTimeStep 8)
-  add_test(
-    NAME chefPhastaLoopStreamAdapt_incompressible
-    COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} 2 ${chefPhastaLoop_stream_adapt} ${maxTimeStep}
-    WORKING_DIRECTORY ${CDIR}
-    )
-  moveDir(chefPhastaLoopStreamAdapt ${CDIR} 2-procs_case)
-  moveDir(chefPhastaLoopStreamAdapt ${CDIR} 4)
-  moveDir(chefPhastaLoopStreamAdapt ${CDIR} 8)
+  set(casename loopStreamAdapt_incompressible)
+  cp_parallel_test(${casename} 2 ${CDIR} ${exe} ${maxTimeStep})
+  cp_move_dir(${casename} ${CDIR} 2-procs_case)
+  cp_move_dir(${casename} ${CDIR} 4)
+  cp_move_dir(${casename} ${CDIR} 8)
 endif()
