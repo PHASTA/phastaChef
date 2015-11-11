@@ -57,6 +57,17 @@ macro(submit_part subproject_name part)
 endmacro()
 
 macro(build_subproject subproject_name config_opts)
+  set_property(GLOBAL PROPERTY SubProject ${subproject_name})
+  set_property(GLOBAL PROPERTY Label ${subproject_name})
+
+  setup_repo(${subproject_name} "git@github.com:PHASTA/phastaChef.git")
+  if( ${subproject_name} STREQUAL "phastaChef-sim" )
+    setup_repo(core-sim "git@github.com:SCOREC/core-sim.git")
+  elseif( ${subproject_name} STREQUAL "phastaChef" )
+    setup_repo(core "git@github.com:SCOREC/core.git")
+  endif()
+  setup_repo(phasta "git@github.com:PHASTA/phasta.git")
+
   if(NOT EXISTS "${CTEST_BINARY_DIRECTORY}/${subproject_name}")
     file(MAKE_DIRECTORY ${CTEST_BINARY_DIRECTORY}/${subproject_name})
   endif()
@@ -105,22 +116,20 @@ SET(CONFIGURE_OPTIONS
   "-DCMAKE_CXX_FLAGS=${flags}"
   "-DCMAKE_Fortran_FLAGS=${flags}"
   "-DCMAKE_EXE_LINKER_FLAGS=${flags}"
+  "-DCORE_SRC_DIR=${CTEST_SOURCE_DIRECTORY}/core-sim" ##change this to core for a non-sim build
   "-DSIM_MPI=mpich3.1.2"
   "-DPCU_COMPRESS=ON"
   "-DENABLE_THREADS=OFF"
   "-DENABLE_ZOLTAN=ON"
   "-DIS_TESTING=True"
   "-DMESHES=/lore/cwsmith/develop/streamInMem/meshes"
+  "-DPHASTA_SRC_DIR=${CTEST_SOURCE_DIRECTORY}/phasta"
   "-DPHASTA_INCOMPRESSIBLE=ON"
   "-DPHASTA_COMPRESSIBLE=ON"
   "-DPHASTA_TESTING=ON"
   "-DACUSOLVE_LIB=/users/cwsmith/develop/libLes/libles_gcc_nolic.a"
   "-DCASES=/lore/cwsmith/develop/streamInMem/phastaChefTests"
 )
-setup_repo(phastaChef "git@github.com:PHASTA/phastaChef.git")
-execute_process(COMMAND cd ${CTEST_SOURCE_DIRECTORY}/phastaChef)
-setup_repo(core "git@github.com:SCOREC/core-sim.git")
-setup_repo(phasta "git@github.com:PHASTA/phasta.git")
 build_subproject(phastaChef-sim "${config_opts}")
 test_subproject(phastaChef-sim)
 
