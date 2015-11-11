@@ -17,9 +17,9 @@ set(MPIRUN_PROCFLAG "-np"
   "the command line flag to give process count to MPIRUN")
 add_subdirectory(phstream)
 set(CORE_SRC_DIR core CACHE FILEPATH "path to pumi core source code")
-add_subdirectory(${CORE_SRC_DIR})
+add_subdirectory(${CORE_SRC_DIR} ${CMAKE_BINARY_DIR})
 set(PHASTA_SRC_DIR phasta CACHE FILEPATH "path to phasta source code")
-add_subdirectory(${PHASTA_SRC_DIR})
+add_subdirectory(${PHASTA_SRC_DIR} ${CMAKE_BINARY_DIR})
 
 #test to see if simmetrix models are supported
 find_package(gmi_sim QUIET PATHS ${CMAKE_BINARY_DIR})
