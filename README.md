@@ -7,7 +7,7 @@
     wget www.scorec.rpi.edu/~cwsmith/phastaChefTests.tar.gz .
     tar xzf phastaChefTests.tar.gz # use for CASES path below
 
-    wget www.scorec.rpi.edu/~cwsmith/testMeshes.tar.gz .
+    wget https://www.scorec.rpi.edu/pumi/pumi_test_meshes.tar.gz
     tar xzf testMeshes.tar.gz # use for MESHES path below
 
 # build and test
