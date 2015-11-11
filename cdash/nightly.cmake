@@ -130,7 +130,8 @@ SET(CONFIGURE_OPTIONS
   "-DACUSOLVE_LIB=/users/cwsmith/develop/libLes/libles_gcc_nolic.a"
   "-DCASES=/lore/cwsmith/develop/streamInMem/phastaChefTests"
 )
-build_subproject(phastaChef-sim "${config_opts}")
+message(STATUS "configure options ${CONFIGURE_OPTIONS}")
+build_subproject(phastaChef-sim "${CONFIGURE_OPTIONS}")
 test_subproject(phastaChef-sim)
 
 message("DONE")
