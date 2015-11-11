@@ -8,7 +8,7 @@
     tar xzf phastaChefTests.tar.gz # use for CASES path below
 
     wget https://www.scorec.rpi.edu/pumi/pumi_test_meshes.tar.gz
-    tar xzf testMeshes.tar.gz # use for MESHES path below
+    tar xzf pumi_test_meshes.tar.gz # use for MESHES path below
 
 # build and test
 
