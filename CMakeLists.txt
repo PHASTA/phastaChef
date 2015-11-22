@@ -5,6 +5,12 @@ enable_language(Fortran)
 enable_language(CXX)
 enable_language(C)
 
+execute_process(
+  COMMAND git rev-parse HEAD
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_FILE "${CMAKE_BINARY_DIR}/VERSION.phastaChef"
+)
+
 set(PHASTA_CHEF_ENABLED ON)
 
 enable_testing()
