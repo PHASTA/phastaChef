@@ -1,16 +1,17 @@
+set(testLabel "chefphasta")
 macro(cp_parallel_test name procs dir exe)
   set(tname chefphasta_${name})
   add_test(
     NAME ${tname}
     COMMAND ${MPIRUN} ${MPIRUN_PROCFLAG} ${procs} ${exe} ${ARGN}
     WORKING_DIRECTORY ${dir} )
-  set_tests_properties(${tname} PROPERTIES LABELS "chefphasta")
+  set_tests_properties(${tname} PROPERTIES LABELS ${testLabel})
 endmacro(cp_parallel_test)
 
 macro(cp_serial_test name exe)
   set(tname chefphasta_${name})
   add_test( NAME ${tname} COMMAND ${exe} ${ARGN} )
-  set_tests_properties(${tname} PROPERTIES LABELS "chefphasta")
+  set_tests_properties(${tname} PROPERTIES LABELS ${testLabel})
 endmacro(cp_serial_test)
 
 macro(cp_move_dir name work src) 
@@ -21,7 +22,7 @@ macro(cp_move_dir name work src)
     NAME ${tname}
     COMMAND rm -rf ${tgtdir} && mv ${work}/${src} ${tgtdir}
     WORKING_DIRECTORY ${work})
-  set_tests_properties(${tname} PROPERTIES LABELS "chefphasta")
+  set_tests_properties(${tname} PROPERTIES LABELS ${testLabel})
 endmacro(cp_move_dir)
 
 set(CDIR ${CASES}/incompressible)
