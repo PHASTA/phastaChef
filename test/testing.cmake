@@ -49,12 +49,6 @@ cp_parallel_test(check_${casename} 4 ${CDIR}
   2 1e-6)
 cp_move_dir(${casename} ${CDIR} 4-procs_case)
 
-set(exe ${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_stream)
-set(maxTimeStep 8)
-set(casename loopStream_incompressible)
-cp_parallel_test(${casename} 4 ${CDIR} ${exe} ${maxTimeStep})
-cp_move_dir(${casename} ${CDIR} 4-procs_case)
-
 set(exe ${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_stream_ur)
 set(maxTimeStep 12)
 set(casename loopStreamUR_incompressible)
