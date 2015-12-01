@@ -69,5 +69,6 @@ setup_exe(chefPhasta_stream chef_phasta_stream.cc ${ic})
 setup_exe(chefPhastaLoop_stream_ur chef_phasta_loop_stream_ur.cc ${ic})
 setup_exe(chefPhastaLoop_stream_adapt chef_phasta_adaptLoop.cc ${ic})
 setup_exe(chefPhastaLoop_files_adapt chef_phasta_adaptLoop_files.cc ${ic})
+setup_exe(chefPhastaLoop_sam_stream_adapt chef_phasta_sam_adaptLoop.cc ${ic})
 
 add_subdirectory(test)
