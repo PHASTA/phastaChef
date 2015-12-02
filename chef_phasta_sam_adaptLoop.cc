@@ -101,6 +101,7 @@ int main(int argc, char** argv) {
     apf::Field* szFld = getField(m);
     assert(szFld);
     chef::adapt(m,szFld);
+    apf::destroyField(szFld);
     chef::preprocess(m,ctrl,grs);
     clearRStream(rs);
   } while( step < maxStep );
