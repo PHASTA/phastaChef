@@ -4,10 +4,12 @@
 #include <phasta.h>
 #include <phstream.h>
 #include <sam.h>
+#include <apfMDS.h>
 #include <iostream>
 #include <sstream>
 #include <stdlib.h>
 #include <assert.h>
+#include <unistd.h>
 
 namespace {
   void freeMesh(apf::Mesh* m) {
@@ -74,13 +76,14 @@ int main(int argc, char** argv) {
   }
   int maxStep = atoi(argv[1]);
   chefPhasta::initModelers();
-  apf::Mesh2* m = 0;
   grstream grs = makeGRStream();
   ph::Input ctrl;
-  ctrl.load("adapt.inp");
+  ctrl.load("samAdaptLoop.inp");
   /* setup file reading */
   ctrl.openfile_read = openfile_read;
-  chef::readAndAttachFields(ctrl,m);
+  /* load the model and mesh */
+  apf::Mesh2* m = apf::loadMdsMesh(
+      ctrl.modelFileName.c_str(),ctrl.meshFileName.c_str());
   chef::preprocess(m,ctrl,grs);
   rstream rs = makeRStream();
   /* setup stream reading */
