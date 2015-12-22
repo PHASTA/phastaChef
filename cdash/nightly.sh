@@ -11,9 +11,8 @@ module load simmetrix/simModSuite
 #cdash output root
 cd /lore/cwsmith/cdash
 
+#remove compilation directories created by nightly.cmake
+rm -rf build/
+
 #run nightly.cmake script
 ctest -VV -D Nightly -S /lore/cwsmith/cdash/phastaChefRef/cdash/nightly.cmake &> cmake_log.txt
-
-#remove compilation directories created by nightly.cmake
-cd /lore/cwsmith/cdash
-rm -rf build/
