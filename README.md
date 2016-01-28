@@ -16,6 +16,12 @@ Check the nightly status on the
 
 # Build and Test
 
+The following instructions assume that both the phasta and core repos were
+downloaded following the Setup instructions above.  If you already have the
+repos checked out the variables `-DCORE_SRC_DIR=/path/to/core` and
+`-DPHASTA_SRC_DIR=/path/to/phasta` can be passed to
+the cmake command to specify their locations.
+
     mpi=/path/to/mpi/install
     export PATH=$mpi/bin:$PATH
     opt="-Wextra -pedantic -g -O2 -isystem $mpi/include "
