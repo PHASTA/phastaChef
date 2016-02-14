@@ -22,6 +22,8 @@ repos checked out the variables `-DCORE_SRC_DIR=/path/to/core` and
 `-DPHASTA_SRC_DIR=/path/to/phasta` can be passed to
 the cmake command to specify their locations.
 
+Note, the following disables the SVLS and PETSC solvers and relies on LESLIB for the incompressible solver and the native compressible solver.
+
     opt="-Wextra -pedantic -g -O2 "
     
     cmake .. \
@@ -40,7 +42,9 @@ the cmake command to specify their locations.
     \
     -DPHASTA_INCOMPRESSIBLE=ON \
     -DPHASTA_COMPRESSIBLE=ON \
-    -DACUSOLVE_LIB=/path/to/libles.a \
+    -DPHASTA_USE_SVLS=OFF \
+    -DPHASTA_USE_PETSC=OFF \
+    -DLESLIB=/path/to/libles.a \
     -DPHASTA_TESTING=ON \
     -DCASES=/path/to/phastaChefTests/ \
     ..
