@@ -11,6 +11,17 @@ module load simmetrix/simModSuite
 #cdash output root
 cd /lore/cwsmith/cdash
 
+#download test data
+set +e
+rm -rf meshes phastaChefTests
+rm *.tar.gz
+set -e
+wget www.scorec.rpi.edu/pumi/pumi_test_meshes.tar.gz
+tar xf pumi_test_meshes.tar.gz
+wget www.scorec.rpi.edu/~cwsmith/phastaChefTests.tar.gz
+tar xf phastaChefTests.tar.gz
+set +e
+
 #remove compilation directories created by nightly.cmake
 rm -rf build/
 
