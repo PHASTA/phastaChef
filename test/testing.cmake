@@ -58,6 +58,9 @@ cp_move_dir(${casename} ${CDIR} 4)
 
 if( ${GMI_SIM_FOUND} )
   set(CDIR ${CASES}/incompressibleAdapt)
+  cp_serial_test(copy_inpConfig_adapt_incompressible
+    cp ${PHASTA_SOURCE_DIR}/phSolver/common/input.config ${CDIR})
+
   set(exe ${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_stream_adapt)
   set(maxTimeStep 8)
   set(casename loopStreamAdapt_incompressible)
