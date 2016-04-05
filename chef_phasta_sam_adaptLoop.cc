@@ -25,7 +25,7 @@ namespace {
     const double fldLimit = 1e-6;
     const double szFactor = 0.5;
     const char* fldName = "errors";
-    return sam::specifiedIso(m,fldName,fldIdx,fldLimit,szFactor);
+    return sam::errorThreshold(m,fldName,fldIdx,fldLimit,szFactor);
   }
 
   static FILE* openfile_read(ph::Input&, const char* path) {
