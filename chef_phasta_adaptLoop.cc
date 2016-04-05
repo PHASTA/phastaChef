@@ -22,12 +22,10 @@ void setupChef(ph::Input& ctrl, int step) {
   ctrl.timeStepNumber = step;
   ctrl.solutionMigration = 1;
   if(step>1) {
-    if(!PCU_Comm_Self()) {
-      fprintf(stderr, "CAKE error based adapt %d\n", step);
-      fprintf(stderr, "CAKE ctrl.attributeFileName %s step %d\n",
-          ctrl.attributeFileName.c_str(), step);
-    }
-    ctrl.adaptStrategy = 1; //error field adapt
+    ctrl.adaptStrategy = 2;
+    ctrl.adaptErrorThreshold = 1e-2;
+    ctrl.adaptErrorFieldName = "errors";
+    ctrl.adaptErrorFieldIndex = 0;
     ctrl.adaptFlag = 1;
   }
 }
