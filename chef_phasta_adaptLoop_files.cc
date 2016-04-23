@@ -49,7 +49,6 @@ namespace {
   void setupChef(ph::Input& ctrl, int step) {
     //don't split or tetrahedronize
     ctrl.splitFactor = 1;
-    ctrl.recursivePtn = 0;
     ctrl.tetrahedronize = 0;
     ctrl.timeStepNumber = step;
     ctrl.solutionMigration = 1;
