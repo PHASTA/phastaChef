@@ -95,6 +95,8 @@ int main(int argc, char** argv) {
     clearGRStream(grs);
     if(!PCU_Comm_Self())
       fprintf(stderr, "STATUS ran to step %d\n", step);
+    if( step >= maxStep )
+      break;
     setupChef(ctrl,step);
     chef::readAndAttachFields(ctrl,m);
     apf::Field* szFld = getField(m);
