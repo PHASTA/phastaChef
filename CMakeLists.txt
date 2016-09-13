@@ -21,7 +21,6 @@ set(MPIRUN "mpirun"
 set(MPIRUN_PROCFLAG "-np"
   CACHE string
   "the command line flag to give process count to MPIRUN")
-add_subdirectory(phstream)
 #set(CORE_SRC_DIR core CACHE FILEPATH "path to pumi core source code")
 #add_subdirectory(${CORE_SRC_DIR} ${CMAKE_BINARY_DIR}/core)
 set(PHASTA_SRC_DIR phasta CACHE FILEPATH "path to phasta source code")
