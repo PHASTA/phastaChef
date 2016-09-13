@@ -22,8 +22,8 @@ set(MPIRUN_PROCFLAG "-np"
   CACHE string
   "the command line flag to give process count to MPIRUN")
 add_subdirectory(phstream)
-set(CORE_SRC_DIR core CACHE FILEPATH "path to pumi core source code")
-add_subdirectory(${CORE_SRC_DIR} ${CMAKE_BINARY_DIR}/core)
+#set(CORE_SRC_DIR core CACHE FILEPATH "path to pumi core source code")
+#add_subdirectory(${CORE_SRC_DIR} ${CMAKE_BINARY_DIR}/core)
 set(PHASTA_SRC_DIR phasta CACHE FILEPATH "path to phasta source code")
 add_subdirectory(${PHASTA_SRC_DIR} ${CMAKE_BINARY_DIR}/phasta)
 
@@ -43,7 +43,7 @@ if( NOT phastaIC_FOUND AND NOT phastaC_FOUND )
  message(FATAL_ERROR "Neither the incompressible or compressible solver was found")
 endif()
 
-find_package(ph REQUIRED PATHS ${CMAKE_BINARY_DIR}) #chef pkg
+find_package(SCOREC 2.1.0 REQUIRED CONFIG PATHS ${SCOREC_PREFIX} NO_DEFAULT_PATH)
 find_library(ACUSOLVE_LIB libles)
 
 macro(setup_exe exename srcname IC)
@@ -54,16 +54,15 @@ macro(setup_exe exename srcname IC)
   set_target_properties(${exename} PROPERTIES LINKER_LANGUAGE Fortran)
 
   #chef
-  include_directories(${PH_INCLUDE_DIRS})
-  target_link_libraries(${exename} ${PH_LIBS})
+  target_link_libraries(${exename} PRIVATE SCOREC::core)
 
   #phasta
   if( ${IC} )
     include_directories(${PHASTAIC_INCLUDE_DIRS})
-    target_link_libraries(${exename} ${PHASTAIC_LIBS})
+    target_link_libraries(${exename} PRIVATE ${PHASTAIC_LIBS})
   else()
     include_directories(${PHASTAC_INCLUDE_DIRS})
-    target_link_libraries(${exename} ${PHASTAC_LIBS})
+    target_link_libraries(${exename} PRIVATE ${PHASTAC_LIBS})
   endif()
 endmacro(setup_exe)
 
