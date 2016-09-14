@@ -25,8 +25,9 @@ set(PHASTA_SRC_DIR phasta CACHE FILEPATH "path to phasta source code")
 add_subdirectory(${PHASTA_SRC_DIR} ${CMAKE_BINARY_DIR}/phasta)
 
 #test to see if simmetrix models are supported
-find_package(gmi_sim QUIET PATHS ${CMAKE_BINARY_DIR})
-if( ${GMI_SIM_FOUND} )
+find_package(SCOREC 2.1.0 REQUIRED CONFIG PATHS ${SCOREC_PREFIX} NO_DEFAULT_PATH)
+if(TARGET SCOREC::gmi_sim)
+  set(GMI_SIM_FOUND 1)
   message(STATUS "Found gmi_sim package - enabling Simmetrix modeler support")
   add_definitions(-DGMI_SIM_FOUND)
 endif()
@@ -40,7 +41,6 @@ if( NOT phastaIC_FOUND AND NOT phastaC_FOUND )
  message(FATAL_ERROR "Neither the incompressible or compressible solver was found")
 endif()
 
-find_package(SCOREC 2.1.0 REQUIRED CONFIG PATHS ${SCOREC_PREFIX} NO_DEFAULT_PATH)
 find_library(ACUSOLVE_LIB libles)
 
 macro(setup_exe exename srcname IC)
