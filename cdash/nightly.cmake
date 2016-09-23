@@ -61,11 +61,6 @@ macro(build_subproject subproject_name config_opts)
   set_property(GLOBAL PROPERTY Label ${subproject_name})
 
   setup_repo(${subproject_name} "git@github.com:PHASTA/phastaChef.git")
-  if( ${subproject_name} STREQUAL "phastaChef-sim" )
-    setup_repo(core-sim "git@github.com:SCOREC/core-sim.git")
-  elseif( ${subproject_name} STREQUAL "phastaChef" )
-    setup_repo(core "git@github.com:SCOREC/core.git")
-  endif()
   setup_repo(phasta "git@github.com:PHASTA/phasta.git")
 
   if(NOT EXISTS "${CTEST_BINARY_DIRECTORY}/${subproject_name}")
@@ -116,13 +111,7 @@ SET(CONFIGURE_OPTIONS
   "-DCMAKE_CXX_FLAGS=${flags}"
   "-DCMAKE_Fortran_FLAGS=${flags}"
   "-DCMAKE_EXE_LINKER_FLAGS=-ldl ${flags}"
-  "-DCORE_SRC_DIR=${CTEST_SOURCE_DIRECTORY}/core-sim" ##change this to core for a non-sim build
-  "-DSIM_PARASOLID=ON"
-  "-DSIM_MPI=mpich3.1.2"
-  "-DPCU_COMPRESS=ON"
-  "-DENABLE_ZOLTAN=ON"
-  "-DIS_TESTING=True"
-  "-DMESHES=/lore/cwsmith/cdash/meshes"
+  "-DSCOREC_PREFIX=/usr/local/pumi/core-sim/"
   "-DPHASTA_SRC_DIR=${CTEST_SOURCE_DIRECTORY}/phasta"
   "-DPHASTA_INCOMPRESSIBLE=ON"
   "-DPHASTA_COMPRESSIBLE=ON"
@@ -130,7 +119,7 @@ SET(CONFIGURE_OPTIONS
   "-DPHASTA_USE_SVLS=ON"
   "-DPHASTA_USE_LESLIB=ON"
   "-DPHASTA_TESTING=ON"
-  "-DLESLIB=/users/cwsmith/develop/libLes/libles_gcc_nolic.a"
+  "-DLESLIB=/path/to/libLes.a"
   "-DCASES=/lore/cwsmith/cdash/phastaChefTests"
 )
 message(STATUS "configure options ${CONFIGURE_OPTIONS}")
