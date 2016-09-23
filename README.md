@@ -13,7 +13,7 @@ Check the nightly status on the
 # Build and Test
 
 Build SCOREC/core; see [SCOREC/core build
-instructions](https://github.com/SCOREC/core/wiki/General-Build-instructions).
+instructions](https://github.com/SCOREC/core/wiki/General-Build-instructions).  Note, you must specify `CMAKE_INSTALL_PREFIX` when running cmake and run `make install` to install the necessary CMake package files.
 
 The following example compilation instructions assume that the phasta repo was
 downloaded following the Setup instructions above.  If you already have the
