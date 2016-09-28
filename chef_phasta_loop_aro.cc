@@ -35,21 +35,6 @@ namespace {
     return sz; 
   }
 
-  apf::Field* getField(apf::Mesh* m) {
-    /* if the value of the fldIdx'th index from the fldName
-     * field is greater than fldLimit then multiply the current
-     * isotropic mesh size at the vertex by szFactor */
-    const unsigned fldIdx = 1;
-    const double fldLimit = 1.0;
-    const double szFactor = 0.5;
-    const char* fldName = "motion_coords";
-    return sam::errorThreshold(m,fldName,fldIdx,fldLimit,szFactor);
-  }
-  
-  static FILE* openfile_read(ph::Input&, const char* path) {
-    return fopen(path, "r");
-  }
-
   static FILE* openstream_read(ph::Input& in, const char* path) {
     std::string fname(path);
     std::string restartStr("restart");
@@ -100,39 +85,6 @@ namespace {
     return true;  
   }
 
-  void printMeshCoord (apf::Mesh2* m) { 
-    apf::MeshEntity* vtx;
-    apf::Vector3 points;
-    apf::MeshIterator* itr = m->begin(0);
-    int countNode = 0; 
-    while( (vtx = m->iterate(itr)) ) {
-      m->getPoint(vtx, 0, points);
-      fprintf(stderr, "Coord of node %d: (%f, %f, %f)\n", 
-              countNode, points[0], points[1], points[2]);
-      countNode++;
-    }
-    m->end(itr);
-  }
-
-  void printMotionCoordField (apf::Mesh2* m) { 
-    apf::Field* f = m->findField("motion_coords");
-    assert(f);
-    double* vals = new double[apf::countComponents(f)];
-    assert(apf::countComponents(f) == 3);
-    apf::MeshEntity* vtx;
-    apf::Vector3 points; 
-    apf::MeshIterator* itr = m->begin(0);
-    int countNode = 0; 
-    while( (vtx = m->iterate(itr)) ) {
-      apf::getComponents(f, vtx, 0, vals);
-      fprintf(stderr, "Motion_Coords of %d: (%f, %f, %f)\n", 
-              countNode, vals[0], vals[1], vals[2]);
-      countNode++;
-    }
-    m->end(itr); 
-    delete [] vals;
-  }
-    
   bool isMeshqGood(apf::Mesh* m, double crtn) { 
     apf::Field* meshq = m->findField("meshQ");
     if (!meshq) {
@@ -161,41 +113,6 @@ namespace {
 #endif
   }
 
-  void attachSizeField (apf::Field* sf, apf::Mesh2* m) {
-    int out_size = 1;
-    apf::Field* f = apf::createPackedField(m, "Size Field", out_size);
-    double* data = new double[out_size]; 
-    apf::MeshEntity* e;
-    apf::MeshIterator* it = m->begin(0);
-    while ((e = m->iterate(it))) {
-      apf::getComponents(sf,e, 0, data);
-      apf::setComponents(f, e, 0, data);
-    }
-    m->end(it);
-  }
-/*
-  bool readAndCheckMeshqField (ph::Input& in, apf::Mesh2* m) { 
-    double* data;
-    int nodes, vars, step;
-    char hname[1024];
-    const char* anyfield = "";
-    setupInputSubdir(in.restartFileName);
-    std::string filename = buildRestartFileName(in.restartFileName, in.timeStepNumber);
-    FILE* f = in.openfile_read(in, filename.c_str());
-    if (!f) {
-      fprintf(stderr,"failed to open \"%s\"!\n", filename.c_str());
-      abort();
-    }
-    int swap = ph_should_swap(f);
-//    int ret = ph_read_field(f, anyfield, swap,
-//        &data, &nodes, &vars, &step, "MeshQ");
-    if(ret==0 || ret==1)
-      return true;
-    assert(step == in.timeStepNumber);
-
-    fclose(f);
-  }
-*/
   void writePHTfiles (int step, int nstep, int nproc) {
     std::ostringstream oss;
     oss << "solution_" << step << ".pht";
