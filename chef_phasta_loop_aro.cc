@@ -176,6 +176,24 @@ namespace {
     fclose (sFile);
   } 
 
+//DEBUGGING
+  void printMeshCoord (apf::Mesh2* m) { 
+    apf::MeshEntity* vtx;
+    apf::Vector3 points;
+    apf::MeshIterator* itr = m->begin(0);
+    int countNode = 0; 
+    while( (vtx = m->iterate(itr)) ) {
+      m->getPoint(vtx, 0, points);
+      if (PCU_Comm_Self() == 0 && countNode < 10) {
+        fprintf(stderr, "Rank: %d: Coord of node %d: (%f, %f, %f)\n", 
+                PCU_Comm_Self(), countNode, points[0], points[1], points[2]);
+        countNode++;
+      }
+    }
+    m->end(itr);
+  }
+//END DEBUGGING
+
 }
 
 int main(int argc, char** argv) {
@@ -212,7 +230,7 @@ int main(int argc, char** argv) {
     m->verify();
     /* take the initial mesh as size field */
     apf::Field* isoSF = samSz::isoSize(m);
-    apf::Field* szFld = multipleSF(m, isoSF, 1.1);
+    apf::Field* szFld = multipleSF(m, isoSF, 0.5);
     step = phasta(inp,grs,rs);
     ctrl.rs = rs; 
     clearGRStream(grs);
@@ -222,6 +240,7 @@ int main(int argc, char** argv) {
     chef::readAndAttachFields(ctrl,m);
     m->verify();
     overwriteMeshCoord(m);
+    printMeshCoord(m); 
     m->verify();
     bool doAdaptation = !isMeshqGood(m, ctrl.meshqCrtn);
     m->verify();
@@ -247,7 +266,11 @@ int main(int argc, char** argv) {
     } 
     apf::destroyField(szFld);
     chef::balanceAndReorder(ctrl,m);
+    fprintf(stderr, "After balanceAndReorder\n");
+    printMeshCoord(m); 
     chef::preprocess(m,ctrl,grs);
+    fprintf(stderr, "After preprocess\n");
+    printMeshCoord(m); 
     clearRStream(rs);
     loop++; 
   } while( loop < maxStep );
