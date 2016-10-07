@@ -223,27 +223,24 @@ int main(int argc, char** argv) {
   ctrl.rs = rs;
   phSolver::Input inp("solver.inp", "input.config");
   int step = 0; int phtStep = 0; 
-  int loop = 0;
   int seq  = 0;
   writeSequence(m,seq,"test_"); seq++; 
   do {
     m->verify();
     /* take the initial mesh as size field */
     apf::Field* isoSF = samSz::isoSize(m);
-    apf::Field* szFld = multipleSF(m, isoSF, 0.5);
+    apf::Field* szFld = multipleSF(m, isoSF, 1.2);
     step = phasta(inp,grs,rs);
     ctrl.rs = rs; 
     clearGRStream(grs);
     if(!PCU_Comm_Self())
       fprintf(stderr, "STATUS ran to step %d\n", step);
+    if( step >= maxStep )
+      break;
     setupChef(ctrl,step);
     chef::readAndAttachFields(ctrl,m);
-    m->verify();
     overwriteMeshCoord(m);
-    printMeshCoord(m); 
-    m->verify();
     bool doAdaptation = !isMeshqGood(m, ctrl.meshqCrtn);
-    m->verify();
 // make the adaptaion run anyway
 //    doAdaptation = false; 
     doAdaptation = true; 
@@ -266,14 +263,9 @@ int main(int argc, char** argv) {
     } 
     apf::destroyField(szFld);
     chef::balanceAndReorder(ctrl,m);
-    fprintf(stderr, "After balanceAndReorder\n");
-    printMeshCoord(m); 
     chef::preprocess(m,ctrl,grs);
-    fprintf(stderr, "After preprocess\n");
-    printMeshCoord(m); 
     clearRStream(rs);
-    loop++; 
-  } while( loop < maxStep );
+  } while( step < maxStep );
   destroyGRStream(grs);
   destroyRStream(rs);
   freeMesh(m);
