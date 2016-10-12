@@ -92,3 +92,20 @@ if( ${phastaIC_FOUND} )
       )
   endif()
 endif()
+
+if( ${phastaC_FOUND} )
+  set(casename ${testLabel}_compressibleShockTube)
+  add_test(NAME ${casename}
+    COMMAND ${CMAKE_COMMAND}
+    -DNAME=${casename}
+    -DWORKDIR=${CASES}/compressibleShockTube/SAM_small
+    -DINPFILE=${PHASTA_SOURCE_DIR}/phSolver/common/input.config
+    -DMPIRUN=${MPIRUN}
+    -DMPIRUN_PROCFLAG=${MPIRUN_PROCFLAG}
+    -DEXE=${PHASTACHEF_BINARY_DIR}/chefPhastaCLoop_sam_stream_adapt
+    -DNUMPROCS=4
+    -DMAXSTEPS=100
+    -DSRCDIRS=4-procs_case$<SEMICOLON>adapt-4-mdsMesh_bz2$<SEMICOLON>50
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/runphasta.cmake
+    )
+endif()
