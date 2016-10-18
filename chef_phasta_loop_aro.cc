@@ -56,7 +56,7 @@ namespace {
     ctrl.tetrahedronize = 0;
     ctrl.timeStepNumber = step;
     ctrl.solutionMigration = 1;
-    if(step>1) {
+    if(step>0) {
       if(!PCU_Comm_Self()) {
         fprintf(stderr, "STATUS error based adapt %d\n", step);
         fprintf(stderr, "STATUS ctrl.attributeFileName %s step %d\n",
@@ -229,7 +229,8 @@ int main(int argc, char** argv) {
     m->verify();
     /* take the initial mesh as size field */
     apf::Field* isoSF = samSz::isoSize(m);
-    apf::Field* szFld = multipleSF(m, isoSF, 1.2);
+    apf::Field* szFld = multipleSF(m, isoSF, 2.0);
+//    apf::Field* szFld = multipleSF(m, isoSF, 0.5);
     step = phasta(inp,grs,rs);
     ctrl.rs = rs; 
     clearGRStream(grs);
@@ -258,12 +259,13 @@ int main(int argc, char** argv) {
     assert(szFld);
     if ( doAdaptation ) {
       chef::adapt(m,szFld,ctrl);
-      writeSequence(m,seq,"test_"); seq++;
       m->verify();
     } 
     apf::destroyField(szFld);
-    chef::balanceAndReorder(ctrl,m);
+    chef::balance(ctrl,m);
     chef::preprocess(m,ctrl,grs);
+    if ( doAdaptation )
+      writeSequence(m,seq,"test_"); seq++;
     clearRStream(rs);
   } while( step < maxStep );
   destroyGRStream(grs);
