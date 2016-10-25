@@ -2,6 +2,7 @@
 #include "samSz.h"
 #include <PCU.h>
 #include <chef.h>
+#include <spr.h>
 #include <phasta.h>
 #include "phIO.h"
 #include <phstream.h>
@@ -21,6 +22,20 @@ namespace {
   void freeMesh(apf::Mesh* m) {
     m->destroyNative();
     apf::destroyMesh(m);
+  }
+
+  static apf::Field* getSprSF(apf::Mesh2* m) {
+    const int order = 2;
+    double adaptRatio = 0.1;
+    apf::Field* temperature = chef::extractField(m,"solution","temperature",5,apf::SCALAR);
+    assert(temperature);
+    int vt = apf::getValueType(temperature);
+    printf("value type of temperature: %d\n",vt);
+    apf::Field* eps = spr::getGradIPField(temperature, "eps", order);
+    apf::destroyField(temperature);
+    apf::Field* szFld = spr::getSPRSizeField(eps,adaptRatio);
+    apf::destroyField(eps);
+    return szFld;
   }
 
   apf::Field* multipleSF(apf::Mesh* m, apf::Field* sf, double factor) {
@@ -176,24 +191,6 @@ namespace {
     fclose (sFile);
   } 
 
-//DEBUGGING
-  void printMeshCoord (apf::Mesh2* m) { 
-    apf::MeshEntity* vtx;
-    apf::Vector3 points;
-    apf::MeshIterator* itr = m->begin(0);
-    int countNode = 0; 
-    while( (vtx = m->iterate(itr)) ) {
-      m->getPoint(vtx, 0, points);
-      if (PCU_Comm_Self() == 0 && countNode < 10) {
-        fprintf(stderr, "Rank: %d: Coord of node %d: (%f, %f, %f)\n", 
-                PCU_Comm_Self(), countNode, points[0], points[1], points[2]);
-        countNode++;
-      }
-    }
-    m->end(itr);
-  }
-//END DEBUGGING
-
 }
 
 int main(int argc, char** argv) {
@@ -222,15 +219,15 @@ int main(int argc, char** argv) {
   ctrl.openfile_read = openstream_read;
   ctrl.rs = rs;
   phSolver::Input inp("solver.inp", "input.config");
-  int step = 0; int phtStep = 0; 
+  int step = 0; int phtStep = 0;
   int seq  = 0;
-  writeSequence(m,seq,"test_"); seq++; 
+  writeSequence(m,seq,"test_"); seq++;
   do {
     m->verify();
     /* take the initial mesh as size field */
     apf::Field* isoSF = samSz::isoSize(m);
-    apf::Field* szFld = multipleSF(m, isoSF, 2.0);
-//    apf::Field* szFld = multipleSF(m, isoSF, 0.5);
+//    apf::Field* szFld = multipleSF(m, isoSF, 2.0);
+    apf::Field* szFld = multipleSF(m, isoSF, 0.5);
     step = phasta(inp,grs,rs);
     ctrl.rs = rs; 
     clearGRStream(grs);
@@ -252,8 +249,9 @@ int main(int argc, char** argv) {
       writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step; 
       writeSequence(m,seq,"test_"); seq++; 
     }
-    /* Or obtain size field based on a certain field*/
-//    apf::Field* szFld = getField(m);
+    /* Or obtain size field based on a certain field
+       use temperature field for spr error estimation */
+//    apf::Field* szFld = getSprSF(m);
     apf::synchronize(szFld);
     apf::synchronize(m->getCoordinateField());
     assert(szFld);
