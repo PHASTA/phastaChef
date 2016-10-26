@@ -29,9 +29,8 @@ namespace {
     double adaptRatio = 0.1;
     apf::Field* temperature = chef::extractField(m,"solution","temperature",5,apf::SCALAR);
     assert(temperature);
-    int vt = apf::getValueType(temperature);
-    printf("value type of temperature: %d\n",vt);
     apf::Field* eps = spr::getGradIPField(temperature, "eps", order);
+//    apf::writeVtkFiles("test_eps",m);
     apf::destroyField(temperature);
     apf::Field* szFld = spr::getSPRSizeField(eps,adaptRatio);
     apf::destroyField(eps);
@@ -226,8 +225,8 @@ int main(int argc, char** argv) {
     m->verify();
     /* take the initial mesh as size field */
     apf::Field* isoSF = samSz::isoSize(m);
-//    apf::Field* szFld = multipleSF(m, isoSF, 2.0);
-    apf::Field* szFld = multipleSF(m, isoSF, 0.5);
+    apf::Field* szFld = multipleSF(m, isoSF, 2.0);
+//    apf::Field* szFld = multipleSF(m, isoSF, 0.5);
     step = phasta(inp,grs,rs);
     ctrl.rs = rs; 
     clearGRStream(grs);
@@ -243,24 +242,22 @@ int main(int argc, char** argv) {
 //    doAdaptation = false; 
     doAdaptation = true; 
 // delele above when finish debug
-    apf::destroyField(m->findField("material_type"));
     m->verify();
     if ( doAdaptation ) {
+      apf::destroyField(m->findField("material_type"));
       writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step; 
       writeSequence(m,seq,"test_"); seq++; 
-    }
-    /* Or obtain size field based on a certain field
-       use temperature field for spr error estimation */
-//    apf::Field* szFld = getSprSF(m);
-    apf::synchronize(szFld);
-    apf::synchronize(m->getCoordinateField());
-    assert(szFld);
-    if ( doAdaptation ) {
+      /* Or obtain size field based on a certain field
+         use temperature field for spr error estimation */
+//      apf::Field* szFld = getSprSF(m);
+      apf::synchronize(szFld);
+      apf::synchronize(m->getCoordinateField());
+      assert(szFld);
+      /* do mesh adaptation */ 
       chef::adapt(m,szFld,ctrl);
-      m->verify();
-    } 
-    apf::destroyField(szFld);
-    chef::balance(ctrl,m);
+      m->verify(); 
+      chef::balance(ctrl,m);
+    }
     chef::preprocess(m,ctrl,grs);
     if ( doAdaptation )
       writeSequence(m,seq,"test_"); seq++;
