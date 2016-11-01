@@ -12,6 +12,11 @@
 #include <unistd.h>
 
 namespace {
+  void printElapsedTime(const char* key, double s) {
+    if( !PCU_Comm_Self() )
+      fprintf(stderr, "%s elapsed time %.3f\n", key, PCU_Time()-s);
+  }
+
   void freeMesh(apf::Mesh* m) {
     m->destroyNative();
     apf::destroyMesh(m);
@@ -74,6 +79,9 @@ int main(int argc, char** argv) {
     exit(EXIT_FAILURE);
   }
   int maxStep = atoi(argv[1]);
+
+  double start = PCU_Time();
+
   chefPhasta::initModelers();
   grstream grs = makeGRStream();
   ph::Input ctrl;
@@ -91,6 +99,7 @@ int main(int argc, char** argv) {
   phSolver::Input inp("solver.inp", "input.config");
   int step = 0;
   do {
+    double stepStart = PCU_Time();
     step = phasta(inp,grs,rs);
     clearGRStream(grs);
     if(!PCU_Comm_Self())
@@ -106,6 +115,8 @@ int main(int argc, char** argv) {
     chef::balance(ctrl,m);
     chef::preprocess(m,ctrl,grs);
     clearRStream(rs);
+    printElapsedTime("endOfStep", stepStart);
+    printElapsedTime("total", start);
   } while( step < maxStep );
   destroyGRStream(grs);
   destroyRStream(rs);
