@@ -12,6 +12,11 @@
 #include <unistd.h>
 
 namespace {
+  void printElapsedTime(const char* key, double s) {
+    if( !PCU_Comm_Self() )
+      fprintf(stderr, "%s elapsed time %.3f\n", key, PCU_Time()-s);
+  }
+
   void freeMesh(apf::Mesh* m) {
     m->destroyNative();
     apf::destroyMesh(m);
@@ -48,14 +53,6 @@ namespace {
     return restartname.str();
   }
 
-  std::string prefixCwd(std::string name) {
-    char cwd[4096] = "\0";
-    getcwd(cwd,4096);
-    std::stringstream s;
-    s << cwd << "/" << name;
-    return s.str();
-  }
-
   apf::Field* getField(apf::Mesh* m) {
     /* if the value of the fldIdx'th index from the fldName
      * field is greater than fldLimit then multiply the current
@@ -65,25 +62,6 @@ namespace {
     const double szFactor = 0.5;
     const char* fldName = "errors";
     return sam::errorThreshold(m,fldName,fldIdx,fldLimit,szFactor);
-  }
-
-  static FILE* openfile_read(ph::Input&, const char* path) {
-    return fopen(path, "r");
-  }
-
-  static FILE* openstream_read(ph::Input& in, const char* path) {
-    std::string fname(path);
-    std::string restartStr("restart");
-    FILE* f = NULL;
-    if( fname.find(restartStr) != std::string::npos )
-      f = openRStreamRead(in.rs);
-    else {
-      fprintf(stderr,
-        "ERROR %s type of stream %s is unknown... exiting\n",
-        __func__, fname.c_str());
-      exit(1);
-    }
-    return f;
   }
 
   void setupChef(ph::Input& ctrl, int step) {
@@ -119,6 +97,8 @@ int main(int argc, char** argv) {
   const char* solverinp = argv[3];
   const char* inputcfg = argv[4];
   const char* adaptinp = argv[5];
+
+  double start = PCU_Time();
   gmi_model* g = 0;
   apf::Mesh2* m = 0;
 
@@ -132,6 +112,7 @@ int main(int argc, char** argv) {
   phSolver::Input inp(solverinp,inputcfg);
   int step = 0;
   do {
+    double stepStart = PCU_Time();
     ctrl.meshFileName = makeMeshName(step);
     step = phasta(inp);
     assert(step >= 0);
@@ -149,6 +130,8 @@ int main(int argc, char** argv) {
     chef::preprocess(m,ctrl);
     freeMesh(m); m = NULL;
     mychdir(step);
+    printElapsedTime("endOfStep", stepStart);
+    printElapsedTime("total", start);
   } while( step < maxStep );
   chefPhasta::finalizeModelers();
   PCU_Comm_Free();
