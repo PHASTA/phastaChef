@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
     assert(szFld);
     chef::adapt(m,szFld);
     apf::destroyField(szFld);
-    chef::balanceAndReorder(ctrl,m);
+    chef::balance(ctrl,m);
     chef::preprocess(m,ctrl);
     freeMesh(m); m = NULL;
     mychdir(step);
