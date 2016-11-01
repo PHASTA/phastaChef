@@ -120,6 +120,8 @@ int main(int argc, char** argv) {
       fprintf(stderr, "STATUS ran to step %d\n", step);
     if( step >= maxStep )
       break;
+    apf::Mesh2* m = apf::loadMdsMesh(ctrl.modelFileName.c_str(),
+                                     ctrl.meshFileName.c_str());
     setupChef(ctrl,step);
     chef::readAndAttachFields(ctrl,m);
     apf::Field* szFld = getField(m);
