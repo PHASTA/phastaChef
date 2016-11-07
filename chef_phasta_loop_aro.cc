@@ -250,8 +250,10 @@ namespace {
     if(in.simmetrixMesh == 1) {
       apf::MeshSIM* sim_m = dynamic_cast<apf::MeshSIM*>(m);
       pParMesh sim_pm = sim_m->getMesh();
+
       /* create the Simmetrix adapter */
       pMSAdapt adapter = MSA_new(sim_pm, 1);
+
       /* copy the size field from APF to the Simmetrix adapter */
       apf::MeshEntity* v;
       apf::MeshIterator* it = m->begin(0);
@@ -261,16 +263,15 @@ namespace {
       }
       m->end(it);
       apf::destroyField(szFld);
+
       /* tell the adapter to transfer all fields attached with mesh */
       int num_flds = m->countFields();
-      pField sim_flds[num_flds];
+//      pField sim_flds[num_flds];
+      pField* sim_flds = new pField[num_flds];
       pPList sim_fld_lst = PList_new();
-      int i = 0; 
-      while(m->countFields()) {
-        sim_flds[i] = apf::getSIMField(m->getField(0));
-        apf::destroyField(m->getField(0));
+      for (int i = 0; i < num_flds; i++) {
+        sim_flds[i] = apf::getSIMField(m->getField(i));
         PList_append(sim_fld_lst, sim_flds[i]);
-        i++;
       }
       assert(num_flds == PList_size(sim_fld_lst));
       MSA_setMapFields(adapter, sim_fld_lst);
@@ -281,9 +282,11 @@ namespace {
       MSA_adapt(adapter, progress);
       Progress_delete(progress);
       MSA_delete(adapter);
+
+      /* transfer data back to apf */
+      m = apf::createMesh(sim_pm); //may not need
     }
     else {
-      overwriteMeshCoord(m);
       if (m->findField("material_type"))
         apf::destroyField(m->findField("material_type"));
       if (m->findField("meshQ"))
@@ -293,8 +296,6 @@ namespace {
       apf::synchronize(m->getCoordinateField());
       /* do SCOREC mesh adaptation */
       chef::adapt(m,szFld,in);
-      m->verify();
-      chef::balance(in,m);
     }
   }
 
@@ -363,16 +364,8 @@ int main(int argc, char** argv) {
       chef::readAndAttachFields(ctrl,m);
       overwriteMeshCoord(m);
       m->verify();
-      apf::destroyField(m->findField("material_type"));
-      apf::destroyField(m->findField("meshQ"));
-      /* Or obtain size field based on a certain field
-         use temperature field for spr error estimation */
-//      apf::Field* szFld = getSprSF(m);
-      apf::synchronize(szFld);
-      apf::synchronize(m->getCoordinateField());
-      assert(szFld);
       /* do mesh adaptation */ 
-      chef::adapt(m,szFld,ctrl);
+      runMeshAdapter(ctrl,m,szFld);
       m->verify(); 
       chef::balance(ctrl,m);
     }
