@@ -271,7 +271,6 @@ namespace {
 
       /* tell the adapter to transfer all fields attached with mesh */
       int num_flds = m->countFields();
-/*
       pField* sim_flds = new pField[num_flds];
       pPList sim_fld_lst = PList_new();
       for (int i = 0; i < num_flds; i++) {
@@ -279,7 +278,7 @@ namespace {
         PList_append(sim_fld_lst, sim_flds[i]);
       }
       assert(num_flds == PList_size(sim_fld_lst));
-*/
+/*
 //debugging 
       apf::Field* sol_fld = m->findField("isoSize");
       pPolyField pf = PolyField_new(1, 0);
@@ -296,6 +295,7 @@ namespace {
       pPList sim_fld_lst = PList_new();
       PList_append(sim_fld_lst, sim_flds);
 //end debugging
+*/
       MSA_setMapFields(adapter, sim_fld_lst);
       PList_delete(sim_fld_lst);
 
