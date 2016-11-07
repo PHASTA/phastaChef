@@ -18,6 +18,7 @@
 #include <gmi_sim.h>
 #include <SimPartitionedMesh.h>
 #include <MeshSimAdapt.h>
+#include <SimField.h>
 #include <cstring>
 
 #ifndef WRITE_VTK
@@ -241,7 +242,11 @@ namespace {
   } 
 
   void runMeshAdapter(ph::Input& in, apf::Mesh2*& m, apf::Field*& szFld) {
-    chef::readAndAttachFields(in,m);
+    if (m->findField("material_type"))
+      apf::destroyField(m->findField("material_type"));
+    if (m->findField("meshQ"))
+      apf::destroyField(m->findField("meshQ"));
+
     /* Or obtain size field based on a certain field
        use temperature field for spr error estimation */
 //    if (!szFld)
@@ -266,7 +271,7 @@ namespace {
 
       /* tell the adapter to transfer all fields attached with mesh */
       int num_flds = m->countFields();
-//      pField sim_flds[num_flds];
+/*
       pField* sim_flds = new pField[num_flds];
       pPList sim_fld_lst = PList_new();
       for (int i = 0; i < num_flds; i++) {
@@ -274,6 +279,23 @@ namespace {
         PList_append(sim_fld_lst, sim_flds[i]);
       }
       assert(num_flds == PList_size(sim_fld_lst));
+*/
+//debugging 
+      apf::Field* sol_fld = m->findField("isoSize");
+      pPolyField pf = PolyField_new(1, 0);
+      pField sim_flds = Field_new(sim_pm,1,
+                   "isoSize",
+                   "apf_field_data",
+                   ShpLagrangeDiscont,
+                   1, // surfcont (always 1 in current simModSuite)
+                   1, // num_time_derivatives to keep available
+                   1, // num_section
+                   pf); 
+      Field_apply(sim_flds, m->getDimension(), NULL);
+
+      pPList sim_fld_lst = PList_new();
+      PList_append(sim_fld_lst, sim_flds);
+//end debugging
       MSA_setMapFields(adapter, sim_fld_lst);
       PList_delete(sim_fld_lst);
 
@@ -287,10 +309,6 @@ namespace {
       m = apf::createMesh(sim_pm); //may not need
     }
     else {
-      if (m->findField("material_type"))
-        apf::destroyField(m->findField("material_type"));
-      if (m->findField("meshQ"))
-        apf::destroyField(m->findField("meshQ"));
       assert(szFld);
       apf::synchronize(szFld);
       apf::synchronize(m->getCoordinateField());
