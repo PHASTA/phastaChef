@@ -14,6 +14,12 @@
 #include <assert.h>
 #include <unistd.h>
 
+#include <apfSIM.h>
+#include <gmi_sim.h>
+#include <SimPartitionedMesh.h>
+#include <MeshSimAdapt.h>
+#include <cstring>
+
 #ifndef WRITE_VTK
 #define WRITE_VTK
 #endif
@@ -24,13 +30,57 @@ namespace {
     apf::destroyMesh(m);
   }
 
+  static bool mesh_has_ext(const char* filename, const char* ext)
+  {
+    const char* c = strrchr(filename, '.');
+    if (c) {
+      ++c; /* exclude the dot itself */
+      return !strcmp(c, ext);
+    } else {
+      return false;
+    }
+  }
+
+  static apf::Mesh2* loadMesh(ph::Input& in) {
+    const char* modelfile = in.modelFileName.c_str();
+    const char* meshfile = in.meshFileName.c_str();
+    apf::Mesh2* mesh;
+    //assume the model file has extension .smd
+    gmi_model* g = gmi_sim_load(0, modelfile);
+    /* if it is a simmetrix mesh */
+    if (mesh_has_ext(meshfile, "sms")) {
+      if (in.simmetrixMesh == 0) {
+        if (PCU_Comm_Self()==0)
+          fprintf(stderr, "oops, turn on flag: simmetrixMesh\n");
+        in.simmetrixMesh = 1;
+      }
+      pProgress progress = Progress_new();
+      Progress_setDefaultCallback(progress);
+
+      pGModel simModel = gmi_export_sim(g);
+      pParMesh sim_mesh = PM_load(meshfile, sthreadNone, simModel, progress);
+      mesh = apf::createMesh(sim_mesh);
+
+      Progress_delete(progress);
+    } else
+    /* if it is a SCOREC mesh */
+    {
+      mesh = apf::loadMdsMesh(g, meshfile);
+    }
+    return mesh;
+  }
+
   static apf::Field* getSprSF(apf::Mesh2* m) {
     const int order = 2;
     double adaptRatio = 0.1;
+//    apf::Field* szFld;
     apf::Field* temperature = chef::extractField(m,"solution","temperature",5,apf::SCALAR);
     assert(temperature);
     apf::Field* eps = spr::getGradIPField(temperature, "eps", order);
-//    apf::writeVtkFiles("test_eps",m);
+//    apf::Field* test = apf::createFieldOn(m, "TEST", apf::SCALAR);
+//    apf::zeroField(test);
+//    apf::Field* eps_star = spr::recoverField(eps);
+    apf::writeVtkFiles("test_eps",m);
     apf::destroyField(temperature);
     apf::Field* szFld = spr::getSPRSizeField(eps,adaptRatio);
     apf::destroyField(eps);
@@ -190,12 +240,76 @@ namespace {
     fclose (sFile);
   } 
 
-}
+  void runMeshAdapter(ph::Input& in, apf::Mesh2*& m, apf::Field*& szFld) {
+    chef::readAndAttachFields(in,m);
+    /* Or obtain size field based on a certain field
+       use temperature field for spr error estimation */
+//    if (!szFld)
+//      apf::Field* szFld = getSprSF(m);
+ 
+    if(in.simmetrixMesh == 1) {
+      apf::MeshSIM* sim_m = dynamic_cast<apf::MeshSIM*>(m);
+      pParMesh sim_pm = sim_m->getMesh();
+      /* create the Simmetrix adapter */
+      pMSAdapt adapter = MSA_new(sim_pm, 1);
+      /* copy the size field from APF to the Simmetrix adapter */
+      apf::MeshEntity* v;
+      apf::MeshIterator* it = m->begin(0);
+      while ((v = m->iterate(it))) {
+        double size = apf::getScalar(szFld, v, 0);
+        MSA_setVertexSize(adapter, (pVertex) v, size);
+      }
+      m->end(it);
+      apf::destroyField(szFld);
+      /* tell the adapter to transfer all fields attached with mesh */
+      int num_flds = m->countFields();
+      pField sim_flds[num_flds];
+      pPList sim_fld_lst = PList_new();
+      int i = 0; 
+      while(m->countFields()) {
+        sim_flds[i] = apf::getSIMField(m->getField(0));
+        apf::destroyField(m->getField(0));
+        PList_append(sim_fld_lst, sim_flds[i]);
+        i++;
+      }
+      assert(num_flds == PList_size(sim_fld_lst));
+      MSA_setMapFields(adapter, sim_fld_lst);
+      PList_delete(sim_fld_lst);
+
+      /* run the adapter */
+      pProgress progress = Progress_new();
+      MSA_adapt(adapter, progress);
+      Progress_delete(progress);
+      MSA_delete(adapter);
+    }
+    else {
+      overwriteMeshCoord(m);
+      if (m->findField("material_type"))
+        apf::destroyField(m->findField("material_type"));
+      if (m->findField("meshQ"))
+        apf::destroyField(m->findField("meshQ"));
+      assert(szFld);
+      apf::synchronize(szFld);
+      apf::synchronize(m->getCoordinateField());
+      /* do SCOREC mesh adaptation */
+      chef::adapt(m,szFld,in);
+      m->verify();
+      chef::balance(in,m);
+    }
+  }
+
+} //end namespace
 
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   PCU_Comm_Init();
   PCU_Protect();
+//debugging for simmetrix mesh
+  Sim_readLicenseFile(0);
+  SimPartitionedMesh_start(0, 0);
+  gmi_sim_start();
+  gmi_register_sim();
+//end debugging
   if( argc != 2 ) {
     if(!PCU_Comm_Self())
       fprintf(stderr, "Usage: %s <maxTimeStep>\n",argv[0]);
@@ -209,8 +323,10 @@ int main(int argc, char** argv) {
   /* setup file reading */
 //  ctrl.openfile_read = openfile_read;
   /* load the model and mesh */
-  apf::Mesh2* m = apf::loadMdsMesh(
-      ctrl.modelFileName.c_str(),ctrl.meshFileName.c_str());
+  apf::Mesh2* m = loadMesh(ctrl);
+
+//  apf::Mesh2* m = apf::loadMdsMesh(
+//      ctrl.modelFileName.c_str(),ctrl.meshFileName.c_str());
   chef::preprocess(m,ctrl);
   chef::preprocess(m,ctrl,grs);
   rstream rs = makeRStream();
@@ -235,18 +351,20 @@ int main(int argc, char** argv) {
     if( step >= maxStep )
       break;
     setupChef(ctrl,step);
-    chef::readAndAttachFields(ctrl,m);
-    overwriteMeshCoord(m);
-    bool doAdaptation = !isMeshqGood(m, ctrl.meshqCrtn);
+//    bool doAdaptation = !isMeshqGood(m, ctrl.meshqCrtn);
 // make the adaptaion run anyway
-//    doAdaptation = false; 
-    doAdaptation = true; 
+//    doAdaptation = false;
+    bool doAdaptation = true;
 // delele above when finish debug
     m->verify();
+    writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step; 
+    writeSequence(m,seq,"test_"); seq++; 
     if ( doAdaptation ) {
+      chef::readAndAttachFields(ctrl,m);
+      overwriteMeshCoord(m);
+      m->verify();
       apf::destroyField(m->findField("material_type"));
-      writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step; 
-      writeSequence(m,seq,"test_"); seq++; 
+      apf::destroyField(m->findField("meshQ"));
       /* Or obtain size field based on a certain field
          use temperature field for spr error estimation */
 //      apf::Field* szFld = getSprSF(m);
@@ -267,6 +385,11 @@ int main(int argc, char** argv) {
   destroyRStream(rs);
   freeMesh(m);
   chefPhasta::finalizeModelers();
+//debugging for simmetrix mesh
+  gmi_sim_stop();
+  SimPartitionedMesh_stop();
+  Sim_unregisterAllKeys();
+//end debugging
   PCU_Comm_Free();
   MPI_Finalize();
 }
