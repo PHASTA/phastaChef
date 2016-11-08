@@ -270,7 +270,15 @@ namespace {
       m->end(it);
       apf::destroyField(szFld);
 
-      /* tell the adapter to transfer all fields attached with mesh */
+      /* unpacked solution into serveral fields */
+      apf::Field* testFld = m->findField("motion_coords");
+//      apf::Field* testFld = chef::extractField(m,"solution","temperature",5,apf::SCALAR);
+
+      /* tell the adapter to transfer these fields attached with mesh */
+      pField sim_flds = apf::getSIMField(testFld);
+
+      pPList sim_fld_lst = PList_new();
+      PList_append(sim_fld_lst, sim_flds);
 /*
       int num_flds = m->countFields();
       pField* sim_flds = new pField[num_flds];
@@ -281,26 +289,8 @@ namespace {
       }
       assert(num_flds == PList_size(sim_fld_lst));
 */
-/*
-//debugging 
-      apf::Field* sol_fld = m->findField("isoSize");
-      pPolyField pf = PolyField_new(1, 0);
-      pField sim_flds = Field_new(sim_pm,1,
-                   "isoSize",
-                   "apf_field_data",
-                   ShpLagrangeDiscont,
-                   1, // surfcont (always 1 in current simModSuite)
-                   1, // num_time_derivatives to keep available
-                   1, // num_section
-                   pf); 
-      Field_apply(sim_flds, m->getDimension(), NULL);
-
-      pPList sim_fld_lst = PList_new();
-      PList_append(sim_fld_lst, sim_flds);
-//end debugging
-*/
-//      MSA_setMapFields(adapter, sim_fld_lst);
-//      PList_delete(sim_fld_lst);
+      MSA_setMapFields(adapter, sim_fld_lst);
+      PList_delete(sim_fld_lst);
 
       /* run the adapter */
       pProgress progress = Progress_new();
@@ -329,6 +319,7 @@ int main(int argc, char** argv) {
 //debugging for simmetrix mesh
   Sim_readLicenseFile(0);
   SimPartitionedMesh_start(0, 0);
+  Sim_logOn("loopDriver.log");
   SimUtil_start();
   SimModel_start();
   gmi_sim_start();
@@ -340,11 +331,6 @@ int main(int argc, char** argv) {
       fprintf(stderr, "Usage: %s <maxTimeStep>\n",argv[0]);
     exit(EXIT_FAILURE);
   }
-
-//debugging print log
-  Sim_logOn("loopDriver.log");
-//end debugging
-
   int maxStep = atoi(argv[1]);
   chefPhasta::initModelers();
   rstream rs = makeRStream();
@@ -403,10 +389,10 @@ int main(int argc, char** argv) {
   freeMesh(m);
   chefPhasta::finalizeModelers();
 //debugging for simmetrix mesh
-  Sim_logOff();
   gmi_sim_stop();
   SimModel_stop();
   SimUtil_stop();
+  Sim_logOff();
   SimPartitionedMesh_stop();
   Sim_unregisterAllKeys();
 //end debugging
