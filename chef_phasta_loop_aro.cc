@@ -45,9 +45,10 @@ namespace {
   static apf::Mesh2* loadMesh(ph::Input& in) {
     const char* modelfile = in.modelFileName.c_str();
     const char* meshfile = in.meshFileName.c_str();
+    const char* attrfile = in.attributeFileName.c_str();
     apf::Mesh2* mesh;
-    //assume the model file has extension .smd
-    gmi_model* g = gmi_sim_load(0, modelfile);
+    //assume the model file has extension .x_t
+    gmi_model* g = gmi_sim_load(modelfile, attrfile);
     /* if it is a simmetrix mesh */
     if (mesh_has_ext(meshfile, "sms")) {
       if (in.simmetrixMesh == 0) {
@@ -270,6 +271,7 @@ namespace {
       apf::destroyField(szFld);
 
       /* tell the adapter to transfer all fields attached with mesh */
+/*
       int num_flds = m->countFields();
       pField* sim_flds = new pField[num_flds];
       pPList sim_fld_lst = PList_new();
@@ -278,6 +280,7 @@ namespace {
         PList_append(sim_fld_lst, sim_flds[i]);
       }
       assert(num_flds == PList_size(sim_fld_lst));
+*/
 /*
 //debugging 
       apf::Field* sol_fld = m->findField("isoSize");
@@ -296,8 +299,8 @@ namespace {
       PList_append(sim_fld_lst, sim_flds);
 //end debugging
 */
-      MSA_setMapFields(adapter, sim_fld_lst);
-      PList_delete(sim_fld_lst);
+//      MSA_setMapFields(adapter, sim_fld_lst);
+//      PList_delete(sim_fld_lst);
 
       /* run the adapter */
       pProgress progress = Progress_new();
@@ -334,27 +337,25 @@ int main(int argc, char** argv) {
       fprintf(stderr, "Usage: %s <maxTimeStep>\n",argv[0]);
     exit(EXIT_FAILURE);
   }
+
+//debugging print log
+  Sim_logOn("loopDriver.log");
+//end debugging
+
   int maxStep = atoi(argv[1]);
   chefPhasta::initModelers();
+  rstream rs = makeRStream();
   grstream grs = makeGRStream();
   ph::Input ctrl;
   ctrl.load("samAdaptLoop.inp");
-  /* setup file reading */
-//  ctrl.openfile_read = openfile_read;
   /* load the model and mesh */
-  apf::Mesh2* m = loadMesh(ctrl);
-
-//  apf::Mesh2* m = apf::loadMdsMesh(
-//      ctrl.modelFileName.c_str(),ctrl.meshFileName.c_str());
-  chef::preprocess(m,ctrl);
-  chef::preprocess(m,ctrl,grs);
-  rstream rs = makeRStream();
-  /* setup stream reading */
-  ctrl.openfile_read = openstream_read;
-  ctrl.rs = rs;
+  gmi_register_mesh();
+  gmi_model* g = 0;
+  apf::Mesh2* m = 0;
+  chef::cook(g, m, ctrl, rs, grs);
+  /* load input file for solver */
   phSolver::Input inp("solver.inp", "input.config");
-  int step = 0; int phtStep = 0;
-  int seq  = 0;
+  int step = 0; int phtStep = 0; int seq  = 0;
   writeSequence(m,seq,"test_"); seq++;
   do {
     m->verify();
@@ -397,6 +398,7 @@ int main(int argc, char** argv) {
   freeMesh(m);
   chefPhasta::finalizeModelers();
 //debugging for simmetrix mesh
+  Sim_logOff();
   gmi_sim_stop();
   SimPartitionedMesh_stop();
   Sim_unregisterAllKeys();
