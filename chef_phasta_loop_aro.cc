@@ -363,6 +363,8 @@ int main(int argc, char** argv) {
   do {
     m->verify();
     /* take the initial mesh as size field */
+    pMeshDataId sim_data_id = MD_lookupMeshDataId("isoSize_ver");
+    MD_deleteMeshDataId(sim_data_id);
     apf::Field* isoSF = samSz::isoSize(m);
     apf::Field* szFld = multipleSF(m, isoSF, 2.0);
 //    apf::Field* szFld = multipleSF(m, isoSF, 0.5);
