@@ -329,8 +329,11 @@ int main(int argc, char** argv) {
 //debugging for simmetrix mesh
   Sim_readLicenseFile(0);
   SimPartitionedMesh_start(0, 0);
+  SimUtil_start();
+  SimModel_start();
   gmi_sim_start();
   gmi_register_sim();
+  MS_init();
 //end debugging
   if( argc != 2 ) {
     if(!PCU_Comm_Self())
@@ -400,6 +403,8 @@ int main(int argc, char** argv) {
 //debugging for simmetrix mesh
   Sim_logOff();
   gmi_sim_stop();
+  SimModel_stop();
+  SimUtil_stop();
   SimPartitionedMesh_stop();
   Sim_unregisterAllKeys();
 //end debugging
