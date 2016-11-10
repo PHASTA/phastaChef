@@ -31,47 +31,6 @@ namespace {
     apf::destroyMesh(m);
   }
 
-  static bool mesh_has_ext(const char* filename, const char* ext)
-  {
-    const char* c = strrchr(filename, '.');
-    if (c) {
-      ++c; /* exclude the dot itself */
-      return !strcmp(c, ext);
-    } else {
-      return false;
-    }
-  }
-
-  static apf::Mesh2* loadMesh(ph::Input& in) {
-    const char* modelfile = in.modelFileName.c_str();
-    const char* meshfile = in.meshFileName.c_str();
-    const char* attrfile = in.attributeFileName.c_str();
-    apf::Mesh2* mesh;
-    //assume the model file has extension .x_t
-    gmi_model* g = gmi_sim_load(modelfile, attrfile);
-    /* if it is a simmetrix mesh */
-    if (mesh_has_ext(meshfile, "sms")) {
-      if (in.simmetrixMesh == 0) {
-        if (PCU_Comm_Self()==0)
-          fprintf(stderr, "oops, turn on flag: simmetrixMesh\n");
-        in.simmetrixMesh = 1;
-      }
-      pProgress progress = Progress_new();
-      Progress_setDefaultCallback(progress);
-
-      pGModel simModel = gmi_export_sim(g);
-      pParMesh sim_mesh = PM_load(meshfile, sthreadNone, simModel, progress);
-      mesh = apf::createMesh(sim_mesh);
-
-      Progress_delete(progress);
-    } else
-    /* if it is a SCOREC mesh */
-    {
-      mesh = apf::loadMdsMesh(g, meshfile);
-    }
-    return mesh;
-  }
-
   static apf::Field* getSprSF(apf::Mesh2* m) {
     const int order = 2;
     double adaptRatio = 0.1;
@@ -250,7 +209,6 @@ namespace {
 
     /* Or obtain size field based on a certain field
        use temperature field for spr error estimation */
-//    if (!szFld)
 //      apf::Field* szFld = getSprSF(m);
  
     if(in.simmetrixMesh == 1) {
@@ -299,7 +257,7 @@ namespace {
       MSA_delete(adapter);
 
       /* transfer data back to apf */
-      m = apf::createMesh(sim_pm); //may not need
+//      m = apf::createMesh(sim_pm); //may not need
     }
     else {
       assert(szFld);
@@ -351,6 +309,7 @@ int main(int argc, char** argv) {
     /* take the initial mesh as size field */
     pMeshDataId sim_data_id = MD_lookupMeshDataId("isoSize_ver");
     MD_deleteMeshDataId(sim_data_id);
+
     apf::Field* isoSF = samSz::isoSize(m);
     apf::Field* szFld = multipleSF(m, isoSF, 2.0);
 //    apf::Field* szFld = multipleSF(m, isoSF, 0.5);
@@ -369,17 +328,25 @@ int main(int argc, char** argv) {
 // delele above when finish debug
     m->verify();
     writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step; 
-    writeSequence(m,seq,"test_"); seq++; 
     if ( doAdaptation ) {
       chef::readAndAttachFields(ctrl,m);
       overwriteMeshCoord(m);
       m->verify();
+      writeSequence(m,seq,"test_"); seq++;
       /* do mesh adaptation */ 
       runMeshAdapter(ctrl,m,szFld);
       m->verify(); 
       chef::balance(ctrl,m);
     }
     chef::preprocess(m,ctrl,grs);
+//debugging
+    pMeshDataId sim_data_id1 = MD_lookupMeshDataId("solution_ver");
+    MD_deleteMeshDataId(sim_data_id1);
+    pMeshDataId sim_data_id2 = MD_lookupMeshDataId("time derivative of solution_ver");
+    MD_deleteMeshDataId(sim_data_id2);
+    pMeshDataId sim_data_id3 = MD_lookupMeshDataId("motion_coords_ver");
+    MD_deleteMeshDataId(sim_data_id3);
+//end debugging
     if ( doAdaptation )
       writeSequence(m,seq,"test_"); seq++;
     clearRStream(rs);
