@@ -280,6 +280,7 @@ int main(int argc, char** argv) {
   Sim_logOn("loopDriver.log");
   SimUtil_start();
   SimModel_start();
+  SimField_start();
   gmi_sim_start();
   gmi_register_sim();
   MS_init();
@@ -357,6 +358,7 @@ int main(int argc, char** argv) {
   chefPhasta::finalizeModelers();
 //debugging for simmetrix mesh
   gmi_sim_stop();
+  SimField_stop();
   SimModel_stop();
   SimUtil_stop();
   Sim_logOff();
