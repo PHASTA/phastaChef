@@ -229,24 +229,22 @@ namespace {
       apf::destroyField(szFld);
 
       /* unpacked solution into serveral fields */
-      apf::Field* testFld = m->findField("motion_coords");
-//      apf::Field* testFld = chef::extractField(m,"solution","temperature",5,apf::SCALAR);
+      apf::Field* pre_field = chef::extractField(m,"solution","pressure",1,apf::SCALAR,in.simmetrixMesh);
+      apf::Field* vel_field = chef::extractField(m,"solution","velocity",2,apf::VECTOR,in.simmetrixMesh);
+      apf::Field* tem_field = chef::extractField(m,"solution","temperature",5,apf::SCALAR,in.simmetrixMesh);
 
-      /* tell the adapter to transfer these fields attached with mesh */
-      pField sim_flds = apf::getSIMField(testFld);
-
-      pPList sim_fld_lst = PList_new();
-      PList_append(sim_fld_lst, sim_flds);
-/*
-      int num_flds = m->countFields();
+      /* put these field explicitly into pPList */
+      int num_flds = 3; // for now 
       pField* sim_flds = new pField[num_flds];
+      sim_flds[0] = apf::getSIMField(pre_field);
+      sim_flds[1] = apf::getSIMField(vel_field);
+      sim_flds[2] = apf::getSIMField(tem_field);
       pPList sim_fld_lst = PList_new();
-      for (int i = 0; i < num_flds; i++) {
-        sim_flds[i] = apf::getSIMField(m->getField(i));
+      for (int i = 0; i < num_flds; i++)
         PList_append(sim_fld_lst, sim_flds[i]);
-      }
       assert(num_flds == PList_size(sim_fld_lst));
-*/
+
+      /* set fields to be mapped */
       MSA_setMapFields(adapter, sim_fld_lst);
       PList_delete(sim_fld_lst);
 
@@ -257,7 +255,7 @@ namespace {
       MSA_delete(adapter);
 
       /* transfer data back to apf */
-//      m = apf::createMesh(sim_pm); //may not need
+      apf::Field* solution = chef::combineField(m,"solution","pressure","velocity","temperature");
     }
     else {
       assert(szFld);
@@ -308,9 +306,6 @@ int main(int argc, char** argv) {
   do {
     m->verify();
     /* take the initial mesh as size field */
-    pMeshDataId sim_data_id = MD_lookupMeshDataId("isoSize_ver");
-    MD_deleteMeshDataId(sim_data_id);
-
     apf::Field* isoSF = samSz::isoSize(m);
     apf::Field* szFld = multipleSF(m, isoSF, 2.0);
 //    apf::Field* szFld = multipleSF(m, isoSF, 0.5);
@@ -336,18 +331,11 @@ int main(int argc, char** argv) {
       writeSequence(m,seq,"test_"); seq++;
       /* do mesh adaptation */ 
       runMeshAdapter(ctrl,m,szFld);
+      writeSequence(m,seq,"test_"); seq++;
       m->verify(); 
       chef::balance(ctrl,m);
     }
     chef::preprocess(m,ctrl,grs);
-//debugging
-    pMeshDataId sim_data_id1 = MD_lookupMeshDataId("solution_ver");
-    MD_deleteMeshDataId(sim_data_id1);
-    pMeshDataId sim_data_id2 = MD_lookupMeshDataId("time derivative of solution_ver");
-    MD_deleteMeshDataId(sim_data_id2);
-    pMeshDataId sim_data_id3 = MD_lookupMeshDataId("motion_coords_ver");
-    MD_deleteMeshDataId(sim_data_id3);
-//end debugging
     if ( doAdaptation )
       writeSequence(m,seq,"test_"); seq++;
     clearRStream(rs);
