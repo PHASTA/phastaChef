@@ -250,6 +250,7 @@ namespace {
       apf::destroyField(m->findField("material_type"));
     if (m->findField("meshQ"))
       apf::destroyField(m->findField("meshQ"));
+    in.writeGeomBCFiles = 1; //write GeomBC file for visualization
 
     /* Or obtain size field based on a certain field
        use temperature field for spr error estimation */
@@ -353,8 +354,6 @@ int main(int argc, char** argv) {
     m->verify();
     /* take the initial mesh as size field */
     apf::Field* szFld = samSz::isoSize(m);
-//    apf::Field* szFld = multipleSF(m, isoSF, 2.0);
-//    apf::Field* szFld = multipleSF(m, isoSF, 0.5);
     step = phasta(inp,grs,rs);
     ctrl.rs = rs; 
     clearGRStream(grs);
