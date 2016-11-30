@@ -168,8 +168,8 @@ namespace {
     }
     m->end(itr);
     PCU_Barrier();
-    if (!PCU_Comm_Self() && PCU_Min_Int(meshGood))
-      printf("Rank: %d Mesh is good. No need for adaptation!\n", PCU_Comm_Self());
+    if (PCU_Min_Int(meshGood) && !PCU_Comm_Self())
+      printf("Mesh is Good. No need for adaptation!\n");
     return PCU_Min_Int(meshGood);
   }
   
