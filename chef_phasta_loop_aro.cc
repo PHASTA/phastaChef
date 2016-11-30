@@ -150,23 +150,27 @@ namespace {
     assert(done);
   }
 
-  bool isMeshqGood(apf::Mesh* m, double crtn) { 
+  int isMeshqGood(apf::Mesh* m, double crtn) {
     apf::Field* meshq = m->findField("meshQ");
     if (!meshq) {
-      if (PCU_Comm_Self() == 1)
+      if (!PCU_Comm_Self())
         fprintf(stderr, "Not find meshQ field.\n");
-      return true;  
+      assert(meshq);
     }
-    apf::MeshEntity* elm; 
+    int meshGood = 1;
+    apf::MeshEntity* elm;
     apf::MeshIterator* itr = m->begin(m->getDimension());
     while( (elm = m->iterate(itr)) ) {
-      if (apf::getScalar(meshq, elm, 0) < crtn)
-        return false;
+      if (apf::getScalar(meshq, elm, 0) < crtn) {
+        meshGood = 0;
+        break;
+      }
     }
     m->end(itr);
-    if (PCU_Comm_Self() == 1)
-      printf("Mesh is good. No need for adaptation!\n");
-    return true; 
+    PCU_Barrier();
+    if (!PCU_Comm_Self() && PCU_Min_Int(meshGood))
+      printf("Rank: %d Mesh is good. No need for adaptation!\n", PCU_Comm_Self());
+    return PCU_Min_Int(meshGood);
   }
   
   void writeSequence (apf::Mesh2* m, int step, const char* filename) {
@@ -348,8 +352,8 @@ int main(int argc, char** argv) {
   do {
     m->verify();
     /* take the initial mesh as size field */
-    apf::Field* isoSF = samSz::isoSize(m);
-    apf::Field* szFld = multipleSF(m, isoSF, 2.0);
+    apf::Field* szFld = samSz::isoSize(m);
+//    apf::Field* szFld = multipleSF(m, isoSF, 2.0);
 //    apf::Field* szFld = multipleSF(m, isoSF, 0.5);
     step = phasta(inp,grs,rs);
     ctrl.rs = rs; 
@@ -361,14 +365,10 @@ int main(int argc, char** argv) {
     setupChef(ctrl,step);
     chef::readAndAttachFields(ctrl,m);
     overwriteMeshCoord(ctrl,m);
-//    bool doAdaptation = !isMeshqGood(m, ctrl.meshqCrtn);
-// make the adaptaion run anyway
-//    doAdaptation = false;
-    bool doAdaptation = true;
-// delele above when finish debug
+    int doAdaptation = !isMeshqGood(m, ctrl.meshqCrtn);
     m->verify();
-    writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step; 
     if ( doAdaptation ) {
+      writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step;
       writeSequence(m,seq,"test_"); seq++;
       /* do mesh adaptation */ 
       runMeshAdapter(ctrl,m,szFld);
