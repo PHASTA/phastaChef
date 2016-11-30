@@ -25,6 +25,12 @@
 #define WRITE_VTK
 #endif
 
+typedef class MVertexMove *pMVertexMove;
+extern pMVertexMove MVertexMove_new(pUnstructuredMesh dmesh, int useStrategy);
+extern void MVertexMove_setFromLocationFile(pMVertexMove, const char *file);
+extern int MVertexMove_run(pMVertexMove);
+extern void MVertexMove_delete(pMVertexMove);
+
 namespace {
   void freeMesh(apf::Mesh* m) {
     m->destroyNative();
@@ -92,7 +98,7 @@ namespace {
     }
   }
   
-  bool overwriteMeshCoord(apf::Mesh2* m) { 
+  bool overwriteAPFCoord(apf::Mesh2* m) {
     apf::Field* f = m->findField("motion_coords");
     assert(f);
     double* vals = new double[apf::countComponents(f)];
@@ -110,22 +116,56 @@ namespace {
     return true;  
   }
 
+  bool overwriteSIMCoord(apf::Mesh2* m) {
+    apf::MeshSIM* apf_msim = dynamic_cast<apf::MeshSIM*>(m);
+    pParMesh ppm = apf_msim->getMesh();
+    pMesh pm = PM_mesh(ppm,0);
+
+    M_write(pm, "before_overwrite.sms", 0, NULL);
+
+    VIter vi = M_vertexIter(pm);
+    const char* filename = "temp_sim_coord";
+    double* loc = new double[3];
+    FILE* fp = fopen (filename, "w");
+    while (pVertex v = VIter_next(vi)) {
+      V_coord(v, loc);
+      fprintf(fp, "%.16lg %.16lg %.16lg\n", loc[0], loc[1], loc[2]);
+    }
+    VIter_delete(vi);
+    fclose (fp);
+
+    pMVertexMove vmove = MVertexMove_new(pm, 0);
+    MVertexMove_setFromLocationFile(vmove, filename);
+    MVertexMove_run(vmove); // This will do the actual work
+    MVertexMove_delete(vmove);
+    return true;
+  }
+
+  void overwriteMeshCoord(ph::Input& in, apf::Mesh2* m) {
+    bool done = false;
+    if (in.simmetrixMesh)
+      done = overwriteSIMCoord(m);
+    else
+      done = overwriteAPFCoord(m);
+    assert(done);
+  }
+
   bool isMeshqGood(apf::Mesh* m, double crtn) { 
     apf::Field* meshq = m->findField("meshQ");
     if (!meshq) {
-      fprintf(stderr, "Not find meshQ field.");
+      if (PCU_Comm_Self() == 1)
+        fprintf(stderr, "Not find meshQ field.\n");
       return true;  
     }
     apf::MeshEntity* elm; 
     apf::MeshIterator* itr = m->begin(m->getDimension());
     while( (elm = m->iterate(itr)) ) {
-      if (apf::getScalar(meshq, elm, 0) < crtn) {
-        apf::destroyField(meshq);
-        return false; 
-      } 
+      if (apf::getScalar(meshq, elm, 0) < crtn)
+        return false;
     }
     m->end(itr);
-    apf::destroyField(meshq);
+    if (PCU_Comm_Self() == 1)
+      printf("Mesh is good. No need for adaptation!\n");
     return true; 
   }
   
@@ -248,6 +288,8 @@ namespace {
       MSA_setMapFields(adapter, sim_fld_lst);
       PList_delete(sim_fld_lst);
 
+      PM_write(sim_pm, "before_adapt.sms", sthreadNone, NULL);
+
       /* run the adapter */
       pProgress progress = Progress_new();
       MSA_adapt(adapter, progress);
@@ -317,6 +359,8 @@ int main(int argc, char** argv) {
     if( step >= maxStep )
       break;
     setupChef(ctrl,step);
+    chef::readAndAttachFields(ctrl,m);
+    overwriteMeshCoord(ctrl,m);
 //    bool doAdaptation = !isMeshqGood(m, ctrl.meshqCrtn);
 // make the adaptaion run anyway
 //    doAdaptation = false;
@@ -325,13 +369,9 @@ int main(int argc, char** argv) {
     m->verify();
     writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step; 
     if ( doAdaptation ) {
-      chef::readAndAttachFields(ctrl,m);
-      overwriteMeshCoord(m);
-      m->verify();
       writeSequence(m,seq,"test_"); seq++;
       /* do mesh adaptation */ 
       runMeshAdapter(ctrl,m,szFld);
-      writeSequence(m,seq,"test_"); seq++;
       m->verify(); 
       chef::balance(ctrl,m);
     }
