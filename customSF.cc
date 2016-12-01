@@ -73,13 +73,6 @@ namespace {
     return newSz;
   }
 
-
-
-
-
-
-
-
 } //end namespace
 
 

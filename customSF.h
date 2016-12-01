@@ -5,8 +5,8 @@
 #include <spr.h>
 #include <sam.h>
 #include <apfMDS.h>
-
-
+#include <math.h>
+#include <cstdio>
 
 namespace {
 
