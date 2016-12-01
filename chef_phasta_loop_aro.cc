@@ -67,6 +67,7 @@ namespace {
       }
       ctrl.adaptStrategy = 1; //error field adapt
       ctrl.adaptFlag = 1;
+      ctrl.writeGeomBCFiles = 0;
     }
   }
   
