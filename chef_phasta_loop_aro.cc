@@ -1,3 +1,4 @@
+#include "customSF.h"
 #include "chefPhasta.h"
 #include "samSz.h"
 #include <PCU.h>
@@ -35,35 +36,6 @@ namespace {
   void freeMesh(apf::Mesh* m) {
     m->destroyNative();
     apf::destroyMesh(m);
-  }
-
-  static apf::Field* getSprSF(apf::Mesh2* m) {
-    const int order = 2;
-    double adaptRatio = 0.1;
-//    apf::Field* szFld;
-    apf::Field* temperature = chef::extractField(m,"solution","temperature",5,apf::SCALAR);
-    assert(temperature);
-    apf::Field* eps = spr::getGradIPField(temperature, "eps", order);
-//    apf::Field* test = apf::createFieldOn(m, "TEST", apf::SCALAR);
-//    apf::zeroField(test);
-//    apf::Field* eps_star = spr::recoverField(eps);
-    apf::writeVtkFiles("test_eps",m);
-    apf::destroyField(temperature);
-    apf::Field* szFld = spr::getSPRSizeField(eps,adaptRatio);
-    apf::destroyField(eps);
-    return szFld;
-  }
-
-  apf::Field* multipleSF(apf::Mesh* m, apf::Field* sf, double factor) {
-    apf::Field* sz = createFieldOn(m, "multipliedSize", apf::SCALAR);
-    apf::MeshEntity* vtx;
-    apf::MeshIterator* itr = m->begin(0);
-    while( (vtx = m->iterate(itr)) ) {
-      double h = apf::getScalar(sf,vtx,0);
-      apf::setScalar(sz,vtx,0,h*factor);
-    }
-    m->end(itr);
-    return sz; 
   }
 
   static FILE* openstream_read(ph::Input& in, const char* path) {
