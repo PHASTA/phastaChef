@@ -46,9 +46,9 @@ namespace {
     double curCenter = orgCenter + 0.5*acc*(step-1.0)*(step-1.0)*dt*dt;
 
     /* define imaginary cylinder and refine size */
-    double box[] = {0.8, 0.0, 0.0, 0.82, 0.08};
-    double ref = 0.006;
-    double cor = 0.01;
+    double box[] = {0.85, 0.0, 0.0, 0.87, 0.08};
+    double ref = 0.008;
+    double cor = 0.012;
 
     /* define size field based on current center */
     apf::Field* newSz = apf::createFieldOn(m,"refineProjSF",apf::SCALAR);
@@ -73,7 +73,7 @@ namespace {
         }
         else if( points[0]- curCenter >  0.235)  // front part
         {
-          f = (points[0]-(curCenter+0.235))/(1.62-(curCenter+0.235));
+          f = (points[0]-(curCenter+0.235))/(1.72-(curCenter+0.235));
           h = ref * (1-f) + cor * f;
         }
         else
@@ -81,6 +81,7 @@ namespace {
       }
       else {
         h = apf::getScalar(orgSF,vtx,0);
+        if (h < cor) h = cor;
       }
       apf::setScalar(newSz,vtx,0,h);
     }
@@ -282,6 +283,8 @@ namespace {
     /* prescribe the size field for projectile case */
     apf::Field* szFld = refineProjSF(m, orgSF, step); 
 
+    writeSequence(m,step,"for_szFld_"); //for debugging
+
     if(in.simmetrixMesh == 1) {
       apf::MeshSIM* sim_m = dynamic_cast<apf::MeshSIM*>(m);
       pParMesh sim_pm = sim_m->getMesh();
@@ -390,7 +393,9 @@ int main(int argc, char** argv) {
     setupChef(ctrl,step);
     chef::readAndAttachFields(ctrl,m);
     overwriteMeshCoord(ctrl,m);
-    int doAdaptation = !isMeshqGood(m, ctrl.meshqCrtn);
+//    int doAdaptation = !isMeshqGood(m, ctrl.meshqCrtn);
+    int doAdaptation = 1; // make it run anyway
+
     m->verify();
     if ( doAdaptation ) {
       writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step;
@@ -399,10 +404,9 @@ int main(int argc, char** argv) {
       runMeshAdapter(ctrl,m,szFld,step);
       m->verify(); 
       chef::balance(ctrl,m);
+      writeSequence(m,seq,"test_"); seq++;
     }
     chef::preprocess(m,ctrl,grs);
-    if ( doAdaptation )
-      writeSequence(m,seq,"test_"); seq++;
     clearRStream(rs);
   } while( step < maxStep );
   destroyGRStream(grs);
