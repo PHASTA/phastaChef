@@ -1,5 +1,6 @@
 #include "customSF.h"
 #include "chefPhasta.h"
+#include "sam.h"
 #include "samSz.h"
 #include <PCU.h>
 #include <chef.h>
@@ -46,9 +47,9 @@ namespace {
     double curCenter = orgCenter + 0.5*acc*(step-1.0)*(step-1.0)*dt*dt;
 
     /* define imaginary cylinder and refine size */
-    double box[] = {0.85, 0.0, 0.0, 0.87, 0.08};
-    double ref = 0.008;
-    double cor = 0.012;
+    double box[] = {0.85, 0.0, 0.0, 0.855, 0.065};
+    double ref = 0.006;
+    double cor = 0.02;
 
     /* define size field based on current center */
     apf::Field* newSz = apf::createFieldOn(m,"refineProjSF",apf::SCALAR);
@@ -62,19 +63,23 @@ namespace {
       if ( fabs(points[0]- box[0]) < box[3] &&
            sqrt((points[1]-box[1])*(points[1]-box[1]) +
                 (points[2]-box[2])*(points[2]-box[2])) < box[4]){
-        if ( fabs(points[0]- curCenter) <= 0.235 ) // near proj
+        if ( points[0]- curCenter >= -0.235 && points[0]- curCenter <= 0.0 ) // near proj rear part
         {
           h = ref;
         }
+        else if( points[0]- curCenter <= 0.235 && points[0]- curCenter > 0.0 ) // near proj front part
+        {
+          h = ref+0.002;
+        }
         else if( points[0]- curCenter < -0.235 ) // rear part
         {
-          f = ((curCenter-0.235)-points[0])/(curCenter-0.235+0.02);
+          f = ((curCenter-0.235)-points[0])/(curCenter-0.235+0.005);
           h = ref * (1-f) + cor * f;
         }
-        else if( points[0]- curCenter >  0.235)  // front part
+        else if( points[0]- curCenter >  0.235 )  // front part
         {
-          f = (points[0]-(curCenter+0.235))/(1.72-(curCenter+0.235));
-          h = ref * (1-f) + cor * f;
+          f = (points[0]-(curCenter+0.235))/(1.705-(curCenter+0.235));
+          h = (ref+0.004) * (1-f) + cor * f;
         }
         else
           printf("surprise! we should not fall into here\n");
@@ -86,6 +91,7 @@ namespace {
       apf::setScalar(newSz,vtx,0,h);
     }
     m->end(itr);
+    apf::destroyField(orgSF);
     return newSz;
   }
 
@@ -340,6 +346,9 @@ namespace {
       /* do SCOREC mesh adaptation */
       chef::adapt(m,szFld,in);
     }
+    m->verify();
+    apf::Field* compareSF = sam::compareIsoSF(m, szFld);
+    chef::balance(ctrl,m);
   }
 
 } //end namespace
@@ -402,8 +411,6 @@ int main(int argc, char** argv) {
       writeSequence(m,seq,"test_"); seq++;
       /* do mesh adaptation */ 
       runMeshAdapter(ctrl,m,szFld,step);
-      m->verify(); 
-      chef::balance(ctrl,m);
       writeSequence(m,seq,"test_"); seq++;
     }
     chef::preprocess(m,ctrl,grs);
