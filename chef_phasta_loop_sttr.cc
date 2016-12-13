@@ -39,6 +39,62 @@ namespace {
     apf::destroyMesh(m);
   }
 
+  apf::Field* refineProjSF(apf::Mesh2* m, apf::Field* orgSF, int step) {
+    /* define geom of projectile */
+    double orgCenter = 0.435;
+    double acc = 60000.0;
+    double dt = 0.00001;
+    double curCenter = orgCenter + 0.5*acc*(step-1.0)*(step-1.0)*dt*dt;
+
+    /* define imaginary cylinder and refine size */
+    double box[] = {0.85, 0.0, 0.0, 0.855, 0.065};
+    double ref = 0.006;
+    double cor = 0.02;
+
+    /* define size field based on current center */
+    apf::Field* newSz = apf::createFieldOn(m,"refineProjSF",apf::SCALAR);
+    apf::Vector3 points;
+    double h = 0.0;
+    double f = 0.0;
+    apf::MeshEntity* vtx;
+    apf::MeshIterator* itr = m->begin(0);
+    while( (vtx = m->iterate(itr)) ) {
+      m->getPoint(vtx, 0, points);
+      if ( fabs(points[0]- box[0]) < box[3] &&
+           sqrt((points[1]-box[1])*(points[1]-box[1]) +
+                (points[2]-box[2])*(points[2]-box[2])) < box[4]){
+        if ( points[0]- curCenter >= -0.235 && points[0]- curCenter <= 0.0 ) // near proj rear part
+        {
+          h = ref;
+        }
+        else if( points[0]- curCenter <= 0.235 && points[0]- curCenter > 0.0 ) // near proj front part
+        {
+          h = ref+0.002;
+        }
+        else if( points[0]- curCenter < -0.235 ) // rear part
+        {
+          f = ((curCenter-0.235)-points[0])/(curCenter-0.235+0.005);
+          h = ref * (1-f) + cor * f;
+        }
+        else if( points[0]- curCenter >  0.235 )  // front part
+        {
+          f = (points[0]-(curCenter+0.235))/(1.705-(curCenter+0.235));
+          h = (ref+0.004) * (1-f) + cor * f;
+        }
+        else
+          printf("surprise! we should not fall into here\n");
+      }
+      else {
+        h = apf::getScalar(orgSF,vtx,0);
+        if (h < cor) h = cor;
+      }
+      apf::setScalar(newSz,vtx,0,h);
+    }
+    m->end(itr);
+    apf::destroyField(orgSF);
+    return newSz;
+  }
+
   static FILE* openstream_read(ph::Input& in, const char* path) {
     std::string fname(path);
     std::string restartStr("restart");
@@ -230,8 +286,10 @@ namespace {
        use temperature field for spr error estimation */
 //      apf::Field* szFld = getSprSF(m);
 
-    /* use the size field of the mesh before mesh motion */
-    apf::Field* szFld = orgSF;
+    /* prescribe the size field for projectile case */
+    apf::Field* szFld = refineProjSF(m, orgSF, step);
+
+    writeSequence(m,step,"for_szFld_"); //for debugging
 
     if(in.simmetrixMesh == 1) {
       apf::MeshSIM* sim_m = dynamic_cast<apf::MeshSIM*>(m);
@@ -289,6 +347,7 @@ namespace {
       chef::adapt(m,szFld,in);
     }
     m->verify();
+    apf::Field* compareSF = sam::compareIsoSF(m, "refineProjSF");
     chef::balance(in,m);
   }
 
