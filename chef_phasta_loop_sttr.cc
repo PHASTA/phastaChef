@@ -127,23 +127,23 @@ namespace {
       ctrl.writeGeomBCFiles = 0;
     }
   }
-  
+
   bool overwriteAPFCoord(apf::Mesh2* m) {
     apf::Field* f = m->findField("motion_coords");
     assert(f);
     double* vals = new double[apf::countComponents(f)];
     assert(apf::countComponents(f) == 3);
     apf::MeshEntity* vtx;
-    apf::Vector3 points; 
+    apf::Vector3 points;
     apf::MeshIterator* itr = m->begin(0);
     while( (vtx = m->iterate(itr)) ) {
       apf::getComponents(f, vtx, 0, vals);
-      for ( int i = 0; i < 3; i++ )  points[i] = vals[i];  
+      for ( int i = 0; i < 3; i++ )  points[i] = vals[i];
       m->setPoint(vtx, 0, points);
     }
-    m->end(itr); 
+    m->end(itr);
     delete [] vals;
-    return true;  
+    return true;
   }
 
   bool overwriteSIMCoord(apf::Mesh2* m) {
@@ -202,9 +202,9 @@ namespace {
       printf("Mesh is Good. No need for adaptation!\n");
     return PCU_Min_Int(meshGood);
   }
-  
+
   void writeSequence (apf::Mesh2* m, int step, const char* filename) {
-    std::ostringstream oss; 
+    std::ostringstream oss;
     oss << filename << step;
     const std::string tmp = oss.str();
 #ifdef WRITE_VTK
@@ -261,19 +261,19 @@ namespace {
     fprintf (sFile, "           data_dependency=\"0\"\n");
     fprintf (sFile, "           data_type=\"double\"/>\n");
     fprintf (sFile, "    <Field paraview_field_tag=\"material_type\"\n");
-    fprintf (sFile, "           phasta_field_tag=\"material_type\"\n");           
-    fprintf (sFile, "           start_index_in_phasta_array=\"0\"\n");           
-    fprintf (sFile, "           number_of_components=\"1\"\n");           
-    fprintf (sFile, "           data_dependency=\"1\"/>\n"); 
+    fprintf (sFile, "           phasta_field_tag=\"material_type\"\n");
+    fprintf (sFile, "           start_index_in_phasta_array=\"0\"\n");
+    fprintf (sFile, "           number_of_components=\"1\"\n");
+    fprintf (sFile, "           data_dependency=\"1\"/>\n");
     fprintf (sFile, "    <Field paraview_field_tag=\"meshQ\"\n");
-    fprintf (sFile, "           phasta_field_tag=\"meshQ\"\n");          
-    fprintf (sFile, "           start_index_in_phasta_array=\"0\"\n");          
-    fprintf (sFile, "           number_of_components=\"1\"\n");          
-    fprintf (sFile, "           data_dependency=\"1\"/>\n");            
+    fprintf (sFile, "           phasta_field_tag=\"meshQ\"\n");
+    fprintf (sFile, "           start_index_in_phasta_array=\"0\"\n");
+    fprintf (sFile, "           number_of_components=\"1\"\n");
+    fprintf (sFile, "           data_dependency=\"1\"/>\n");
     fprintf (sFile, "  </Fields>\n");
     fprintf (sFile, "</PhastaMetaFile>\n");
     fclose (sFile);
-  } 
+  }
 
   void runMeshAdapter(ph::Input& in, apf::Mesh2*& m, apf::Field*& orgSF, int step) {
     if (m->findField("material_type"))
@@ -314,7 +314,7 @@ namespace {
       apf::Field* tem_field = chef::extractField(m,"solution","temperature",5,apf::SCALAR,in.simmetrixMesh);
 
       /* put these field explicitly into pPList */
-      int num_flds = 3; // for now 
+      int num_flds = 3; // for now
       pField* sim_flds = new pField[num_flds];
       sim_flds[0] = apf::getSIMField(pre_field);
       sim_flds[1] = apf::getSIMField(vel_field);
@@ -393,7 +393,7 @@ int main(int argc, char** argv) {
     /* take the initial mesh as size field */
     apf::Field* szFld = samSz::isoSize(m);
     step = phasta(inp,grs,rs);
-    ctrl.rs = rs; 
+    ctrl.rs = rs;
     clearGRStream(grs);
     if(!PCU_Comm_Self())
       fprintf(stderr, "STATUS ran to step %d\n", step);
@@ -409,7 +409,7 @@ int main(int argc, char** argv) {
     if ( doAdaptation ) {
       writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step;
       writeSequence(m,seq,"test_"); seq++;
-      /* do mesh adaptation */ 
+      /* do mesh adaptation */
       runMeshAdapter(ctrl,m,szFld,step);
       writeSequence(m,seq,"test_"); seq++;
     }
