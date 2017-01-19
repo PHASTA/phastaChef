@@ -111,14 +111,16 @@ int main(int argc, char** argv) {
     chef::balanceAndReorder(ctrl,m);
     chef::preprocess(m,ctrl,grs);
     clearRStream(rs);
-    FILE* f = openGRStream(grs,"restart");
-    int params[128];
-    readHeader(f,"solution",params,3,"binary");
-    int size = params[0]*params[1];
-    double* data = (double*) calloc(size,sizeof(double));
-    readDataBlock(f,data,size,"double","binary");
-    free(data);
-    fclose(f); 
+    if( step >= 325 ) {
+      FILE* f = openGRStream(grs,"restart");
+      int params[128];
+      readHeader(f,"solution",params,3,"binary");
+      int size = params[0]*params[1];
+      double* data = (double*) calloc(size,sizeof(double));
+      readDataBlock(f,data,size,"double","binary");
+      free(data);
+      fclose(f); 
+    }
   } while( step < maxStep );
   destroyGRStream(grs);
   destroyRStream(rs);
