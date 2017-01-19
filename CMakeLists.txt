@@ -74,6 +74,7 @@ setup_exe(Loop_stream_adapt chef_phasta_adaptLoop.cc)
 setup_exe(Loop_files_adapt chef_phasta_adaptLoop_files.cc)
 setup_exe(Loop_files_adapt_ramdisk chef_phasta_adaptLoop_files_ramdisk.cc)
 setup_exe(Loop_sam_stream_adapt chef_phasta_sam_adaptLoop.cc)
+setup_exe(Loop_sam_stream_adapt_sz chef_phasta_sam_adaptLoop_sz.cc)
 setup_exe(Loop_sam_stream_adapt_ramdisk chef_phasta_sam_adaptLoop_ramdisk.cc)
 create_exe(chefPhastaICLoop_aro chef_phasta_loop_aro.cc
   "${PHASTAIC_INCLUDE_DIRS}" "${PHASTAIC_LIBS}")
