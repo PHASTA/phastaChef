@@ -112,7 +112,7 @@ int main(int argc, char** argv) {
     chef::preprocess(m,ctrl,grs);
     clearRStream(rs);
     if( step >= 325 ) {
-      FILE* f = openGRStream(grs,"restart");
+      FILE* f = openGRStreamRead(grs,"restart");
       int params[128];
       readHeader(f,"solution",params,3,"binary");
       int size = params[0]*params[1];
