@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
     chef::readAndAttachFields(ctrl,m);
     apf::Field* szFld = getField(m);
     assert(szFld);
-    chef::adapt(m,szFld);
+    chef::adapt(m,szFld,ctrl);
     apf::destroyField(szFld);
     chef::balanceAndReorder(ctrl,m);
     chef::preprocess(m,ctrl,grs);
