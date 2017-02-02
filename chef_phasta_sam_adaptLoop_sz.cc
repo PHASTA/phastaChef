@@ -2,7 +2,6 @@
 #include <PCU.h>
 #include <chef.h>
 #include <phasta.h>
-#include <phastaIO.h>
 #include <phstream.h>
 #include <sam.h>
 #include <apfMDS.h>
@@ -98,9 +97,6 @@ int main(int argc, char** argv) {
       fprintf(stderr, "STATUS ran to step %d\n", step);
     if( step >= maxStep )
       break;
-    if( step >= 325 ) {
-      int istop=1;
-     }
       
     setupChef(ctrl,step);
     chef::readAndAttachFields(ctrl,m);
@@ -111,16 +107,6 @@ int main(int argc, char** argv) {
     chef::balanceAndReorder(ctrl,m);
     chef::preprocess(m,ctrl,grs);
     clearRStream(rs);
-    if( step >= 325 ) {
-      FILE* f = openGRStreamRead(grs,"restart");
-      int params[128];
-      readHeader(f,"solution",params,3,"binary");
-      int size = params[0]*params[1];
-      double* data = (double*) calloc(size,sizeof(double));
-      readDataBlock(f,data,size,"double","binary");
-      free(data);
-      fclose(f); 
-    }
   } while( step < maxStep );
   destroyGRStream(grs);
   destroyRStream(rs);
