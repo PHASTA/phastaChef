@@ -63,7 +63,7 @@ macro(create_exe exename srcname includes libs)
   #chef
   target_link_libraries(${exename} PRIVATE SCOREC::core)
   #phasta
-  include_directories(${includes} /projects/tools/git-phasta/phasta/phastaIO/)
+  include_directories(${includes})
   target_link_libraries(${exename} PRIVATE ${libs})
 endmacro(create_exe)
 
