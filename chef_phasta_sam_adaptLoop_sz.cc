@@ -112,7 +112,8 @@ int main(int argc, char** argv) {
   destroyRStream(rs);
   freeMesh(m);
   chefPhasta::finalizeModelers();
+  if(!PCU_Comm_Self())
+    fprintf(stderr, "STATUS done");
   PCU_Comm_Free();
   MPI_Finalize();
-  fprintf(stderr, "STATUS done");
 }
