@@ -2,7 +2,7 @@ macro(cmd dir exe)
   message("${exe} ${ARGN}")
   execute_process(
     COMMAND ${exe} ${ARGN}
-    WORKING_DIRECTORY ${dir} 
+    WORKING_DIRECTORY ${dir}
     OUTPUT_VARIABLE out
     ERROR_VARIABLE out
     RESULT_VARIABLE res
@@ -19,9 +19,7 @@ cmd(${WORKDIR} cp ${INPFILE} ${WORKDIR})
 cmd(${WORKDIR} ${MPIRUN} ${MPIRUN_PROCFLAG} ${NUMPROCS} ${EXE} ${MAXSTEPS})
 message("running rm and mv")
 foreach(src ${SRCDIRS})
-  set(mname chefphasta_${NAME})
-  set(tname ${mname}_mv${src})
-  set(tgtdir ${WORKDIR}/${src}_${mname}) 
+  set(tgtdir ${WORKDIR}/${src}_${NAME})
   cmd(${WORKDIR} rm -rf ${tgtdir})
   cmd(${WORKDIR} mv ${WORKDIR}/${src} ${tgtdir})
 endforeach()

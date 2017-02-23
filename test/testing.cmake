@@ -9,7 +9,7 @@ if( ${phastaIC_FOUND} )
     -DINPFILE=${PHASTA_SOURCE_DIR}/phSolver/common/input.config
     -DMPIRUN=${MPIRUN}
     -DMPIRUN_PROCFLAG=${MPIRUN_PROCFLAG}
-    -DEXE=${PHASTACHEF_BINARY_DIR}/chefPhasta_posix
+    -DEXE=${PHASTACHEF_BINARY_DIR}/chefPhastaIC_posix
     -DNUMPROCS=4
     -DSRCDIRS=4-procs_case
     -P ${CMAKE_CURRENT_SOURCE_DIR}/runphasta.cmake
@@ -23,7 +23,7 @@ if( ${phastaIC_FOUND} )
     -DINPFILE=${PHASTA_SOURCE_DIR}/phSolver/common/input.config
     -DMPIRUN=${MPIRUN}
     -DMPIRUN_PROCFLAG=${MPIRUN_PROCFLAG}
-    -DEXE=${PHASTACHEF_BINARY_DIR}/chefPhasta_stream
+    -DEXE=${PHASTACHEF_BINARY_DIR}/chefPhastaIC_stream
     -DNUMPROCS=4
     -DSRCDIRS=4-procs_case
     -P ${CMAKE_CURRENT_SOURCE_DIR}/runphasta.cmake
@@ -37,7 +37,7 @@ if( ${phastaIC_FOUND} )
     -DINPFILE=${PHASTA_SOURCE_DIR}/phSolver/common/input.config
     -DMPIRUN=${MPIRUN}
     -DMPIRUN_PROCFLAG=${MPIRUN_PROCFLAG}
-    -DEXE=${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_stream_ur
+    -DEXE=${PHASTACHEF_BINARY_DIR}/chefPhastaICLoop_stream_ur
     -DNUMPROCS=4
     -DMAXSTEPS=12
     -DSRCDIRS=4-procs_case$<SEMICOLON>4
@@ -54,7 +54,7 @@ if( ${phastaIC_FOUND} )
       -DINPFILE=${PHASTA_SOURCE_DIR}/phSolver/common/input.config
       -DMPIRUN=${MPIRUN}
       -DMPIRUN_PROCFLAG=${MPIRUN_PROCFLAG}
-      -DEXE=${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_stream_adapt
+      -DEXE=${PHASTACHEF_BINARY_DIR}/chefPhastaICLoop_stream_adapt
       -DNUMPROCS=2
       -DMAXSTEPS=8
       -DSRCDIRS=2-procs_case$<SEMICOLON>4$<SEMICOLON>8
@@ -69,7 +69,7 @@ if( ${phastaIC_FOUND} )
       -DINPFILE=${PHASTA_SOURCE_DIR}/phSolver/common/input.config
       -DMPIRUN=${MPIRUN}
       -DMPIRUN_PROCFLAG=${MPIRUN_PROCFLAG}
-      -DEXE=${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_sam_stream_adapt
+      -DEXE=${PHASTACHEF_BINARY_DIR}/chefPhastaICLoop_sam_stream_adapt
       -DNUMPROCS=2
       -DMAXSTEPS=8
       -DSRCDIRS=2-procs_case$<SEMICOLON>4
@@ -84,11 +84,28 @@ if( ${phastaIC_FOUND} )
       -DINPFILE=${PHASTA_SOURCE_DIR}/phSolver/common/input.config
       -DMPIRUN=${MPIRUN}
       -DMPIRUN_PROCFLAG=${MPIRUN_PROCFLAG}
-      -DEXE=${PHASTACHEF_BINARY_DIR}/chefPhastaLoop_files_adapt
+      -DEXE=${PHASTACHEF_BINARY_DIR}/chefPhastaICLoop_files_adapt
       -DNUMPROCS=2
       -DMAXSTEPS=8
       -DSRCDIRS=2-procs_case$<SEMICOLON>4
       -P ${CMAKE_CURRENT_SOURCE_DIR}/runphasta.cmake
       )
   endif()
+endif()
+
+if( ${phastaC_FOUND} )
+  set(casename ${testLabel}_compressibleShockTube)
+  add_test(NAME ${casename}
+    COMMAND ${CMAKE_COMMAND}
+    -DNAME=${casename}
+    -DWORKDIR=${CASES}/compressibleShockTube/SAM_small
+    -DINPFILE=${PHASTA_SOURCE_DIR}/phSolver/common/input.config
+    -DMPIRUN=${MPIRUN}
+    -DMPIRUN_PROCFLAG=${MPIRUN_PROCFLAG}
+    -DEXE=${PHASTACHEF_BINARY_DIR}/chefPhastaCLoop_sam_stream_adapt
+    -DNUMPROCS=4
+    -DMAXSTEPS=100
+    -DSRCDIRS=4-procs_case$<SEMICOLON>adapt-4-mdsMesh_bz2$<SEMICOLON>50
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/runphasta.cmake
+    )
 endif()
