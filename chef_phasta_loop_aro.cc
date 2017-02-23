@@ -14,6 +14,12 @@
 #include <assert.h>
 #include <unistd.h>
 
+/** \file chef_phasta_loop_aro.cc
+    \brief In-memory driver for adaptive loops to support the ARO project
+    \remark Runs Chef and then PHASTA until the user-specified maximum
+            PHASTA time step is reached.
+*/
+
 #ifndef WRITE_VTK
 #define WRITE_VTK
 #endif

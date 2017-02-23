@@ -1,0 +1,55 @@
+/** \mainpage The in-memory coupling of PHASTA and Chef: phastaChef.
+
+@section phastachef-build Build Instructions
+
+Build instructions are given in README.md and, for some specific systems,
+on the <a href=https://github.com/PHASTA/phastaChef/wiki>Github Wiki</a>.
+
+@section phastachef-examples Example Drivers
+
+The following examples illustrate the use of the Chef,
+<a href=https://github.com/PHASTA/phasta>PHASTA</a>,
+and components from <a href=https://github.com/SCOREC/core>core</a>
+to construct adaptive workflows.
+The simplist examples are chef_phasta_posix.cc and chef_phasta_stream.cc
+which only call Chef and PHASTA once with a POSIX file-based and data stream
+coupling, respectively.
+The most advanced examples are chef_phasta_sam_adaptLoop_sz.cc and
+chef_phasta_sam_adaptLoop.cc which use finer grained APIs to pass
+specific fields from PHASTA to Chef to drive mesh adaptation.
+
+chef_phasta_posix.cc
+
+chef_phasta_stream.cc
+
+chef_phasta_adaptLoop.cc
+
+chef_phasta_adaptLoop_files.cc
+
+chef_phasta_adaptLoop_files_ramdisk.cc
+
+chef_phasta_loop_aro.cc
+
+chef_phasta_loop_stream_ur.cc
+
+chef_phasta_sam_adaptLoop.cc
+
+chef_phasta_sam_adaptLoop_ramdisk.cc
+
+chef_phasta_sam_adaptLoop_sz.cc
+
+
+Repository Home: https://github.com/PHASTA/phastaChef
+
+@section phastachef-references References
+
+- Cameron W. Smith, Brian Granzow, Dan Ibanez, Onkar Sahni, Kenneth E. Jansen
+  and Mark .S. Shephard, <a href="https://www.scorec.rpi.edu/REPORTS/2016-23.pdf">
+  "In-memory Integration of Existing Software Components for Parallel Adaptive
+  Unstructured Mesh Workflows"</a>, Proceedings of the XSEDE16 Conference, Miami,
+  FL. July 19, 2016.
+
+@author <a href="http://www.scorec.rpi.edu/~cwsmith/">Cameron W. Smith</a>,
+Kenneth E. Jansen, Fan Yang
+
+*/

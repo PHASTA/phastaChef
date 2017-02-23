@@ -4,6 +4,12 @@
 #include <phstream.h>
 #include "chefPhasta.h"
 
+/** \file chef_phasta_stream.cc
+    \brief Example in-memory driver for running Chef then PHASTA
+    \remark Runs Chef and then PHASTA using data streams to transfer
+            mesh and field information.
+*/
+
 namespace {
   void freeMesh(apf::Mesh* m) {
     m->destroyNative();
