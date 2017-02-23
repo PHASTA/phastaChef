@@ -11,7 +11,7 @@ The following examples illustrate the use of the Chef,
 <a href=https://github.com/PHASTA/phasta>PHASTA</a>,
 and components from <a href=https://github.com/SCOREC/core>core</a>
 to construct adaptive workflows.
-The simplist examples are chef_phasta_posix.cc and chef_phasta_stream.cc
+The simplest examples are chef_phasta_posix.cc and chef_phasta_stream.cc
 which only call Chef and PHASTA once with a POSIX file-based and data stream
 coupling, respectively.
 The most advanced examples are chef_phasta_sam_adaptLoop_sz.cc and
