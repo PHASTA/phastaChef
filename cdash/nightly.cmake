@@ -111,7 +111,7 @@ SET(CONFIGURE_OPTIONS
   "-DCMAKE_CXX_FLAGS=${flags}"
   "-DCMAKE_Fortran_FLAGS=${flags}"
   "-DCMAKE_EXE_LINKER_FLAGS=-ldl ${flags}"
-  "-DSCOREC_PREFIX=/usr/local/pumi/core-sim/"
+  "-DSCOREC_PREFIX=/usr/local/pumi/core/"
   "-DPHASTA_SRC_DIR=${CTEST_SOURCE_DIRECTORY}/phasta"
   "-DPHASTA_INCOMPRESSIBLE=ON"
   "-DPHASTA_COMPRESSIBLE=ON"
