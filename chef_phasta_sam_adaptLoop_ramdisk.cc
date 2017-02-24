@@ -11,6 +11,16 @@
 #include <assert.h>
 #include <unistd.h>
 
+/** \file chef_phasta_sam_adaptLoop_ramdisk.cc
+    \brief Example file-based driver for adaptive loops using a ramdisk
+    \remark Runs Chef and then PHASTA until the user-specified maximum
+            PHASTA time step is reached.  Size fields to drive adaptation
+            are defined using SAM from
+            <a href=https://github.com/SCOREC/core>core</a>.
+            This example also demonstrates the use of the fine grained
+            chef.h and phasta.h APIs.
+*/
+
 namespace {
   void printElapsedTime(const char* key, double s) {
     if( !PCU_Comm_Self() )

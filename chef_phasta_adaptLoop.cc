@@ -7,6 +7,12 @@
 #include "chefPhasta.h"
 #include <stdlib.h>
 
+/** \file chef_phasta_adaptLoop.cc
+    \brief Example in-memory driver for adaptive loops
+    \remark Runs Chef and then PHASTA until the user-specified maximum
+            PHASTA time step is reached.
+*/
+
 namespace {
   void freeMesh(apf::Mesh* m) {
     m->destroyNative();

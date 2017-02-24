@@ -11,6 +11,17 @@
 #include <assert.h>
 #include <unistd.h>
 
+/** \file chef_phasta_sam_adaptLoop_sz.cc
+    \brief Example in-memory driver for adaptive loops
+    \remark Runs Chef and then PHASTA until the user-specified maximum
+            PHASTA time step is reached.  Size fields to drive adaptation
+            are defined using SAM (from
+            <a href=https://github.com/SCOREC/core>core</a>)
+            by reading the PHASTA "errors" field.
+            This example also demonstrates the use of the fine grained
+            chef.h and phasta.h APIs.
+*/
+
 namespace {
   void freeMesh(apf::Mesh* m) {
     m->destroyNative();

@@ -47,6 +47,15 @@ Note, the following disables the SVLS and PETSC solvers and relies on LESLIB for
     make
     make test
 
+# Documentation
+
+After running CMake Doxygen documentation can be generated with
+
+  make doc
+
+The latest version of the docs are also available here
+
+  https://www.scorec.rpi.edu/~cwsmith/phastaChefDocs
 
 # development discussion
 

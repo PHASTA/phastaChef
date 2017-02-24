@@ -9,6 +9,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+/** \file chef_phasta_adaptLoop_files_ramdisk.cc
+    \brief Example file-based driver for adaptive loops using a ramdisk
+    \remark Runs Chef and then PHASTA until the user-specified maximum
+            PHASTA time step is reached.
+*/
+
 namespace {
   void freeMesh(apf::Mesh* m) {
     m->destroyNative();
