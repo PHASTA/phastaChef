@@ -67,16 +67,17 @@ int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   PCU_Comm_Init();
   PCU_Protect();
-  if( argc != 2 ) {
+  if( argc != 3 ) {
     if(!PCU_Comm_Self())
-      fprintf(stderr, "Usage: %s <maxTimeStep>\n",argv[0]);
+      fprintf(stderr, "Usage: %s <maxTimeStep> <chef input config>\n",argv[0]);
     exit(EXIT_FAILURE);
   }
   int maxStep = atoi(argv[1]);
+  const char* chefinp = argv[2];
   chefPhasta::initModelers();
   grstream grs = makeGRStream();
   ph::Input ctrl;
-  ctrl.load("samAdaptLoop.inp");
+  ctrl.load(chefinp);
   /* setup file reading */
   ctrl.openfile_read = openfile_read;
   /* load the model and mesh */
