@@ -93,9 +93,10 @@ int main(int argc, char** argv) {
   ctrl.openfile_read = openfile_read;
   /* load the model and mesh */
   gmi_model* mdl = gmi_load(ctrl.modelFileName.c_str());
-  apf::Mesh2* m = apf::loadMdsMesh(mdl,ctrl.meshFileName.c_str());
+  apf::Mesh2* m = NULL;
   /* read restart files (and split if requested) */
   chef::cook(mdl,m,ctrl,grs);
+  assert(m);
   rstream rs = makeRStream();
   /* setup stream reading */
   ctrl.openfile_read = openstream_read;
