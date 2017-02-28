@@ -11,8 +11,8 @@
 #include <assert.h>
 #include <unistd.h>
 
-/** \file chef_phasta_sam_adaptLoop_sz.cc
-    \brief Example in-memory driver for adaptive loops
+/** \file chef_phasta_sam_adaptLoop_sz_posix.cc
+    \brief Example POSIX file-based driver for adaptive loops
     \remark Runs Chef and then PHASTA until the user-specified maximum
             PHASTA time step is reached.  Size fields to drive adaptation
             are defined using SAM (from
