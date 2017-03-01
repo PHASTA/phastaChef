@@ -74,21 +74,6 @@ namespace {
     return fopen(path, "r");
   }
 
-  static FILE* openstream_read(ph::Input& in, const char* path) {
-    std::string fname(path);
-    std::string restartStr("restart");
-    FILE* f = NULL;
-    if( fname.find(restartStr) != std::string::npos )
-      f = openRStreamRead(in.rs);
-    else {
-      fprintf(stderr,
-        "ERROR %s type of stream %s is unknown... exiting\n",
-        __func__, fname.c_str());
-      exit(1);
-    }
-    return f;
-  }
-
   void setupChef(ph::Input& ctrl, int step) {
     //don't split or tetrahedronize
     ctrl.splitFactor = 1;
