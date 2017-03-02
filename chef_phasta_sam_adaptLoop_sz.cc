@@ -28,16 +28,6 @@ namespace {
     apf::destroyMesh(m);
   }
 
-  apf::Field* getField(apf::Mesh* m) {
-    /* Hijacking threshold and converting it to same as
-     * chefs runFromGivenSize in core:phasta/phAdapt.cc
-     * 6th entry (idx 5) is an isotropic size.
-     * copied from Chef RunFromGivenSize */
-    const unsigned idx = 5;
-    const char* fldName = "errors";
-    return sam::specifiedIso(m,fldName,idx);
-  }
-
   static FILE* openfile_read(ph::Input&, const char* path) {
     return fopen(path, "r");
   }
@@ -89,8 +79,6 @@ int main(int argc, char** argv) {
   grstream grs = makeGRStream();
   ph::Input ctrl;
   ctrl.load(chefinp);
-  /* setup file reading */
-  ctrl.openfile_read = openfile_read;
   /* load the model and mesh */
   gmi_model* mdl = gmi_load(ctrl.modelFileName.c_str());
   apf::Mesh2* m = NULL;
@@ -98,9 +86,6 @@ int main(int argc, char** argv) {
   chef::cook(mdl,m,ctrl,grs);
   assert(m);
   rstream rs = makeRStream();
-  /* setup stream reading */
-  ctrl.openfile_read = openstream_read;
-  ctrl.rs = rs;
   phSolver::Input inp("solver.inp", "input.config");
   int step = 0;
   do {
@@ -110,15 +95,8 @@ int main(int argc, char** argv) {
       fprintf(stderr, "STATUS ran to step %d\n", step);
     if( step >= maxStep )
       break;
-      
     setupChef(ctrl,step);
-    chef::readAndAttachFields(ctrl,m);
-    apf::Field* szFld = getField(m);
-    assert(szFld);
-    chef::adapt(m,szFld,ctrl);
-    apf::destroyField(szFld);
-    chef::balanceAndReorder(ctrl,m);
-    chef::preprocess(m,ctrl,grs);
+    chef::cook(mdl,m,ctrl,rs,grs);
     clearRStream(rs);
   } while( step < maxStep );
   destroyGRStream(grs);
