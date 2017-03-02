@@ -49,6 +49,7 @@ namespace {
 
   void setupChef(ph::Input& ctrl, int step) {
     //don't split or tetrahedronize
+    ctrl.printIOtime = 1; //report time spent streaming
     ctrl.splitFactor = 1;
     ctrl.tetrahedronize = 0;
     ctrl.timeStepNumber = step;
