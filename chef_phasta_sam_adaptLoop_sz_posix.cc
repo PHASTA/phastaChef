@@ -1,5 +1,6 @@
 #include "chefPhasta.h"
 #include <PCU.h>
+#include <pumi_version.h>
 #include <chef.h>
 #include <phasta.h>
 #include <phstream.h>
@@ -94,6 +95,8 @@ int main(int argc, char** argv) {
       fprintf(stderr, "Usage: %s <maxTimeStep> <chef input config>\n",argv[0]);
     exit(EXIT_FAILURE);
   }
+  if( !PCU_Comm_Self() )
+    printf("PUMI Git hash %s\n", pumi_version());
   int maxStep = atoi(argv[1]);
   const char* chefinp = argv[2];
 
