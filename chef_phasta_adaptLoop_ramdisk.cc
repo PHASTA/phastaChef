@@ -52,14 +52,6 @@ namespace {
     return restartname.str();
   }
 
-  std::string prefixCwd(std::string name) {
-    char cwd[4096] = "\0";
-    getcwd(cwd,4096);
-    std::stringstream s;
-    s << cwd << "/" << name;
-    return s.str();
-  }
-
   void setupChef(ph::Input& ctrl, int step) {
     //don't split or tetrahedronize
     ctrl.splitFactor = 1;
