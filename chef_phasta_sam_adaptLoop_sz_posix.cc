@@ -60,22 +60,13 @@ namespace {
     apf::destroyMesh(m);
   }
 
-  apf::Field* getField(apf::Mesh* m) {
-    /* Hijacking threshold and converting it to same as
-     * chefs runFromGivenSize in core:phasta/phAdapt.cc
-     * 6th entry (idx 5) is an isotropic size.
-     * copied from Chef RunFromGivenSize */
-    const unsigned idx = 5;
-    const char* fldName = "errors";
-    return sam::specifiedIso(m,fldName,idx);
-  }
-
   static FILE* openfile_read(ph::Input&, const char* path) {
     return fopen(path, "r");
   }
 
   void setupChef(ph::Input& ctrl, int step) {
     //don't split or tetrahedronize
+    ctrl.printIOtime = 1; //report time spent streaming
     ctrl.splitFactor = 1;
     ctrl.tetrahedronize = 0;
     ctrl.timeStepNumber = step;
@@ -110,14 +101,9 @@ int main(int argc, char** argv) {
   /* read chef config */
   ph::Input ctrl;
   ctrl.load(chefinp);
-  /* setup file reading */
-  ctrl.openfile_read = openfile_read;
   /* load the model and mesh */
   gmi_model* mdl = gmi_load(ctrl.modelFileName.c_str());
   apf::Mesh2* m = NULL;
-  /* stream handles */
-  grstream grs;
-  rstream rs;
   /* read restart files (and split if requested) */
   ctrl.outMeshFileName = makeMeshName(ctrl.timeStepNumber);
   chef::cook(mdl,m,ctrl);
@@ -137,13 +123,7 @@ int main(int argc, char** argv) {
     setupChef(ctrl,step);
     m = apf::loadMdsMesh(ctrl.modelFileName.c_str(),
                          ctrl.meshFileName.c_str());
-    chef::readAndAttachFields(ctrl,m);
-    apf::Field* szFld = getField(m);
-    assert(szFld);
-    chef::adapt(m,szFld,ctrl);
-    apf::destroyField(szFld);
-    chef::balanceAndReorder(ctrl,m);
-    chef::preprocess(m,ctrl);
+    chef::cook(mdl,m,ctrl);
     freeMesh(m); m = NULL;
     mychdir(step);
   } while( step < maxStep );
