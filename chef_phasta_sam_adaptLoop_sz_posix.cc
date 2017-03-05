@@ -4,12 +4,9 @@
 #include <chef.h>
 #include <phasta.h>
 #include <phstream.h>
-#include <sam.h>
-#include <apfMDS.h>
 #include <iostream>
 #include <sstream>
 #include <stdlib.h>
-#include <assert.h>
 #include <unistd.h>
 
 /** \file chef_phasta_sam_adaptLoop_sz_posix.cc
@@ -17,10 +14,8 @@
     \remark Runs Chef and then PHASTA until the user-specified maximum
             PHASTA time step is reached.  Size fields to drive adaptation
             are defined using SAM (from
-            <a href=https://github.com/SCOREC/core>core</a>)
+            <a href=https://github.com/SCOREC/core>core</a>) in Chef
             by reading the PHASTA "errors" field.
-            This example also demonstrates the use of the fine grained
-            chef.h and phasta.h APIs.
 */
 
 namespace {
@@ -61,9 +56,6 @@ namespace {
     apf::destroyMesh(m);
   }
 
-  static FILE* openfile_read(ph::Input&, const char* path) {
-    return fopen(path, "r");
-  }
 
   void setupChef(ph::Input& ctrl, int step) {
     //don't split or tetrahedronize
@@ -72,17 +64,15 @@ namespace {
     ctrl.tetrahedronize = 0;
     ctrl.timeStepNumber = step;
     ctrl.solutionMigration = 1;
-    if(step>1) {
-      if(!PCU_Comm_Self()) {
-        fprintf(stderr, "STATUS error based adapt %d\n", step);
-        fprintf(stderr, "STATUS ctrl.attributeFileName %s step %d\n",
-            ctrl.attributeFileName.c_str(), step);
-      }
-      ctrl.adaptStrategy = 1; //error field adapt
-      ctrl.adaptFlag = 1;
-    }
+    ctrl.adaptStrategy = 1; //error field adapt
+    ctrl.adaptFlag = 1;
     ctrl.restartFileName = makeRestartName();
     ctrl.outMeshFileName = makeMeshName(step);
+    if(!PCU_Comm_Self()) {
+      fprintf(stderr, "STATUS error based adapt %d\n", step);
+      fprintf(stderr, "STATUS ctrl.attributeFileName %s step %d\n",
+          ctrl.attributeFileName.c_str(), step);
+    }
   }
 }
 
@@ -104,12 +94,11 @@ int main(int argc, char** argv) {
   /* read chef config */
   ph::Input ctrl;
   ctrl.load(chefinp);
-  /* load the model and mesh */
-  gmi_model* mdl = gmi_load(ctrl.modelFileName.c_str());
-  apf::Mesh2* m = NULL;
   /* read restart files (and split if requested) */
   ctrl.outMeshFileName = makeMeshName(ctrl.timeStepNumber);
-  chef::cook(mdl,m,ctrl);
+  gmi_model* g = NULL;
+  apf::Mesh2* m = NULL;
+  chef::cook(g,m,ctrl);
   freeMesh(m); m = NULL;
   phSolver::Input inp("solver.inp", "input.config");
   int step = ctrl.timeStepNumber;
@@ -124,9 +113,7 @@ int main(int argc, char** argv) {
     if( step >= maxStep )
       break;
     setupChef(ctrl,step);
-    m = apf::loadMdsMesh(ctrl.modelFileName.c_str(),
-                         ctrl.meshFileName.c_str());
-    chef::cook(mdl,m,ctrl);
+    chef::cook(g,m,ctrl);
     freeMesh(m); m = NULL;
     mychdir(step);
   } while( step < maxStep );
