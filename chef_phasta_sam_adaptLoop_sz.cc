@@ -19,8 +19,6 @@
             are defined using SAM (from
             <a href=https://github.com/SCOREC/core>core</a>)
             by reading the PHASTA "errors" field.
-            This example also demonstrates the use of the fine grained
-            chef.h and phasta.h APIs.
 */
 
 namespace {
