@@ -4,10 +4,7 @@
 #include <chef.h>
 #include <phasta.h>
 #include <phstream.h>
-#include <sam.h>
 #include <apfMDS.h>
-#include <iostream>
-#include <sstream>
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
@@ -25,25 +22,6 @@ namespace {
   void freeMesh(apf::Mesh* m) {
     m->destroyNative();
     apf::destroyMesh(m);
-  }
-
-  static FILE* openfile_read(ph::Input&, const char* path) {
-    return fopen(path, "r");
-  }
-
-  static FILE* openstream_read(ph::Input& in, const char* path) {
-    std::string fname(path);
-    std::string restartStr("restart");
-    FILE* f = NULL;
-    if( fname.find(restartStr) != std::string::npos )
-      f = openRStreamRead(in.rs);
-    else {
-      fprintf(stderr,
-        "ERROR %s type of stream %s is unknown... exiting\n",
-        __func__, fname.c_str());
-      exit(1);
-    }
-    return f;
   }
 
   void setupChef(ph::Input& ctrl, int step) {
