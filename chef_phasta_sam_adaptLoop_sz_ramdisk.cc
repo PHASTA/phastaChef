@@ -101,6 +101,7 @@ int main(int argc, char** argv) {
   const char* inputcfg = argv[4];
   const char* chefinp = argv[5];
 
+  double t0 = PCU_Time();
 
   mychdir(ramdisk);
 
@@ -133,7 +134,7 @@ int main(int argc, char** argv) {
   } while( step < maxStep );
   chefPhasta::finalizeModelers();
   if(!PCU_Comm_Self())
-    fprintf(stderr, "STATUS done");
+    fprintf(stderr, "STATUS done %f seconds\n", PCU_Time()-t0);
   PCU_Comm_Free();
   MPI_Finalize();
 }

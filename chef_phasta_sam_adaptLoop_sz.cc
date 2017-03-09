@@ -55,6 +55,9 @@ int main(int argc, char** argv) {
     printf("PUMI Git hash %s\n", pumi_version());
   int maxStep = atoi(argv[1]);
   const char* chefinp = argv[2];
+
+  double t0 = PCU_Time();
+
   chefPhasta::initModelers();
   grstream grs = makeGRStream();
   ph::Input ctrl;
@@ -84,7 +87,7 @@ int main(int argc, char** argv) {
   freeMesh(m);
   chefPhasta::finalizeModelers();
   if(!PCU_Comm_Self())
-    fprintf(stderr, "STATUS done");
+    fprintf(stderr, "STATUS done %f seconds\n", PCU_Time()-t0);
   PCU_Comm_Free();
   MPI_Finalize();
 }

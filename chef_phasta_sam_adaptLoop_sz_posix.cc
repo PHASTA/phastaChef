@@ -90,6 +90,8 @@ int main(int argc, char** argv) {
   int maxStep = atoi(argv[1]);
   const char* chefinp = argv[2];
 
+  double t0 = PCU_Time();
+
   chefPhasta::initModelers();
   /* read chef config */
   ph::Input ctrl;
@@ -119,7 +121,7 @@ int main(int argc, char** argv) {
   } while( step < maxStep );
   chefPhasta::finalizeModelers();
   if(!PCU_Comm_Self())
-    fprintf(stderr, "STATUS done");
+    fprintf(stderr, "STATUS done %f seconds\n", PCU_Time()-t0);
   PCU_Comm_Free();
   MPI_Finalize();
 }
