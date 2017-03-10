@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
     setupChef(ctrl,step);
     chef::cook(g,m,ctrl);
     freeMesh(m); m = NULL;
-    mychdir(step);
+    if(ctrl.adaptFlag) mychdir(step);
     if(!PCU_Comm_Self())
       fprintf(stderr, "cycle time %f seconds\n", PCU_Time()-cycleStart);
   } while( step < maxStep );
