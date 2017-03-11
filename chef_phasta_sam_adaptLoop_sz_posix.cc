@@ -105,6 +105,7 @@ int main(int argc, char** argv) {
   phSolver::Input inp("solver.inp", "input.config");
   int step = ctrl.timeStepNumber;
   do {
+    double cycleStart = PCU_Time();
     pwd();
     /* The next Chef run needs to load the mesh from 
      * the solve that is about to run.*/
@@ -118,6 +119,8 @@ int main(int argc, char** argv) {
     chef::cook(g,m,ctrl);
     freeMesh(m); m = NULL;
     mychdir(step);
+    if(!PCU_Comm_Self())
+      fprintf(stderr, "cycle time %f seconds\n", PCU_Time()-cycleStart);
   } while( step < maxStep );
   chefPhasta::finalizeModelers();
   if(!PCU_Comm_Self())

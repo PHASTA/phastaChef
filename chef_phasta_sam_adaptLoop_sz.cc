@@ -72,6 +72,7 @@ int main(int argc, char** argv) {
   phSolver::Input inp("solver.inp", "input.config");
   int step = 0;
   do {
+    double cycleStart = PCU_Time();
     step = phasta(inp,grs,rs);
     clearGRStream(grs);
     if(!PCU_Comm_Self())
@@ -81,6 +82,8 @@ int main(int argc, char** argv) {
     setupChef(ctrl,step);
     chef::cook(mdl,m,ctrl,rs,grs);
     clearRStream(rs);
+    if(!PCU_Comm_Self())
+      fprintf(stderr, "STATUS cycle time %f seconds\n", PCU_Time()-cycleStart);
   } while( step < maxStep );
   destroyGRStream(grs);
   destroyRStream(rs);
