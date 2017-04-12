@@ -1,4 +1,3 @@
-#include "customSF.h"
 #include "chefPhasta.h"
 #include "sam.h"
 #include "samSz.h"
@@ -26,12 +25,6 @@
 #ifndef WRITE_VTK
 #define WRITE_VTK
 #endif
-
-typedef class MVertexMove *pMVertexMove;
-extern pMVertexMove MVertexMove_new(pUnstructuredMesh dmesh, int useStrategy);
-extern void MVertexMove_setFromLocationFile(pMVertexMove, const char *file);
-extern int MVertexMove_run(pMVertexMove);
-extern void MVertexMove_delete(pMVertexMove);
 
 namespace {
   void freeMesh(apf::Mesh* m) {
@@ -108,10 +101,8 @@ namespace {
     VIter_delete(vi);
     fclose (fp);
 
-    pMVertexMove vmove = MVertexMove_new(pm, 0);
-    MVertexMove_setFromLocationFile(vmove, filename);
-    MVertexMove_run(vmove); // This will do the actual work
-    MVertexMove_delete(vmove);
+    printf("using MeshMover_run to update the simmetrix mesh coords\n");
+    assert(0);
     return true;
   }
 
@@ -226,10 +217,6 @@ namespace {
       apf::destroyField(m->findField("meshQ"));
     in.writeGeomBCFiles = 1; //write GeomBC file for visualization
 
-    /* Or obtain size field based on a certain field
-       use temperature field for spr error estimation */
-//      apf::Field* szFld = getSprSF(m);
-
     /* use the size field of the mesh before mesh motion */
     apf::Field* szFld = orgSF;
 
@@ -270,7 +257,7 @@ namespace {
       MSA_setMapFields(adapter, sim_fld_lst);
       PList_delete(sim_fld_lst);
 
-      PM_write(sim_pm, "before_adapt.sms", sthreadNone, NULL);
+      PM_write(sim_pm, "before_adapt.sms", NULL);
 
       /* run the adapter */
       pProgress progress = Progress_new();
