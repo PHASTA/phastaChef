@@ -20,6 +20,7 @@
 #include <SimPartitionedMesh.h>
 #include <MeshSimAdapt.h>
 #include <SimField.h>
+#include <SimAdvMeshing.h>
 #include <cstring>
 
 #ifndef WRITE_VTK
@@ -293,6 +294,7 @@ int main(int argc, char** argv) {
   SimModel_start();
   SimField_start();
   gmi_sim_start();
+  SimAdvMeshing_start();
   gmi_register_sim();
   MS_init();
 //end debugging
@@ -306,7 +308,7 @@ int main(int argc, char** argv) {
   rstream rs = makeRStream();
   grstream grs = makeGRStream();
   ph::Input ctrl;
-  ctrl.load("samAdaptLoop.inp");
+  ctrl.load("adapt.inp");
   /* load the model and mesh */
   gmi_register_mesh();
   gmi_model* g = 0;
@@ -349,6 +351,7 @@ int main(int argc, char** argv) {
   freeMesh(m);
   chefPhasta::finalizeModelers();
 //debugging for simmetrix mesh
+  SimAdvMeshing_stop();
   gmi_sim_stop();
   SimField_stop();
   SimModel_stop();
