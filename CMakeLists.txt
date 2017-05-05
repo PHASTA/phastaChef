@@ -44,7 +44,13 @@ endif()
 find_library(ACUSOLVE_LIB libles)
 
 macro(setup_exe exename srcname IC)
-  add_executable(${exename} ${srcname})
+  set(src ${srcname}
+    pcWriteFiles.cc
+	pcUpdateMesh.cc
+	pcAdapter.cc
+  )
+
+  add_executable(${exename} ${src})
   set_target_properties(${exename} PROPERTIES HAS_CXX TRUE)
   set_target_properties(${exename} PROPERTIES HAS_CXX TRUE)
   set_target_properties(${exename} PROPERTIES LINKER_LANGUAGE Fortran)
