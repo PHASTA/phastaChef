@@ -94,16 +94,15 @@ int main(int argc, char** argv) {
   PCU_Comm_Init();
   PCU_Protect();
 //init for simmetrix mesh
+  MS_init();
+  SimModel_start();
   Sim_readLicenseFile(0);
   SimPartitionedMesh_start(0, 0);
   Sim_logOn("loopDriver.log");
-  SimUtil_start();
-  SimModel_start();
   SimField_start();
   gmi_sim_start();
   SimAdvMeshing_start();
   gmi_register_sim();
-  MS_init();
 //end init
   if( argc != 2 ) {
     if(!PCU_Comm_Self())
@@ -161,11 +160,11 @@ int main(int argc, char** argv) {
   SimAdvMeshing_stop();
   gmi_sim_stop();
   SimField_stop();
-  SimModel_stop();
-  SimUtil_stop();
   Sim_logOff();
   SimPartitionedMesh_stop();
   Sim_unregisterAllKeys();
+  SimModel_stop();
+  MS_exit();
 //end final
   PCU_Comm_Free();
   MPI_Finalize();
