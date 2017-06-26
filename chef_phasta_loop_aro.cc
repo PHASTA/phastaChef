@@ -19,6 +19,7 @@
 #include <MeshSimAdapt.h>
 #include <SimField.h>
 #include <SimAdvMeshing.h>
+#include "SimParasolidKrnl.h"
 #include <cstring>
 
 #include "pcWriteFiles.h"
@@ -99,6 +100,7 @@ int main(int argc, char** argv) {
   Sim_readLicenseFile(0);
   SimPartitionedMesh_start(0, 0);
   Sim_logOn("loopDriver.log");
+  SimParasolid_start(1);
   SimField_start();
   gmi_sim_start();
   SimAdvMeshing_start();
@@ -142,9 +144,12 @@ int main(int argc, char** argv) {
     int doAdaptation = 1; // make it run anyway
 
     m->verify();
+	printf("pass verify\n");
     if ( doAdaptation ) {
       pc::writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step;
+	  printf("pass write PHT\n");
       pc::writeSequence(m,seq,"test_"); seq++;
+	  printf("pass write seq\n");
       /* do mesh adaptation */
       pc::runMeshAdapter(ctrl,m,szFld,step);
       pc::writeSequence(m,seq,"test_"); seq++;
@@ -162,6 +167,7 @@ int main(int argc, char** argv) {
   SimField_stop();
   Sim_logOff();
   SimPartitionedMesh_stop();
+  SimParasolid_stop(1);
   Sim_unregisterAllKeys();
   SimModel_stop();
   MS_exit();
