@@ -52,7 +52,7 @@ namespace {
     ctrl.splitFactor = 1;
     ctrl.tetrahedronize = 0;
     ctrl.timeStepNumber = step;
-    ctrl.solutionMigration = 1;
+//    ctrl.solutionMigration = 1; // comment for debugging
     if(step>0) {
       if(!PCU_Comm_Self()) {
         fprintf(stderr, "STATUS error based adapt %d\n", step);
@@ -106,12 +106,13 @@ int main(int argc, char** argv) {
   SimAdvMeshing_start();
   gmi_register_sim();
 //end init
-  if( argc != 2 ) {
+  if( argc != 3 ) {
     if(!PCU_Comm_Self())
-      fprintf(stderr, "Usage: %s <maxTimeStep>\n",argv[0]);
+      fprintf(stderr, "Usage: %s <maxTimeStep> <motion case id>\n",argv[0]);
     exit(EXIT_FAILURE);
   }
   int maxStep = atoi(argv[1]);
+  int caseId  = atoi(argv[2]);
   chefPhasta::initModelers();
   rstream rs = makeRStream();
   grstream grs = makeGRStream();
@@ -139,7 +140,7 @@ int main(int argc, char** argv) {
       break;
     setupChef(ctrl,step);
     chef::readAndAttachFields(ctrl,m);
-    pc::updateMeshCoord(ctrl,m);
+    pc::updateMeshCoord(ctrl,m,step,caseId);
 //    int doAdaptation = !isMeshqGood(m, ctrl.meshqCrtn);
     int doAdaptation = 1; // make it run anyway
 

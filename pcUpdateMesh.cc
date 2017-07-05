@@ -31,10 +31,10 @@ namespace pc {
     return true;
   }
 
-  bool updateSIMCoord(apf::Mesh2* m) {
+  bool updateSIMCoord(apf::Mesh2* m, int step, int caseId) {
     MS_init();
-	SimParasolid_start(1);
 	SimAdvMeshing_start();
+	SimParasolid_start(1);
     SimMeshTools_start();
     pProgress progress = Progress_new();
 
@@ -54,6 +54,25 @@ namespace pc {
 	double* vals = new double[apf::countComponents(f)];
 	assert(apf::countComponents(f) == 3);
 
+    // case specific variables
+	const double trans[3] = {2e-4, 0.0, 0.0};
+	double disp, sfct, rang;
+    if (caseId == 1) {
+	  disp = 2e-4 * (int)(step / 2 - 1);
+	  printf("current step is %d; disp = %f\n",step,disp);
+      sfct = 0.9025;
+	  rang = 2.0;
+	}
+	else if (caseId == 2) {
+	  disp = 4e-4;
+      sfct = 0.9025;
+	  rang = 2.0;
+	}
+	else {
+	  printf("wrong case id\n");
+	  assert(0);
+	}
+
     // prepare variables
     int gas = 1;        // hardcoding
 	int grain11 = 1339; // hardcoding
@@ -68,17 +87,17 @@ namespace pc {
 	int faceC1  = 54;   // hardcoding
 	int faceC2  = 46;   // hardcoding
 	int faceC3  = 41;   // hardcoding
-    const double trans[3] = {0.0, 0.0, 0.0};
 	const double rotax[3] = {0.0, 0.0, 1.0};
-    const double rotpt11[3] = {0.5e-3,   1.125e-3, 0.0};
-    const double rotpt12[3] = {2.625e-3, 1.125e-3, 0.0};
-    const double rotpt13[3] = {4.75e-3,  1.125e-3, 0.0};
-    const double rotpt21[3] = {0.5e-3,   0.0,      0.0};
-    const double rotpt22[3] = {2.625e-3, 0.0,      0.0};
-    const double rotpt23[3] = {4.75e-3,  0.0,      0.0};
-    const double rotpt31[3] = {0.5e-3,  -1.125e-3, 0.0};
-    const double rotpt32[3] = {2.625e-3,-1.125e-3, 0.0};
-    const double rotpt33[3] = {4.75e-3, -1.125e-3, 0.0};
+	const double rotax2[3] = {0.0, 0.0, -1.0};
+    const double rotpt11[3] = {0.5e-3 + disp,   1.125e-3, 0.0};
+    const double rotpt12[3] = {2.625e-3 + disp, 1.125e-3, 0.0};
+    const double rotpt13[3] = {4.75e-3 + disp,  1.125e-3, 0.0};
+    const double rotpt21[3] = {0.5e-3 + disp,   0.0,      0.0};
+    const double rotpt22[3] = {2.625e-3 + disp, 0.0,      0.0};
+    const double rotpt23[3] = {4.75e-3 + disp,  0.0,      0.0};
+    const double rotpt31[3] = {0.5e-3 + disp,  -1.125e-3, 0.0};
+    const double rotpt32[3] = {2.625e-3 + disp,-1.125e-3, 0.0};
+    const double rotpt33[3] = {4.75e-3 + disp, -1.125e-3, 0.0};
 
     // declaration
 	GRIter grIter;
@@ -100,52 +119,51 @@ namespace pc {
 	while((modelRegion = GRIter_next(grIter))){
 	  if (GEN_tag(modelRegion) == grain11) {
 	    printf("Start mesh mover on grain11\n");
-	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt11, 0.0, 0.95);
+	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt11, rang, sfct);
       }
 	  if (GEN_tag(modelRegion) == grain12) {
 	    printf("Start mesh mover on grain12\n");
-	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt12, 0.0, 0.95);
+	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt12, rang, sfct);
       }
 	  if (GEN_tag(modelRegion) == grain13) {
 	    printf("Start mesh mover on grain13\n");
-	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt13, 0.0, 0.95);
+	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt13, rang, sfct);
       }
 	  if (GEN_tag(modelRegion) == grain21) {
 	    printf("Start mesh mover on grain21\n");
-	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt21, 0.0, 0.95);
+	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt21, 0.0, sfct);
       }
 	  if (GEN_tag(modelRegion) == grain22) {
 	    printf("Start mesh mover on grain22\n");
-	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt22, 0.0, 0.95);
+	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt22, 0.0, sfct);
       }
 	  if (GEN_tag(modelRegion) == grain23) {
 	    printf("Start mesh mover on grain23\n");
-	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt23, 0.0, 0.95);
+	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt23, 0.0, sfct);
       }
 	  if (GEN_tag(modelRegion) == grain31) {
 	    printf("Start mesh mover on grain31\n");
-	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt31, 0.0, 0.95);
+	    MeshMover_setTransform(mmover, modelRegion, trans, rotax2, rotpt31, rang, sfct);
       }
 	  if (GEN_tag(modelRegion) == grain32) {
 	    printf("Start mesh mover on grain32\n");
-	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt32, 0.0, 0.95);
+	    MeshMover_setTransform(mmover, modelRegion, trans, rotax2, rotpt32, rang, sfct);
       }
 	  if (GEN_tag(modelRegion) == grain33) {
 	    printf("Start mesh mover on grain33\n");
-	    MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt33, 0.0, 0.95);
+	    MeshMover_setTransform(mmover, modelRegion, trans, rotax2, rotpt33, rang, sfct);
       }
 	}
     GRIter_delete(grIter);
 
     // mesh motion of vertices on surfaces
-	printf("Start mesh mover of surfaces\n");
-
+	printf("Start mesh mover on surfaces and edges\n");
 	gfIter = GM_faceIter(model);
 	while((modelFace = GFIter_next(gfIter))){
       if(GEN_tag(modelFace) == faceC1 ||
 	     GEN_tag(modelFace) == faceC2 ||
 		 GEN_tag(modelFace) == faceC3){
-	    vIter = M_classifiedVertexIter(pm, modelFace, 0);
+	    vIter = M_classifiedVertexIter(pm, modelFace, 1);
 		while((meshVertex = VIter_next(vIter))){
 		  V_coord(meshVertex, xyz);
 		  apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
@@ -166,9 +184,12 @@ namespace pc {
 	  if(GEN_tag(modelRegion) == gas){
 	    vIter = M_classifiedVertexIter(pm, modelRegion, 0);
         while((meshVertex = VIter_next(vIter))){
-//		  V_coord(meshVertex, xyz);
+		  if (EN_isBLEntity(meshVertex)) continue;
 		  apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
 		  apf::getComponents(f, vtx, 0, vals);
+//		  V_coord(meshVertex, xyz);
+//		  printf("old position: (%f,%f,%f)\n",xyz[0],xyz[1],xyz[2]);
+//		  printf("new position: (%f,%f,%f)\n",vals[0],vals[1],vals[2]);
 		  const double newloc[3] = {vals[0], vals[1], vals[2]};
 		  MeshMover_setVolumeMove(mmover,meshVertex,newloc);
 		}
@@ -190,16 +211,16 @@ namespace pc {
 
     Progress_delete(progress);
 	SimMeshTools_stop();
-    SimAdvMeshing_stop();
 	SimParasolid_stop(1);
+    SimAdvMeshing_stop();
 	MS_exit();
     return true;
   }
 
-  void updateMeshCoord(ph::Input& in, apf::Mesh2* m) {
+  void updateMeshCoord(ph::Input& in, apf::Mesh2* m, int step, int caseId) {
     bool done = false;
     if (in.simmetrixMesh)
-      done = updateSIMCoord(m);
+      done = updateSIMCoord(m,step,caseId);
     else
       done = updateAPFCoord(m);
     assert(done);
