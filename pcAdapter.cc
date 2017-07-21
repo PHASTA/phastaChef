@@ -18,25 +18,25 @@ namespace pc {
     if(in.simmetrixMesh == 1) {
       apf::MeshSIM* sim_m = dynamic_cast<apf::MeshSIM*>(m);
       pParMesh sim_pm = sim_m->getMesh();
-	  pMesh pm = PM_mesh(sim_pm,0);
+      pMesh pm = PM_mesh(sim_pm,0);
 
       // declaration
       VIter vIter;
       pVertex meshVertex;
 
       /* create the Simmetrix adapter */
-	  printf("Start mesh adapt\n");
+      printf("Start mesh adapt\n");
       pMSAdapt adapter = MSA_new(pm, 1);
-	  MSA_setAdaptBL(adapter, 1);
+      MSA_setAdaptBL(adapter, 1);
       MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
 
       /* use size field before mesh motion */
-	  printf("Start mesh adapt of setting size field\n");
-	  vIter = M_vertexIter(pm);
-	  while((meshVertex = VIter_next(vIter))){
-	    MSA_scaleVertexSize(adapter, meshVertex, 1.0);
-	  }
-	  VIter_delete(vIter);
+      printf("Start mesh adapt of setting size field\n");
+      vIter = M_vertexIter(pm);
+      while((meshVertex = VIter_next(vIter))){
+        MSA_scaleVertexSize(adapter, meshVertex, 1.0);
+      }
+      VIter_delete(vIter);
 
       /* copy the size field from APF to the Simmetrix adapter */
 //      apf::MeshEntity* v;
@@ -71,13 +71,13 @@ namespace pc {
 //      PM_write(sim_pm, "before_adapt.sms", NULL);
 
       /* run the adapter */
-	  printf("do real mesh adapt\n");
+      printf("do real mesh adapt\n");
       pProgress progress = Progress_new();
       MSA_adapt(adapter, progress);
       MSA_delete(adapter);
 
       // write model and mesh
-	  printf("write mesh for mesh adapt\n");
+      printf("write mesh for mesh adapt\n");
       M_write(pm, "after_adapt.sms", 0, progress);
       Progress_delete(progress);
       /* transfer data back to apf */

@@ -8,6 +8,7 @@
 #include "phIO.h"
 #include <phstream.h>
 #include <sam.h>
+#include <phSnap.h>
 #include <apfMDS.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -19,6 +20,7 @@
 #include <MeshSimAdapt.h>
 #include <SimField.h>
 #include <SimAdvMeshing.h>
+#include "SimMeshTools.h"
 #include "SimParasolidKrnl.h"
 #include <cstring>
 
@@ -104,6 +106,7 @@ int main(int argc, char** argv) {
   SimField_start();
   gmi_sim_start();
   SimAdvMeshing_start();
+  SimMeshTools_start();
   gmi_register_sim();
 //end init
   if( argc != 3 ) {
@@ -129,6 +132,7 @@ int main(int argc, char** argv) {
   pc::writeSequence(m,seq,"test_"); seq++;
   do {
     m->verify();
+    pass_mesh_to_phasta(m);
     /* take the initial mesh as size field */
     apf::Field* szFld = samSz::isoSize(m);
     step = phasta(inp,grs,rs);
@@ -163,6 +167,7 @@ int main(int argc, char** argv) {
   freeMesh(m);
   chefPhasta::finalizeModelers();
 //final for simmetrix mesh
+  SimMeshTools_stop();
   SimAdvMeshing_stop();
   gmi_sim_stop();
   SimField_stop();
