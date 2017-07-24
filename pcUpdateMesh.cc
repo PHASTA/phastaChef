@@ -11,8 +11,129 @@
 #include "apfSIM.h"
 #include "gmi_sim.h"
 #include <cassert>
+#include <list>
 
 namespace pc {
+  struct movingBodyMotion {
+    int tag;
+    double trans[3];
+    double rotaxis[3];
+    double rotpt[3];
+    double rotang;
+    double scale;
+  };
+
+  struct meshMotion {
+    std::list<movingBodyMotion> movingBodyMotions;
+    std::list<int> surfaceTags;
+    std::list<int> edgeTags;
+    std::list<int> regionTags;
+  };
+
+  /* ideally, this comes from some input file */
+  meshMotion configureMotion(int caseId, int step) {
+    double disp, sfct, rang;
+    sfct = 0.9025;
+    rang = 2.0;
+    if (caseId == 1) {
+      disp = 2e-4 * (int)(step / 2 - 1);
+      printf("current step is %d; disp = %f\n",step,disp);
+    }
+    else if (caseId == 2) {
+      disp = 4e-4;
+    }
+    else {
+      printf("wrong case id\n");
+      assert(0);
+    }
+    meshMotion mm;
+    movingBodyMotion mbm;
+    mm.surfaceTags.push_back(54);
+    mm.surfaceTags.push_back(46);
+    mm.surfaceTags.push_back(41);
+    mm.regionTags.push_back(1);
+// grain11
+    mbm.tag = 1339;
+    mbm.trans[0] = 2e-4;
+    mbm.rotaxis[2] = 1.0;
+    mbm.rotpt[0] = 0.5e-3 + disp;
+    mbm.rotpt[1] = 1.125e-3;
+    mbm.rotang = rang;
+    mbm.scale = sfct;
+    mm.movingBodyMotions.push_back(mbm);
+// grain12
+    mbm.tag = 1036;
+    mbm.trans[0] = 2e-4;
+    mbm.rotaxis[2] = 1.0;
+    mbm.rotpt[0] = 2.625e-3 + disp;
+    mbm.rotpt[1] = 1.125e-3;
+    mbm.rotang = rang;
+    mbm.scale = sfct;
+    mm.movingBodyMotions.push_back(mbm);
+// grain13
+    mbm.tag = 733;
+    mbm.trans[0] = 2e-4;
+    mbm.rotaxis[2] = 1.0;
+    mbm.rotpt[0] = 4.75e-3 + disp;
+    mbm.rotpt[1] = 1.125e-3;
+    mbm.rotang = rang;
+    mbm.scale = sfct;
+    mm.movingBodyMotions.push_back(mbm);
+// grain21
+    mbm.tag = 1440;
+    mbm.trans[0] = 2e-4;
+    mbm.rotaxis[2] = 1.0;
+    mbm.rotpt[0] = 0.5e-3 + disp;
+    mbm.rotang = 0.0;
+    mbm.scale = sfct;
+    mm.movingBodyMotions.push_back(mbm);
+// grain22
+    mbm.tag = 1137;
+    mbm.trans[0] = 2e-4;
+    mbm.rotaxis[2] = 1.0;
+    mbm.rotpt[0] = 2.625e-3 + disp;
+    mbm.rotang = 0.0;
+    mbm.scale = sfct;
+    mm.movingBodyMotions.push_back(mbm);
+// grain23
+    mbm.tag = 834;
+    mbm.trans[0] = 2e-4;
+    mbm.rotaxis[2] = 1.0;
+    mbm.rotpt[0] = 4.75e-3 + disp;
+    mbm.rotang = 0.0;
+    mbm.scale = sfct;
+    mm.movingBodyMotions.push_back(mbm);
+// grain31
+    mbm.tag = 1238;
+    mbm.trans[0] = 2e-4;
+    mbm.rotaxis[2] = -1.0;
+    mbm.rotpt[0] = 0.5e-3 + disp;
+    mbm.rotpt[1] = -1.125e-3;
+    mbm.rotang = rang;
+    mbm.scale = sfct;
+    mm.movingBodyMotions.push_back(mbm);
+// grain32
+    mbm.tag = 935;
+    mbm.trans[0] = 2e-4;
+    mbm.rotaxis[2] = -1.0;
+    mbm.rotpt[0] = 2.625e-3 + disp;
+    mbm.rotpt[1] = -1.125e-3;
+    mbm.rotang = rang;
+    mbm.scale = sfct;
+    mm.movingBodyMotions.push_back(mbm);
+// grain33
+    mbm.tag = 632;
+    mbm.trans[0] = 2e-4;
+    mbm.rotaxis[2] = -1.0;
+    mbm.rotpt[0] = 4.75e-3 + disp;
+    mbm.rotpt[1] = -1.125e-3;
+    mbm.rotang = rang;
+    mbm.scale = sfct;
+    mm.movingBodyMotions.push_back(mbm);
+// return
+    return mm;
+  }
+
   bool updateAPFCoord(apf::Mesh2* m) {
     apf::Field* f = m->findField("motion_coords");
     assert(f);
@@ -46,58 +167,11 @@ namespace pc {
 
     gmi_model* gmiModel = apf_msim->getModel();
     pGModel model = gmi_export_sim(gmiModel);
-//    pNativeModel nmodel = ParasolidNM_createFromFile("model_nat.x_t", 0);
-//    pGModel model = GM_load("model.smd", nmodel, progress);
 
     apf::Field* f = m->findField("motion_coords");
     assert(f);
     double* vals = new double[apf::countComponents(f)];
     assert(apf::countComponents(f) == 3);
-
-    // case specific variables
-    const double trans[3] = {2e-4, 0.0, 0.0};
-    double disp, sfct, rang;
-    if (caseId == 1) {
-      disp = 2e-4 * (int)(step / 2 - 1);
-      printf("current step is %d; disp = %f\n",step,disp);
-      sfct = 0.9025;
-      rang = 2.0;
-    }
-    else if (caseId == 2) {
-      disp = 4e-4;
-      sfct = 0.9025;
-      rang = 2.0;
-    }
-    else {
-      printf("wrong case id\n");
-      assert(0);
-    }
-
-    // prepare variables
-    int gas = 1;        // hardcoding
-    int grain11 = 1339; // hardcoding
-    int grain12 = 1036; // hardcoding
-    int grain13 = 733;  // hardcoding
-    int grain21 = 1440; // hardcoding
-    int grain22 = 1137; // hardcoding
-    int grain23 = 834;  // hardcoding
-    int grain31 = 1238; // hardcoding
-    int grain32 = 935;  // hardcoding
-    int grain33 = 632;  // hardcoding
-    int faceC1  = 54;   // hardcoding
-    int faceC2  = 46;   // hardcoding
-    int faceC3  = 41;   // hardcoding
-    const double rotax[3] = {0.0, 0.0, 1.0};
-    const double rotax2[3] = {0.0, 0.0, -1.0};
-    const double rotpt11[3] = {0.5e-3 + disp,   1.125e-3, 0.0};
-    const double rotpt12[3] = {2.625e-3 + disp, 1.125e-3, 0.0};
-    const double rotpt13[3] = {4.75e-3 + disp,  1.125e-3, 0.0};
-    const double rotpt21[3] = {0.5e-3 + disp,   0.0,      0.0};
-    const double rotpt22[3] = {2.625e-3 + disp, 0.0,      0.0};
-    const double rotpt23[3] = {4.75e-3 + disp,  0.0,      0.0};
-    const double rotpt31[3] = {0.5e-3 + disp,  -1.125e-3, 0.0};
-    const double rotpt32[3] = {2.625e-3 + disp,-1.125e-3, 0.0};
-    const double rotpt33[3] = {4.75e-3 + disp, -1.125e-3, 0.0};
 
     // declaration
     GRIter grIter;
@@ -114,94 +188,52 @@ namespace pc {
     printf("Start mesh mover\n");
     pMeshMover mmover = MeshMover_new(pm, 0);
 
+    // configure mesh motion
+    meshMotion mm = configureMotion(caseId, step);
+
     // mesh motion of moving body
-    grIter = GM_regionIter(model);
-    while((modelRegion = GRIter_next(grIter))){
-      if (GEN_tag(modelRegion) == grain11) {
-        printf("Start mesh mover on grain11\n");
-        MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt11, rang, sfct);
-      }
-      if (GEN_tag(modelRegion) == grain12) {
-        printf("Start mesh mover on grain12\n");
-        MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt12, rang, sfct);
-      }
-      if (GEN_tag(modelRegion) == grain13) {
-        printf("Start mesh mover on grain13\n");
-        MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt13, rang, sfct);
-      }
-      if (GEN_tag(modelRegion) == grain21) {
-        printf("Start mesh mover on grain21\n");
-        MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt21, 0.0, sfct);
-      }
-      if (GEN_tag(modelRegion) == grain22) {
-        printf("Start mesh mover on grain22\n");
-        MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt22, 0.0, sfct);
-      }
-      if (GEN_tag(modelRegion) == grain23) {
-        printf("Start mesh mover on grain23\n");
-        MeshMover_setTransform(mmover, modelRegion, trans, rotax, rotpt23, 0.0, sfct);
-      }
-      if (GEN_tag(modelRegion) == grain31) {
-        printf("Start mesh mover on grain31\n");
-        MeshMover_setTransform(mmover, modelRegion, trans, rotax2, rotpt31, rang, sfct);
-      }
-      if (GEN_tag(modelRegion) == grain32) {
-        printf("Start mesh mover on grain32\n");
-        MeshMover_setTransform(mmover, modelRegion, trans, rotax2, rotpt32, rang, sfct);
-      }
-      if (GEN_tag(modelRegion) == grain33) {
-        printf("Start mesh mover on grain33\n");
-        MeshMover_setTransform(mmover, modelRegion, trans, rotax2, rotpt33, rang, sfct);
-      }
+    for (std::list<movingBodyMotion>::iterator mit = mm.movingBodyMotions.begin(); mit != mm.movingBodyMotions.end(); ++mit) {
+      assert(modelRegion = (pGRegion) GM_entityByTag(model, 3, mit->tag));
+      printf("set moving body: region %d\n",mit->tag);
+      MeshMover_setTransform(mmover, modelRegion, mit->trans, mit->rotaxis, mit->rotpt, mit->rotang, mit->scale);
     }
-    GRIter_delete(grIter);
 
     // mesh motion of vertices on surfaces
-    printf("Start mesh mover on surfaces and edges\n");
-    gfIter = GM_faceIter(model);
-    while((modelFace = GFIter_next(gfIter))){
-      if(GEN_tag(modelFace) == faceC1 ||
-         GEN_tag(modelFace) == faceC2 ||
-         GEN_tag(modelFace) == faceC3){
-        vIter = M_classifiedVertexIter(pm, modelFace, 1);
-        while((meshVertex = VIter_next(vIter))){
-          V_coord(meshVertex, xyz);
-          apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
-          apf::getComponents(f, vtx, 0, vals);
-          const double disp[3] = {vals[0]-xyz[0], vals[1]-xyz[1], vals[2]-xyz[2]};
-          V_movedParamPoint(meshVertex,disp,newpar,newpt);
-          MeshMover_setSurfaceMove(mmover,meshVertex,newpar,newpt);
-        }
-        VIter_delete(vIter);
+    std::list<int>::iterator lit;
+    for (lit = mm.surfaceTags.begin(); lit != mm.surfaceTags.end(); ++lit) {
+      assert(modelFace = (pGFace) GM_entityByTag(model, 2, *lit));
+      printf("set move on surface: face %d\n",*lit);
+      vIter = M_classifiedVertexIter(pm, modelFace, 1);
+      while((meshVertex = VIter_next(vIter))){
+        V_coord(meshVertex, xyz);
+        apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+        apf::getComponents(f, vtx, 0, vals);
+        const double disp[3] = {vals[0]-xyz[0], vals[1]-xyz[1], vals[2]-xyz[2]};
+        V_movedParamPoint(meshVertex,disp,newpar,newpt);
+        MeshMover_setSurfaceMove(mmover,meshVertex,newpar,newpt);
       }
+      VIter_delete(vIter);
     }
-    GFIter_delete(gfIter);
 
     // mesh motion of vertices in region
-    printf("Start mesh mover in region\n");
-    grIter = GM_regionIter(model);
-    while((modelRegion = GRIter_next(grIter))){
-      if(GEN_tag(modelRegion) == gas){
-        vIter = M_classifiedVertexIter(pm, modelRegion, 0);
-        while((meshVertex = VIter_next(vIter))){
-          if (EN_isBLEntity(meshVertex)) continue;
-          apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
-          apf::getComponents(f, vtx, 0, vals);
-//          V_coord(meshVertex, xyz);
-//          printf("old position: (%f,%f,%f)\n",xyz[0],xyz[1],xyz[2]);
-//          printf("new position: (%f,%f,%f)\n",vals[0],vals[1],vals[2]);
-          const double newloc[3] = {vals[0], vals[1], vals[2]};
-          MeshMover_setVolumeMove(mmover,meshVertex,newloc);
-        }
-        VIter_delete(vIter);
+    for (lit = mm.regionTags.begin(); lit != mm.regionTags.end(); ++lit) {
+      assert(modelRegion = (pGRegion) GM_entityByTag(model, 3, *lit));
+      printf("set move on region: region %d\n",*lit);
+      vIter = M_classifiedVertexIter(pm, modelRegion, 0);
+      while((meshVertex = VIter_next(vIter))){
+        if (EN_isBLEntity(meshVertex)) continue;
+        apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+        apf::getComponents(f, vtx, 0, vals);
+        const double newloc[3] = {vals[0], vals[1], vals[2]};
+        MeshMover_setVolumeMove(mmover,meshVertex,newloc);
       }
+      VIter_delete(vIter);
     }
-    GRIter_delete(grIter);
 
     // do real work
-   printf("do real mesh mover\n");
-   assert(MeshMover_run(mmover, progress));
-   MeshMover_delete(mmover);
+    printf("do real mesh mover\n");
+    assert(MeshMover_run(mmover, progress));
+    MeshMover_delete(mmover);
 
     // write model and mesh
     printf("write model for mesh mover\n");
