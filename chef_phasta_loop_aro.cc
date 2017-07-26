@@ -22,6 +22,7 @@
 #include <SimAdvMeshing.h>
 #include "SimMeshTools.h"
 #include "SimParasolidKrnl.h"
+#include "SimDiscrete.h"
 #include <cstring>
 
 #include "pcWriteFiles.h"
@@ -103,6 +104,7 @@ int main(int argc, char** argv) {
   SimPartitionedMesh_start(0, 0);
   Sim_logOn("loopDriver.log");
   SimParasolid_start(1);
+  SimDiscrete_start(0);
   SimField_start();
   gmi_sim_start();
   SimAdvMeshing_start();
@@ -173,6 +175,7 @@ int main(int argc, char** argv) {
   SimField_stop();
   Sim_logOff();
   SimPartitionedMesh_stop();
+  SimDiscrete_stop(0);
   SimParasolid_stop(1);
   Sim_unregisterAllKeys();
   SimModel_stop();

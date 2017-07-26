@@ -27,14 +27,14 @@ namespace pc {
       /* create the Simmetrix adapter */
       printf("Start mesh adapt\n");
       pMSAdapt adapter = MSA_new(pm, 1);
-      MSA_setAdaptBL(adapter, 1);
+      MSA_setAdaptBL(adapter, 0);
       MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
 
       /* use size field before mesh motion */
       printf("Start mesh adapt of setting size field\n");
       vIter = M_vertexIter(pm);
       while((meshVertex = VIter_next(vIter))){
-        MSA_scaleVertexSize(adapter, meshVertex, 1.0);
+        MSA_scaleVertexSize(adapter, meshVertex, 1.0); // use the size field of the mesh before mesh motion
       }
       VIter_delete(vIter);
 

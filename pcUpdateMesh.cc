@@ -152,6 +152,73 @@ namespace pc {
     return true;
   }
 
+  bool updateSIMDiscreteCoord(apf::Mesh2* m) {
+    MS_init();
+    SimAdvMeshing_start();
+    SimParasolid_start(1);
+    SimMeshTools_start();
+    pProgress progress = Progress_new();
+
+    apf::MeshSIM* apf_msim = dynamic_cast<apf::MeshSIM*>(m);
+    pParMesh ppm = apf_msim->getMesh();
+    pMesh pm = PM_mesh(ppm,0);
+
+    M_write(pm, "before_overwrite.sms", 0, progress);
+
+    gmi_model* gmiModel = apf_msim->getModel();
+    pGModel model = gmi_export_sim(gmiModel);
+
+    apf::Field* f = m->findField("motion_coords");
+    assert(f);
+    double* vals = new double[apf::countComponents(f)];
+    assert(apf::countComponents(f) == 3);
+
+    // declaration
+    pGRegion modelRegion;
+    VIter vIter;
+    pVertex meshVertex;
+    double newpt[3];
+
+    // start mesh mover
+    printf("Start mesh mover\n");
+    pMeshMover mmover = MeshMover_new(pm, 0);
+
+    // mesh motion of vertices in region
+    vIter = M_vertexIter(pm);
+    while((meshVertex = VIter_next(vIter))){
+      apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+      apf::getComponents(f, vtx, 0, vals);
+      newpt[0] = vals[0];
+      newpt[1] = vals[1];
+      newpt[2] = vals[2];
+      pPList closureRegion = GEN_regions(EN_whatIn(meshVertex));
+      assert(PList_size(closureRegion));
+      modelRegion = (pGRegion) PList_item(closureRegion, 0);
+      printf("set move on (discrete) model: region %d; coord=(%12.16e,%12.16e,%12.16e)\n", GEN_tag(modelRegion),vals[0],vals[1],vals[2]);
+      MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newpt);
+      PList_delete(closureRegion);
+    }
+    VIter_delete(vIter);
+
+    // do real work
+    printf("do real mesh mover\n");
+    assert(MeshMover_run(mmover, progress));
+    MeshMover_delete(mmover);
+
+    // write model and mesh
+    printf("write model for mesh mover\n");
+    GM_write(model, "after_mover.smd", 0, progress);
+    printf("write mesh for mesh mover\n");
+    M_write(pm, "after_mover.sms", 0, progress);
+
+    Progress_delete(progress);
+    SimMeshTools_stop();
+    SimParasolid_stop(1);
+    SimAdvMeshing_stop();
+    MS_exit();
+    return true;
+  }
+
   bool updateSIMCoord(apf::Mesh2* m, int step, int caseId) {
     MS_init();
     SimAdvMeshing_start();
@@ -174,9 +241,7 @@ namespace pc {
     assert(apf::countComponents(f) == 3);
 
     // declaration
-    GRIter grIter;
     pGRegion modelRegion;
-    GFIter gfIter;
     pGFace modelFace;
     VIter vIter;
     pVertex meshVertex;
@@ -221,7 +286,6 @@ namespace pc {
       printf("set move on region: region %d\n",*lit);
       vIter = M_classifiedVertexIter(pm, modelRegion, 0);
       while((meshVertex = VIter_next(vIter))){
-        if (EN_isBLEntity(meshVertex)) continue;
         apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
         apf::getComponents(f, vtx, 0, vals);
         const double newloc[3] = {vals[0], vals[1], vals[2]};
@@ -251,10 +315,17 @@ namespace pc {
 
   void updateMeshCoord(ph::Input& in, apf::Mesh2* m, int step, int caseId) {
     bool done = false;
-    if (in.simmetrixMesh)
-      done = updateSIMCoord(m,step,caseId);
-    else
+    if (in.simmetrixMesh) {
+      /* assumption: parametric model always needs a caseId
+         when caseId = 0, it is supposed to be discrete model */
+      if (!caseId)
+        done = updateSIMDiscreteCoord(m);
+      else
+        done = updateSIMCoord(m,step,caseId);
+    }
+    else {
       done = updateAPFCoord(m);
+    }
     assert(done);
   }
 
