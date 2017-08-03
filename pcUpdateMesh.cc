@@ -12,15 +12,34 @@
 #include "gmi_sim.h"
 #include <cassert>
 #include <list>
+#include <cstring>
 
 namespace pc {
   struct movingBodyMotion {
+    movingBodyMotion(int t = 0, double r = 0.0, double s = 0.0)
+    {
+      tag = t;
+      memset(trans, 0.0, sizeof trans);
+      memset(rotaxis, 0.0, sizeof rotaxis);
+      memset(rotpt, 0.0, sizeof rotpt);
+      rotang = r;
+      scale = s;
+    }
     int tag;
     double trans[3];
     double rotaxis[3];
     double rotpt[3];
     double rotang;
     double scale;
+    void set_trans(double x, double y, double z){
+      trans[0] = x; trans[1] = y; trans[2] = z;
+    }
+    void set_rotaxis(double x, double y, double z){
+      rotaxis[0] = x; rotaxis[1] = y; rotaxis[2] = z;
+    }
+    void set_rotpt(double x, double y, double z){
+      rotpt[0] = x; rotpt[1] = y; rotpt[2] = z;
+    }
   };
 
   struct meshMotion {
@@ -32,15 +51,16 @@ namespace pc {
 
   /* ideally, this comes from some input file */
   meshMotion configureMotion(int caseId, int step) {
-    double disp, sfct, rang;
-    sfct = 0.9025;
+    double offset, disp, rang, sfct;
+    disp = 2e-4 + 2e-5;
     rang = 2.0;
+    sfct = 0.9;
     if (caseId == 1) {
-      disp = 2e-4 * (int)(step / 2 - 1);
-      printf("current step is %d; disp = %f\n",step,disp);
+      offset = 2e-4 * (double)(step - 1) + 2e-5;
+      printf("current step is %d; offset = %f\n",step,offset);
     }
     else if (caseId == 2) {
-      disp = 4e-4;
+      offset = 4e-4;
     }
     else {
       printf("wrong case id\n");
@@ -53,82 +73,58 @@ namespace pc {
     mm.surfaceTags.push_back(41);
     mm.regionTags.push_back(1);
 // grain11
-    mbm.tag = 1339;
-    mbm.trans[0] = 2e-4;
-    mbm.rotaxis[2] = 1.0;
-    mbm.rotpt[0] = 0.5e-3 + disp;
-    mbm.rotpt[1] = 1.125e-3;
-    mbm.rotang = rang;
-    mbm.scale = sfct;
+    mbm = movingBodyMotion(1339, rang, sfct);
+    mbm.set_trans(disp, 0.0, 0.0);
+    mbm.set_rotaxis(0.0, 0.0, 1.0);
+    mbm.set_rotpt(0.5e-3 + offset, 1.125e-3, 0.0);
     mm.movingBodyMotions.push_back(mbm);
 // grain12
-    mbm.tag = 1036;
-    mbm.trans[0] = 2e-4;
-    mbm.rotaxis[2] = 1.0;
-    mbm.rotpt[0] = 2.625e-3 + disp;
-    mbm.rotpt[1] = 1.125e-3;
-    mbm.rotang = rang;
-    mbm.scale = sfct;
+    mbm = movingBodyMotion(1036, rang, sfct);
+    mbm.set_trans(disp, 0.0, 0.0);
+    mbm.set_rotaxis(0.0, 0.0, 1.0);
+    mbm.set_rotpt(2.625e-3 + offset, 1.125e-3, 0.0);
     mm.movingBodyMotions.push_back(mbm);
 // grain13
-    mbm.tag = 733;
-    mbm.trans[0] = 2e-4;
-    mbm.rotaxis[2] = 1.0;
-    mbm.rotpt[0] = 4.75e-3 + disp;
-    mbm.rotpt[1] = 1.125e-3;
-    mbm.rotang = rang;
-    mbm.scale = sfct;
+    mbm = movingBodyMotion(733, rang, sfct);
+    mbm.set_trans(disp, 0.0, 0.0);
+    mbm.set_rotaxis(0.0, 0.0, 1.0);
+    mbm.set_rotpt(4.75e-3 + offset, 1.125e-3, 0.0);
     mm.movingBodyMotions.push_back(mbm);
 // grain21
-    mbm.tag = 1440;
-    mbm.trans[0] = 2e-4;
-    mbm.rotaxis[2] = 1.0;
-    mbm.rotpt[0] = 0.5e-3 + disp;
-    mbm.rotang = 0.0;
-    mbm.scale = sfct;
+    mbm = movingBodyMotion(1440, 0.0, sfct);
+    mbm.set_trans(disp, 0.0, 0.0);
+    mbm.set_rotaxis(0.0, 0.0, 1.0);
+    mbm.set_rotpt(0.5e-3 + offset, 0.0, 0.0);
     mm.movingBodyMotions.push_back(mbm);
 // grain22
-    mbm.tag = 1137;
-    mbm.trans[0] = 2e-4;
-    mbm.rotaxis[2] = 1.0;
-    mbm.rotpt[0] = 2.625e-3 + disp;
-    mbm.rotang = 0.0;
-    mbm.scale = sfct;
+    mbm = movingBodyMotion(1137, 0.0, sfct);
+    mbm.set_trans(disp, 0.0, 0.0);
+    mbm.set_rotaxis(0.0, 0.0, 1.0);
+    mbm.set_rotpt(2.625e-3 + offset, 0.0, 0.0);
     mm.movingBodyMotions.push_back(mbm);
 // grain23
-    mbm.tag = 834;
-    mbm.trans[0] = 2e-4;
-    mbm.rotaxis[2] = 1.0;
-    mbm.rotpt[0] = 4.75e-3 + disp;
-    mbm.rotang = 0.0;
-    mbm.scale = sfct;
+    mbm = movingBodyMotion(834, 0.0, sfct);
+    mbm.set_trans(disp, 0.0, 0.0);
+    mbm.set_rotaxis(0.0, 0.0, 1.0);
+    mbm.set_rotpt(4.75e-3 + offset, 0.0, 0.0);
     mm.movingBodyMotions.push_back(mbm);
 // grain31
-    mbm.tag = 1238;
-    mbm.trans[0] = 2e-4;
-    mbm.rotaxis[2] = -1.0;
-    mbm.rotpt[0] = 0.5e-3 + disp;
-    mbm.rotpt[1] = -1.125e-3;
-    mbm.rotang = rang;
-    mbm.scale = sfct;
+    mbm = movingBodyMotion(1238, rang, sfct);
+    mbm.set_trans(disp, 0.0, 0.0);
+    mbm.set_rotaxis(0.0, 0.0, -1.0);
+    mbm.set_rotpt(0.5e-3 + offset, -1.125e-3, 0.0);
     mm.movingBodyMotions.push_back(mbm);
 // grain32
-    mbm.tag = 935;
-    mbm.trans[0] = 2e-4;
-    mbm.rotaxis[2] = -1.0;
-    mbm.rotpt[0] = 2.625e-3 + disp;
-    mbm.rotpt[1] = -1.125e-3;
-    mbm.rotang = rang;
-    mbm.scale = sfct;
+    mbm = movingBodyMotion(935, rang, sfct);
+    mbm.set_trans(disp, 0.0, 0.0);
+    mbm.set_rotaxis(0.0, 0.0, -1.0);
+    mbm.set_rotpt(2.625e-3 + offset, -1.125e-3, 0.0);
     mm.movingBodyMotions.push_back(mbm);
 // grain33
-    mbm.tag = 632;
-    mbm.trans[0] = 2e-4;
-    mbm.rotaxis[2] = -1.0;
-    mbm.rotpt[0] = 4.75e-3 + disp;
-    mbm.rotpt[1] = -1.125e-3;
-    mbm.rotang = rang;
-    mbm.scale = sfct;
+    mbm = movingBodyMotion(632, rang, sfct);
+    mbm.set_trans(disp, 0.0, 0.0);
+    mbm.set_rotaxis(0.0, 0.0, -1.0);
+    mbm.set_rotpt(4.75e-3 + offset, -1.125e-3, 0.0);
     mm.movingBodyMotions.push_back(mbm);
 // return
     return mm;
@@ -194,7 +190,9 @@ namespace pc {
       pPList closureRegion = GEN_regions(EN_whatIn(meshVertex));
       assert(PList_size(closureRegion));
       modelRegion = (pGRegion) PList_item(closureRegion, 0);
+// debugging
       printf("set move on (discrete) model: region %d; coord=(%12.16e,%12.16e,%12.16e)\n", GEN_tag(modelRegion),vals[0],vals[1],vals[2]);
+// end debugging
       MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newpt);
       PList_delete(closureRegion);
     }
@@ -260,6 +258,10 @@ namespace pc {
     for (std::list<movingBodyMotion>::iterator mit = mm.movingBodyMotions.begin(); mit != mm.movingBodyMotions.end(); ++mit) {
       assert(modelRegion = (pGRegion) GM_entityByTag(model, 3, mit->tag));
       printf("set moving body: region %d\n",mit->tag);
+// debugging
+      printf("  parameters: (%f,%f,%f), (%f,%f,%f), (%f,%f,%f), %f,%f\n",mit->trans[0],mit->trans[1],mit->trans[2],mit->rotaxis[0],mit->rotaxis[1],mit->rotaxis[2],
+             mit->rotpt[0],mit->rotpt[1],mit->rotpt[2],mit->rotang,mit->scale);
+// end debugging
       MeshMover_setTransform(mmover, modelRegion, mit->trans, mit->rotaxis, mit->rotpt, mit->rotang, mit->scale);
     }
 
@@ -273,6 +275,9 @@ namespace pc {
         V_coord(meshVertex, xyz);
         apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
         apf::getComponents(f, vtx, 0, vals);
+// debugging
+//      printf("set move on surface %d; coord=(%12.16e,%12.16e,%12.16e)\n", GEN_tag(modelFace),vals[0],vals[1],vals[2]);
+// end debugging
         const double disp[3] = {vals[0]-xyz[0], vals[1]-xyz[1], vals[2]-xyz[2]};
         V_movedParamPoint(meshVertex,disp,newpar,newpt);
         MeshMover_setSurfaceMove(mmover,meshVertex,newpar,newpt);
@@ -288,6 +293,9 @@ namespace pc {
       while((meshVertex = VIter_next(vIter))){
         apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
         apf::getComponents(f, vtx, 0, vals);
+// debugging
+//      printf("set move on region %d; coord=(%12.16e,%12.16e,%12.16e)\n", GEN_tag(modelRegion),vals[0],vals[1],vals[2]);
+// end debugging
         const double newloc[3] = {vals[0], vals[1], vals[2]};
         MeshMover_setVolumeMove(mmover,meshVertex,newloc);
       }

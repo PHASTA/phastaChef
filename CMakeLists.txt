@@ -46,8 +46,8 @@ find_library(ACUSOLVE_LIB libles)
 macro(setup_exe exename srcname IC)
   set(src ${srcname}
     pcWriteFiles.cc
-	pcUpdateMesh.cc
-	pcAdapter.cc
+    pcUpdateMesh.cc
+    pcAdapter.cc
   )
 
   add_executable(${exename} ${src})

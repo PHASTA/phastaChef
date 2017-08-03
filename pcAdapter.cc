@@ -26,7 +26,7 @@ namespace pc {
 
       /* create the Simmetrix adapter */
       printf("Start mesh adapt\n");
-      pMSAdapt adapter = MSA_new(pm, 1);
+      pMSAdapt adapter = MSA_new(sim_pm, 1);
       MSA_setAdaptBL(adapter, 0);
       MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
 

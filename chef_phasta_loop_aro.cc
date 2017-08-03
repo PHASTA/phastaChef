@@ -22,7 +22,7 @@
 #include <SimAdvMeshing.h>
 #include "SimMeshTools.h"
 #include "SimParasolidKrnl.h"
-#include "SimDiscrete.h"
+#include <SimDiscrete.h>
 #include <cstring>
 
 #include "pcWriteFiles.h"
@@ -62,9 +62,9 @@ namespace {
         fprintf(stderr, "STATUS ctrl.attributeFileName %s step %d\n",
             ctrl.attributeFileName.c_str(), step);
       }
-      ctrl.adaptStrategy = 1; //error field adapt
-      ctrl.adaptFlag = 1;
-      ctrl.writeGeomBCFiles = 0;
+      ctrl.adaptStrategy = 0;
+      ctrl.adaptFlag = 0;
+      ctrl.writeGeomBCFiles = 1;
     }
   }
 
@@ -104,7 +104,6 @@ int main(int argc, char** argv) {
   SimPartitionedMesh_start(0, 0);
   Sim_logOn("loopDriver.log");
   SimParasolid_start(1);
-  SimDiscrete_start(0);
   SimField_start();
   gmi_sim_start();
   SimAdvMeshing_start();
@@ -151,12 +150,12 @@ int main(int argc, char** argv) {
     int doAdaptation = 1; // make it run anyway
 
     m->verify();
-	printf("pass verify\n");
+    printf("pass verify\n");
     if ( doAdaptation ) {
       pc::writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step;
-	  printf("pass write PHT\n");
+      printf("pass write PHT\n");
       pc::writeSequence(m,seq,"test_"); seq++;
-	  printf("pass write seq\n");
+      printf("pass write seq\n");
       /* do mesh adaptation */
       pc::runMeshAdapter(ctrl,m,szFld,step);
       pc::writeSequence(m,seq,"test_"); seq++;
@@ -175,7 +174,6 @@ int main(int argc, char** argv) {
   SimField_stop();
   Sim_logOff();
   SimPartitionedMesh_stop();
-  SimDiscrete_stop(0);
   SimParasolid_stop(1);
   Sim_unregisterAllKeys();
   SimModel_stop();
