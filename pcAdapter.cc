@@ -35,6 +35,8 @@ namespace pc {
       vIter = M_vertexIter(pm);
       while((meshVertex = VIter_next(vIter))){
         MSA_scaleVertexSize(adapter, meshVertex, 1.0); // use the size field of the mesh before mesh motion
+//        MSA_scaleVertexSize(adapter, meshVertex, 2.0); // double size field
+//        MSA_scaleVertexSize(adapter, meshVertex, 0.5); // half size field
       }
       VIter_delete(vIter);
 
@@ -49,24 +51,24 @@ namespace pc {
 //      apf::destroyField(szFld);
 
       /* unpacked solution into serveral fields */
-//      apf::Field* pre_field = chef::extractField(m,"solution","pressure",1,apf::SCALAR,in.simmetrixMesh);
-//      apf::Field* vel_field = chef::extractField(m,"solution","velocity",2,apf::VECTOR,in.simmetrixMesh);
-//      apf::Field* tem_field = chef::extractField(m,"solution","temperature",5,apf::SCALAR,in.simmetrixMesh);
+      apf::Field* pre_field = chef::extractField(m,"solution","pressure",1,apf::SCALAR,in.simmetrixMesh);
+      apf::Field* vel_field = chef::extractField(m,"solution","velocity",2,apf::VECTOR,in.simmetrixMesh);
+      apf::Field* tem_field = chef::extractField(m,"solution","temperature",5,apf::SCALAR,in.simmetrixMesh);
 
       /* put these field explicitly into pPList */
-//      int num_flds = 3; // for now
-//      pField* sim_flds = new pField[num_flds];
-//      sim_flds[0] = apf::getSIMField(pre_field);
-//      sim_flds[1] = apf::getSIMField(vel_field);
-//      sim_flds[2] = apf::getSIMField(tem_field);
-//      pPList sim_fld_lst = PList_new();
-//      for (int i = 0; i < num_flds; i++)
-//        PList_append(sim_fld_lst, sim_flds[i]);
-//      assert(num_flds == PList_size(sim_fld_lst));
+      int num_flds = 3; // for now
+      pField* sim_flds = new pField[num_flds];
+      sim_flds[0] = apf::getSIMField(pre_field);
+      sim_flds[1] = apf::getSIMField(vel_field);
+      sim_flds[2] = apf::getSIMField(tem_field);
+      pPList sim_fld_lst = PList_new();
+      for (int i = 0; i < num_flds; i++)
+        PList_append(sim_fld_lst, sim_flds[i]);
+      assert(num_flds == PList_size(sim_fld_lst));
 
       /* set fields to be mapped */
-//      MSA_setMapFields(adapter, sim_fld_lst);
-//      PList_delete(sim_fld_lst);
+      MSA_setMapFields(adapter, sim_fld_lst);
+      PList_delete(sim_fld_lst);
 
 //      PM_write(sim_pm, "before_adapt.sms", NULL);
 
@@ -81,7 +83,7 @@ namespace pc {
       M_write(pm, "after_adapt.sms", 0, progress);
       Progress_delete(progress);
       /* transfer data back to apf */
-//      apf::Field* solution = chef::combineField(m,"solution","pressure","velocity","temperature");
+      apf::Field* solution = chef::combineField(m,"solution","pressure","velocity","temperature");
     }
     else {
       assert(szFld);

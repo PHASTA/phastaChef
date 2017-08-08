@@ -190,9 +190,6 @@ namespace pc {
       pPList closureRegion = GEN_regions(EN_whatIn(meshVertex));
       assert(PList_size(closureRegion));
       modelRegion = (pGRegion) PList_item(closureRegion, 0);
-// debugging
-      printf("set move on (discrete) model: region %d; coord=(%12.16e,%12.16e,%12.16e)\n", GEN_tag(modelRegion),vals[0],vals[1],vals[2]);
-// end debugging
       MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newpt);
       PList_delete(closureRegion);
     }
@@ -258,10 +255,6 @@ namespace pc {
     for (std::list<movingBodyMotion>::iterator mit = mm.movingBodyMotions.begin(); mit != mm.movingBodyMotions.end(); ++mit) {
       assert(modelRegion = (pGRegion) GM_entityByTag(model, 3, mit->tag));
       printf("set moving body: region %d\n",mit->tag);
-// debugging
-      printf("  parameters: (%f,%f,%f), (%f,%f,%f), (%f,%f,%f), %f,%f\n",mit->trans[0],mit->trans[1],mit->trans[2],mit->rotaxis[0],mit->rotaxis[1],mit->rotaxis[2],
-             mit->rotpt[0],mit->rotpt[1],mit->rotpt[2],mit->rotang,mit->scale);
-// end debugging
       MeshMover_setTransform(mmover, modelRegion, mit->trans, mit->rotaxis, mit->rotpt, mit->rotang, mit->scale);
     }
 
@@ -275,9 +268,6 @@ namespace pc {
         V_coord(meshVertex, xyz);
         apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
         apf::getComponents(f, vtx, 0, vals);
-// debugging
-//      printf("set move on surface %d; coord=(%12.16e,%12.16e,%12.16e)\n", GEN_tag(modelFace),vals[0],vals[1],vals[2]);
-// end debugging
         const double disp[3] = {vals[0]-xyz[0], vals[1]-xyz[1], vals[2]-xyz[2]};
         V_movedParamPoint(meshVertex,disp,newpar,newpt);
         MeshMover_setSurfaceMove(mmover,meshVertex,newpar,newpt);
@@ -293,9 +283,6 @@ namespace pc {
       while((meshVertex = VIter_next(vIter))){
         apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
         apf::getComponents(f, vtx, 0, vals);
-// debugging
-//      printf("set move on region %d; coord=(%12.16e,%12.16e,%12.16e)\n", GEN_tag(modelRegion),vals[0],vals[1],vals[2]);
-// end debugging
         const double newloc[3] = {vals[0], vals[1], vals[2]};
         MeshMover_setVolumeMove(mmover,meshVertex,newloc);
       }
