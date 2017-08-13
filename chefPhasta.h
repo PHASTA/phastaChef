@@ -7,7 +7,7 @@
 #include <SimUtil.h>
 namespace chefPhasta {
   void initModelers() {
-    Sim_readLicenseFile(0);
+    Sim_readLicenseFile("/net/common/meshSim/license/license.txt");
     gmi_sim_start();
     gmi_register_sim();
     gmi_register_mesh();

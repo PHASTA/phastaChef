@@ -55,15 +55,15 @@ namespace {
     ctrl.splitFactor = 1;
     ctrl.tetrahedronize = 0;
     ctrl.timeStepNumber = step;
-//    ctrl.solutionMigration = 1; // comment for debugging
+    ctrl.solutionMigration = 1;
     if(step>0) {
       if(!PCU_Comm_Self()) {
         fprintf(stderr, "STATUS error based adapt %d\n", step);
         fprintf(stderr, "STATUS ctrl.attributeFileName %s step %d\n",
             ctrl.attributeFileName.c_str(), step);
       }
-      ctrl.adaptStrategy = 0;
-      ctrl.adaptFlag = 0;
+//      ctrl.adaptStrategy = 0;
+//      ctrl.adaptFlag = 0;
       ctrl.writeGeomBCFiles = 1;
     }
   }
@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
 //init for simmetrix mesh
   MS_init();
   SimModel_start();
-  Sim_readLicenseFile(0);
+  Sim_readLicenseFile("/net/common/meshSim/license/license.txt");
   SimPartitionedMesh_start(0, 0);
   Sim_logOn("loopDriver.log");
   SimParasolid_start(1);
@@ -150,12 +150,9 @@ int main(int argc, char** argv) {
     int doAdaptation = 1; // make it run anyway
 
     m->verify();
-    printf("pass verify\n");
     if ( doAdaptation ) {
       pc::writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step;
-      printf("pass write PHT\n");
       pc::writeSequence(m,seq,"test_"); seq++;
-      printf("pass write seq\n");
       /* do mesh adaptation */
       pc::runMeshAdapter(ctrl,m,szFld,step);
       pc::writeSequence(m,seq,"test_"); seq++;

@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
 //debugging for simmetrix mesh
   MS_init();
   SimModel_start();
-  Sim_readLicenseFile(0);
+  Sim_readLicenseFile("/net/common/meshSim/license/license.txt");
   SimPartitionedMesh_start(0, 0);
   Sim_logOn("loopDriver.log");
   SimField_start();

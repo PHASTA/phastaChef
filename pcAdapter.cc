@@ -5,6 +5,67 @@
 #include <cassert>
 
 namespace pc {
+
+  apf::Field* convertField(apf::Mesh* m,
+    const char* inFieldname,
+    const char* outFieldname) {
+    apf::Field* inf = m->findField(inFieldname);
+    assert(inf);
+    int size = apf::countComponents(inf);
+    apf::Field* outf = m->findField(outFieldname);
+    if (outf)
+      apf::destroyField(outf);
+    outf = apf::createPackedField(m, outFieldname, size);
+    double* inVal = new double[size];
+    double* outVal = new double[size];
+    apf::MeshEntity* vtx;
+    apf::MeshIterator* it = m->begin(0);
+    while ((vtx = m->iterate(it))) {
+      apf::getComponents(inf, vtx, 0, inVal);
+      for (int i = 0; i < size; i++){
+        outVal[i] = inVal[i];
+      }
+      apf::setComponents(outf,vtx, 0, outVal);
+    }
+    m->end(it);
+    apf::destroyField(inf);
+    return outf;
+  }
+
+  /* unpacked solution into serveral fields,
+     put these field explicitly into pPList */
+  pPList getSimFieldList(ph::Input& in, apf::Mesh2*& m){
+    int num_flds = 0;
+    pField* sim_flds = new pField[7]; // Hardcoding
+    pPList sim_fld_lst = PList_new();
+    if (m->findField("solution")) {
+      num_flds += 3;
+      sim_flds[0] = apf::getSIMField(chef::extractField(m,"solution","pressure",1,apf::SCALAR,in.simmetrixMesh));
+      sim_flds[1] = apf::getSIMField(chef::extractField(m,"solution","velocity",2,apf::VECTOR,in.simmetrixMesh));
+      sim_flds[2] = apf::getSIMField(chef::extractField(m,"solution","temperature",5,apf::SCALAR,in.simmetrixMesh));
+      for (int i = 0; i < 3; i++)
+        PList_append(sim_fld_lst, sim_flds[i]);
+    }
+
+    if (m->findField("time derivative of solution")) {
+      num_flds += 3;
+      sim_flds[3] = apf::getSIMField(chef::extractField(m,"time derivative of solution","der_pressure",1,apf::SCALAR,in.simmetrixMesh));
+      sim_flds[4] = apf::getSIMField(chef::extractField(m,"time derivative of solution","der_velocity",2,apf::VECTOR,in.simmetrixMesh));
+      sim_flds[5] = apf::getSIMField(chef::extractField(m,"time derivative of solution","der_temperature",5,apf::SCALAR,in.simmetrixMesh));
+      for (int i = 3; i < 6; i++)
+        PList_append(sim_fld_lst, sim_flds[i]);
+    }
+
+    if (m->findField("mesh_vel")) {
+      num_flds += 1;
+      sim_flds[6] = apf::getSIMField(chef::extractField(m,"mesh_vel","mesh_vel_sim",1,apf::VECTOR,in.simmetrixMesh));
+      PList_append(sim_fld_lst, sim_flds[6]);
+    }
+
+    assert(num_flds == PList_size(sim_fld_lst));
+    return sim_fld_lst;
+  }
+
   void runMeshAdapter(ph::Input& in, apf::Mesh2*& m, apf::Field*& orgSF, int step) {
     if (m->findField("material_type"))
       apf::destroyField(m->findField("material_type"));
@@ -29,6 +90,7 @@ namespace pc {
       pMSAdapt adapter = MSA_new(sim_pm, 1);
       MSA_setAdaptBL(adapter, 0);
       MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
+      MSA_setNoMigration(adapter,1); // hack; since split/cut mesh is not supported with adaptation
 
       /* use size field before mesh motion */
       printf("Start mesh adapt of setting size field\n");
@@ -40,35 +102,12 @@ namespace pc {
       }
       VIter_delete(vIter);
 
-      /* copy the size field from APF to the Simmetrix adapter */
-//      apf::MeshEntity* v;
-//      apf::MeshIterator* it = m->begin(0);
-//      while ((v = m->iterate(it))) {
-//        double size = apf::getScalar(szFld, v, 0);
-//        MSA_setVertexSize(adapter, (pVertex) v, size);
-//      }
-//      m->end(it);
-//      apf::destroyField(szFld);
-
-      /* unpacked solution into serveral fields */
-      apf::Field* pre_field = chef::extractField(m,"solution","pressure",1,apf::SCALAR,in.simmetrixMesh);
-      apf::Field* vel_field = chef::extractField(m,"solution","velocity",2,apf::VECTOR,in.simmetrixMesh);
-      apf::Field* tem_field = chef::extractField(m,"solution","temperature",5,apf::SCALAR,in.simmetrixMesh);
-
-      /* put these field explicitly into pPList */
-      int num_flds = 3; // for now
-      pField* sim_flds = new pField[num_flds];
-      sim_flds[0] = apf::getSIMField(pre_field);
-      sim_flds[1] = apf::getSIMField(vel_field);
-      sim_flds[2] = apf::getSIMField(tem_field);
-      pPList sim_fld_lst = PList_new();
-      for (int i = 0; i < num_flds; i++)
-        PList_append(sim_fld_lst, sim_flds[i]);
-      assert(num_flds == PList_size(sim_fld_lst));
-
       /* set fields to be mapped */
-      MSA_setMapFields(adapter, sim_fld_lst);
-      PList_delete(sim_fld_lst);
+      if (in.solutionMigration) {
+        pPList sim_fld_lst = getSimFieldList(in, m);
+        MSA_setMapFields(adapter, sim_fld_lst);
+        PList_delete(sim_fld_lst);
+      }
 
 //      PM_write(sim_pm, "before_adapt.sms", NULL);
 
@@ -82,8 +121,16 @@ namespace pc {
       printf("write mesh for mesh adapt\n");
       M_write(pm, "after_adapt.sms", 0, progress);
       Progress_delete(progress);
+
       /* transfer data back to apf */
-      apf::Field* solution = chef::combineField(m,"solution","pressure","velocity","temperature");
+      if (in.solutionMigration) {
+        if (m->findField("pressure")) // assume we had solution before
+          chef::combineField(m,"solution","pressure","velocity","temperature");
+        if (m->findField("der_pressure")) // assume we had time derivative of solution before
+          chef::combineField(m,"time derivative of solution","der_pressure","der_velocity","der_temperature");
+        if (m->findField("mesh_vel_sim"))
+          convertField(m, "mesh_vel_sim", "mesh_vel");
+      }
     }
     else {
       assert(szFld);
