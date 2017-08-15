@@ -177,7 +177,7 @@ namespace pc {
 
     // start mesh mover
     printf("Start mesh mover\n");
-    pMeshMover mmover = MeshMover_new(pm, 0);
+    pMeshMover mmover = MeshMover_new(ppm, 0);
 
     // mesh motion of vertices in region
     vIter = M_vertexIter(pm);
@@ -246,7 +246,7 @@ namespace pc {
 
     // start mesh mover
     printf("Start mesh mover\n");
-    pMeshMover mmover = MeshMover_new(pm, 0);
+    pMeshMover mmover = MeshMover_new(ppm, 0);
 
     // configure mesh motion
     meshMotion mm = configureMotion(caseId, step);
