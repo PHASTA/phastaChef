@@ -97,19 +97,6 @@ int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   PCU_Comm_Init();
   PCU_Protect();
-//init for simmetrix mesh
-  MS_init();
-  SimModel_start();
-  Sim_readLicenseFile("/net/common/meshSim/license/license.txt");
-  SimPartitionedMesh_start(0, 0);
-  Sim_logOn("loopDriver.log");
-  SimParasolid_start(1);
-  SimField_start();
-  gmi_sim_start();
-  SimAdvMeshing_start();
-  SimMeshTools_start();
-  gmi_register_sim();
-//end init
   if( argc != 3 ) {
     if(!PCU_Comm_Self())
       fprintf(stderr, "Usage: %s <maxTimeStep> <motion case id>\n",argv[0]);
@@ -123,7 +110,6 @@ int main(int argc, char** argv) {
   ph::Input ctrl;
   ctrl.load("adapt.inp");
   /* load the model and mesh */
-  gmi_register_mesh();
   gmi_model* g = 0;
   apf::Mesh2* m = 0;
   chef::cook(g, m, ctrl, rs, grs);
@@ -164,18 +150,6 @@ int main(int argc, char** argv) {
   destroyRStream(rs);
   freeMesh(m);
   chefPhasta::finalizeModelers();
-//final for simmetrix mesh
-  SimMeshTools_stop();
-  SimAdvMeshing_stop();
-  gmi_sim_stop();
-  SimField_stop();
-  Sim_logOff();
-  SimPartitionedMesh_stop();
-  SimParasolid_stop(1);
-  Sim_unregisterAllKeys();
-  SimModel_stop();
-  MS_exit();
-//end final
   PCU_Comm_Free();
   MPI_Finalize();
 }

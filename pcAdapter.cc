@@ -90,7 +90,8 @@ namespace pc {
       pMSAdapt adapter = MSA_new(sim_pm, 1);
       MSA_setAdaptBL(adapter, 0);
       MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
-//      MSA_setNoMigration(adapter,1); // hack; since split/cut mesh is not supported with adaptation
+//      MSA_setNoMigration(adapter,0); // hack; since split/cut mesh is not supported with adaptation
+      MSA_setNoMigration(adapter,1); // hack; since split/cut mesh is not supported with adaptation
 
       /* use size field before mesh motion */
       printf("Start mesh adapt of setting size field\n");

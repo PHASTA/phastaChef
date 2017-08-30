@@ -149,10 +149,6 @@ namespace pc {
   }
 
   bool updateSIMDiscreteCoord(apf::Mesh2* m) {
-    MS_init();
-    SimAdvMeshing_start();
-    SimParasolid_start(1);
-    SimMeshTools_start();
     pProgress progress = Progress_new();
 
     apf::MeshSIM* apf_msim = dynamic_cast<apf::MeshSIM*>(m);
@@ -207,18 +203,10 @@ namespace pc {
     M_write(pm, "after_mover.sms", 0, progress);
 
     Progress_delete(progress);
-    SimMeshTools_stop();
-    SimParasolid_stop(1);
-    SimAdvMeshing_stop();
-    MS_exit();
     return true;
   }
 
   bool updateSIMCoord(apf::Mesh2* m, int step, int caseId) {
-    MS_init();
-    SimAdvMeshing_start();
-    SimParasolid_start(1);
-    SimMeshTools_start();
     pProgress progress = Progress_new();
 
     apf::MeshSIM* apf_msim = dynamic_cast<apf::MeshSIM*>(m);
@@ -301,10 +289,6 @@ namespace pc {
     M_write(pm, "after_mover.sms", 0, progress);
 
     Progress_delete(progress);
-    SimMeshTools_stop();
-    SimParasolid_stop(1);
-    SimAdvMeshing_stop();
-    MS_exit();
     return true;
   }
 

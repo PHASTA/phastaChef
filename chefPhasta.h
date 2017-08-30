@@ -5,16 +5,40 @@
 #ifdef GMI_SIM_FOUND
 #include <gmi_sim.h>
 #include <SimUtil.h>
+#include <SimPartitionedMesh.h>
+#include <SimField.h>
+#include <SimAdvMeshing.h>
+#include <SimDiscrete.h>
+#include "SimMeshTools.h"
+#include "SimParasolidKrnl.h"
+#include <MeshSim.h>
+#include <MeshSimAdapt.h>
 namespace chefPhasta {
   void initModelers() {
-    Sim_readLicenseFile("/net/common/meshSim/license/license.txt");
+    MS_init();
+    SimModel_start();
+    Sim_readLicenseFile(0);
+    SimPartitionedMesh_start(0, 0);
+    Sim_logOn("phastaChef.log");
+    SimParasolid_start(1);
+    SimField_start();
+    SimAdvMeshing_start();
+    SimMeshTools_start();
     gmi_sim_start();
     gmi_register_sim();
     gmi_register_mesh();
   }
   void finalizeModelers() {
+    SimMeshTools_stop();
+    SimAdvMeshing_stop();
     gmi_sim_stop();
+    SimField_stop();
+    Sim_logOff();
+    SimPartitionedMesh_stop();
+    SimParasolid_stop(1);
     Sim_unregisterAllKeys();
+    SimModel_stop();
+    MS_exit();
   }
 }
 #else

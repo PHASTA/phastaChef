@@ -150,16 +150,6 @@ int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   PCU_Comm_Init();
   PCU_Protect();
-//debugging for simmetrix mesh
-  MS_init();
-  SimModel_start();
-  Sim_readLicenseFile("/net/common/meshSim/license/license.txt");
-  SimPartitionedMesh_start(0, 0);
-  Sim_logOn("loopDriver.log");
-  SimField_start();
-  gmi_sim_start();
-  gmi_register_sim();
-//end debugging
   if( argc != 3 ) {
     if(!PCU_Comm_Self())
       fprintf(stderr, "Usage: %s <maxTimeStep> <motion case id>\n",argv[0]);
@@ -213,15 +203,6 @@ int main(int argc, char** argv) {
   destroyRStream(rs);
   freeMesh(m);
   chefPhasta::finalizeModelers();
-//debugging for simmetrix mesh
-  gmi_sim_stop();
-  SimField_stop();
-  Sim_logOff();
-  SimPartitionedMesh_stop();
-  Sim_unregisterAllKeys();
-  SimModel_stop();
-  MS_exit();
-//end debugging
   PCU_Comm_Free();
   MPI_Finalize();
 }
