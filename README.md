@@ -31,7 +31,7 @@ Note, the following disables the SVLS and PETSC solvers and relies on LESLIB for
     -DCMAKE_C_FLAGS="$opt" \
     -DCMAKE_CXX_FLAGS="$opt" \
     -DCMAKE_EXE_LINKER_FLAGS="-ldl $opt" \
-    -DCMAKE_INSTALL_PREFIX=$PWD/install_nothread/ \
+    -DCMAKE_INSTALL_PREFIX=$PWD/install/ \
     \
     -DSCOREC_PREFIX=/path/to/SCOREC/core/install/ \
     \
@@ -41,8 +41,7 @@ Note, the following disables the SVLS and PETSC solvers and relies on LESLIB for
     -DPHASTA_USE_PETSC=OFF \
     -DLESLIB=/path/to/libles.a \
     -DPHASTA_TESTING=ON \
-    -DCASES=/path/to/phastaChefTests/ \
-    ..
+    -DCASES=/path/to/phastaChefTests/
 
     make
     make test
