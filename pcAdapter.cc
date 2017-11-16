@@ -2,6 +2,9 @@
 #include <MeshSimAdapt.h>
 #include <SimUtil.h>
 #include <SimPartitionedMesh.h>
+#include <SimDiscrete.h>
+#include "apfSIM.h"
+#include "gmi_sim.h"
 #include <cassert>
 
 namespace pc {
@@ -89,8 +92,8 @@ namespace pc {
       printf("Start mesh adapt\n");
       pMSAdapt adapter = MSA_new(sim_pm, 1);
       MSA_setAdaptBL(adapter, 0);
+//      MSA_setAdaptBL(adapter, 1);
       MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
-//      MSA_setNoMigration(adapter,0); // hack; since split/cut mesh is not supported with adaptation
       MSA_setNoMigration(adapter,1); // hack; since split/cut mesh is not supported with adaptation
 
       /* use size field before mesh motion */
@@ -98,8 +101,6 @@ namespace pc {
       vIter = M_vertexIter(pm);
       while((meshVertex = VIter_next(vIter))){
         MSA_scaleVertexSize(adapter, meshVertex, 1.0); // use the size field of the mesh before mesh motion
-//        MSA_scaleVertexSize(adapter, meshVertex, 2.0); // double size field
-//        MSA_scaleVertexSize(adapter, meshVertex, 0.5); // half size field
       }
       VIter_delete(vIter);
 
@@ -109,8 +110,6 @@ namespace pc {
         MSA_setMapFields(adapter, sim_fld_lst);
         PList_delete(sim_fld_lst);
       }
-
-//      PM_write(sim_pm, "before_adapt.sms", NULL);
 
       /* run the adapter */
       printf("do real mesh adapt\n");

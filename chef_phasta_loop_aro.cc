@@ -8,7 +8,7 @@
 #include "phIO.h"
 #include <phstream.h>
 #include <sam.h>
-#include <phSnap.h>
+#include <phastaChef.h>
 #include <apfMDS.h>
 #include <stdlib.h>
 #include <assert.h>
