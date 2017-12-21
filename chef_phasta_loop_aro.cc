@@ -62,8 +62,8 @@ namespace {
         fprintf(stderr, "STATUS ctrl.attributeFileName %s step %d\n",
             ctrl.attributeFileName.c_str(), step);
       }
-//      ctrl.adaptStrategy = 0;
-//      ctrl.adaptFlag = 0;
+      ctrl.adaptStrategy = 7;
+      ctrl.adaptFlag = 1;
       ctrl.writeGeomBCFiles = 1;
     }
   }
@@ -89,6 +89,29 @@ namespace {
     if (PCU_Min_Int(meshGood) && !PCU_Comm_Self())
       printf("Mesh is Good. No need for adaptation!\n");
     return PCU_Min_Int(meshGood);
+  }
+
+  /* the following size field is hardcoded
+     for the Stefan problem */
+  apf::Field* stefanSzFld(apf::Mesh* m, int step) {
+    double if_pos = -0.001 * (double) step;
+    double lq_length = 0.01 - 0.001 * (double) step;
+    double gs_length = 0.01 + 0.001 * (double) step;
+    double isoSize;
+    apf::Field* szFld = createFieldOn(m, "isoSize", apf::SCALAR);;
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      apf::Vector3 p;
+      m->getPoint(v, 0, p);
+      if( p[0] < if_pos )
+        isoSize = 0.0005 - 0.00025 * (0.01 + p[0]) / lq_length;
+      else
+        isoSize = 0.0005 - 0.00025 * (0.01 - p[0]) / gs_length;
+      apf::setScalar(szFld,v,0,isoSize);
+    }
+    m->end(vit);
+    return szFld;
   }
 
 } //end namespace
@@ -119,9 +142,10 @@ int main(int argc, char** argv) {
   pc::writeSequence(m,seq,"test_"); seq++;
   do {
     m->verify();
-    pass_mesh_to_phasta(m);
+    pass_info_to_phasta(m, ctrl);
     /* take the initial mesh as size field */
     apf::Field* szFld = samSz::isoSize(m);
+
     step = phasta(inp,grs,rs);
     ctrl.rs = rs;
     clearGRStream(grs);
@@ -140,8 +164,10 @@ int main(int argc, char** argv) {
       pc::writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step;
       pc::writeSequence(m,seq,"test_"); seq++;
       /* do mesh adaptation */
+//      apf::Field* szFld = stefanSzFld(m, step); // hardcoding
       pc::runMeshAdapter(ctrl,m,szFld,step);
       pc::writeSequence(m,seq,"test_"); seq++;
+//      pc::writeStats(ctrl,g,m,step); // write field has some problem
     }
     chef::preprocess(m,ctrl,grs);
     clearRStream(rs);

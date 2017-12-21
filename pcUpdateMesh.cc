@@ -10,6 +10,7 @@
 #include "MeshSimAdapt.h"
 #include "apfSIM.h"
 #include "gmi_sim.h"
+#include <PCU.h>
 #include <cassert>
 #include <list>
 #include <cstring>
@@ -155,7 +156,7 @@ namespace pc {
     pParMesh ppm = apf_msim->getMesh();
     pMesh pm = PM_mesh(ppm,0);
 
-    M_write(pm, "before_overwrite.sms", 0, progress);
+    PM_write(ppm, "before_mover.sms", progress);
 
     gmi_model* gmiModel = apf_msim->getModel();
     pGModel model = gmi_export_sim(gmiModel);
@@ -172,7 +173,8 @@ namespace pc {
     double newpt[3];
 
     // start mesh mover
-    printf("Start mesh mover\n");
+    if(!PCU_Comm_Self())
+      printf("Start mesh mover\n");
     pMeshMover mmover = MeshMover_new(ppm, 0);
 
     // mesh motion of vertices in region
@@ -192,15 +194,16 @@ namespace pc {
     VIter_delete(vIter);
 
     // do real work
-    printf("do real mesh mover\n");
+    if(!PCU_Comm_Self())
+      printf("do real mesh mover\n");
     assert(MeshMover_run(mmover, progress));
     MeshMover_delete(mmover);
 
     // write model and mesh
-    printf("write model for mesh mover\n");
-    GM_write(model, "after_mover.smd", 0, progress);
-    printf("write mesh for mesh mover\n");
-    M_write(pm, "after_mover.sms", 0, progress);
+    if(!PCU_Comm_Self())
+      printf("write model and mesh for mesh mover\n");
+    GM_write(model, "updated_model.smd", 0, progress);
+    PM_write(ppm, "after_mover.sms", progress);
 
     Progress_delete(progress);
     return true;
@@ -213,7 +216,7 @@ namespace pc {
     pParMesh ppm = apf_msim->getMesh();
     pMesh pm = PM_mesh(ppm,0);
 
-    M_write(pm, "before_overwrite.sms", 0, progress);
+    PM_write(ppm, "before_mover.sms", progress);
 
     gmi_model* gmiModel = apf_msim->getModel();
     pGModel model = gmi_export_sim(gmiModel);
@@ -233,7 +236,8 @@ namespace pc {
     double xyz[3];
 
     // start mesh mover
-    printf("Start mesh mover\n");
+    if(!PCU_Comm_Self())
+      printf("Start mesh mover\n");
     pMeshMover mmover = MeshMover_new(ppm, 0);
 
     // configure mesh motion
@@ -278,15 +282,16 @@ namespace pc {
     }
 
     // do real work
-    printf("do real mesh mover\n");
+    if(!PCU_Comm_Self())
+      printf("do real mesh mover\n");
     assert(MeshMover_run(mmover, progress));
     MeshMover_delete(mmover);
 
     // write model and mesh
-    printf("write model for mesh mover\n");
-    GM_write(model, "after_mover.smd", 0, progress);
-    printf("write mesh for mesh mover\n");
-    M_write(pm, "after_mover.sms", 0, progress);
+    if(!PCU_Comm_Self())
+      printf("write model and mesh for mesh mover\n");
+    GM_write(model, "updated_model.smd", 0, progress);
+    PM_write(ppm, "after_mover.sms", progress);
 
     Progress_delete(progress);
     return true;
