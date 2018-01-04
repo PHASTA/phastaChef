@@ -95,22 +95,11 @@ namespace pc {
       if(!PCU_Comm_Self())
         printf("Start mesh adapt\n");
       pMSAdapt adapter = MSA_new(sim_pm, 1);
-//      MSA_setAdaptBL(adapter, 0);
       MSA_setAdaptBL(adapter, 1);
       MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
 //      MSA_setNoMigration(adapter,1); // hack; since split/cut mesh is not supported with adaptation
-//      MSA_setBLSnapping(adapter, 0);
+//      MSA_setBLSnapping(adapter, 0); // currently needed for parametric model
       MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
-
-// hardcoding anisotropic size field
-//      double anisize[3][3];
-//      anisize[0][0] = 0.05; anisize[0][1] = 0.00; anisize[0][2] = 0.00;
-//      anisize[1][0] = 0.00; anisize[1][1] = 0.01; anisize[1][2] = 0.00;
-//      anisize[2][0] = 0.00; anisize[2][1] = 0.00; anisize[2][2] = 0.01;
-
-//      anisize[0][0] = 0.01; anisize[0][1] = 0.00; anisize[0][2] = 0.00;
-//      anisize[1][0] = 0.00; anisize[1][1] = 0.03535; anisize[1][2] = 0.03535;
-//      anisize[2][0] = 0.00; anisize[2][1] = -0.00707; anisize[2][2] = 0.00707;
 
       /* use size field before mesh motion */
       if(!PCU_Comm_Self())
@@ -118,7 +107,6 @@ namespace pc {
       vIter = M_vertexIter(pm);
       while((meshVertex = VIter_next(vIter))){
         MSA_scaleVertexSize(adapter, meshVertex, 1.0); // use the size field of the mesh before mesh motion
-//        MSA_setAnisoVertexSize(adapter, meshVertex, anisize);
       }
       VIter_delete(vIter);
 
