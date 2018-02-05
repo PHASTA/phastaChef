@@ -122,7 +122,6 @@ int main(int argc, char** argv) {
     pass_info_to_phasta(m, ctrl);
     /* take the initial mesh as size field */
     apf::Field* szFld = samSz::isoSize(m);
-
     step = phasta(inp,grs,rs);
     ctrl.rs = rs;
     clearGRStream(grs);
@@ -143,7 +142,6 @@ int main(int argc, char** argv) {
       /* do mesh adaptation */
       pc::runMeshAdapter(ctrl,m,szFld,step);
       pc::writeSequence(m,seq,"test_"); seq++;
-      pc::writeStats(ctrl,g,m,step); // writeStats doesn't work in loop
     }
     chef::preprocess(m,ctrl,grs);
     clearRStream(rs);
