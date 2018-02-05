@@ -145,12 +145,26 @@ namespace pc {
     // build filename for smb file
     std::ostringstream oss;
     oss << "for_stats_" << step << "_.smb";
+//    oss << "for_stats_" << step << ".sms";
     const std::string tmp = oss.str();
 
     apf::Mesh2* smb_mesh = apf::createMdsMesh(g, m);
+//    printf("verify apf mesh\n");
+//    m->verify();
+//    printf("verify MDS mesh\n");
+//    smb_mesh->verify();
     smb_mesh->writeNative(tmp.c_str());
     smb_mesh->destroyNative();
     apf::destroyMesh(smb_mesh);
+
+/* we cannot write sms mesh right now.
+   When we do convert,
+   there is no field on the new mesh */
+//    m->writeNative(tmp.c_str());
+
+    // delete size and frame fields
+    apf::destroyField(sizefld);
+    apf::destroyField(framefld);
   }
 
 }

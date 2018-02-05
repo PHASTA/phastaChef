@@ -91,29 +91,6 @@ namespace {
     return PCU_Min_Int(meshGood);
   }
 
-  /* the following size field is hardcoded
-     for the Stefan problem */
-  apf::Field* stefanSzFld(apf::Mesh* m, int step) {
-    double if_pos = -0.001 * (double) step;
-    double lq_length = 0.01 - 0.001 * (double) step;
-    double gs_length = 0.01 + 0.001 * (double) step;
-    double isoSize;
-    apf::Field* szFld = createFieldOn(m, "isoSize", apf::SCALAR);;
-    apf::MeshEntity* v;
-    apf::MeshIterator* vit = m->begin(0);
-    while ((v = m->iterate(vit))) {
-      apf::Vector3 p;
-      m->getPoint(v, 0, p);
-      if( p[0] < if_pos )
-        isoSize = 0.0005 - 0.00025 * (0.01 + p[0]) / lq_length;
-      else
-        isoSize = 0.0005 - 0.00025 * (0.01 - p[0]) / gs_length;
-      apf::setScalar(szFld,v,0,isoSize);
-    }
-    m->end(vit);
-    return szFld;
-  }
-
 } //end namespace
 
 int main(int argc, char** argv) {
@@ -164,10 +141,9 @@ int main(int argc, char** argv) {
       pc::writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step;
       pc::writeSequence(m,seq,"test_"); seq++;
       /* do mesh adaptation */
-//      apf::Field* szFld = stefanSzFld(m, step); // hardcoding
       pc::runMeshAdapter(ctrl,m,szFld,step);
       pc::writeSequence(m,seq,"test_"); seq++;
-//      pc::writeStats(ctrl,g,m,step); // write field has some problem
+      pc::writeStats(ctrl,g,m,step); // writeStats doesn't work in loop
     }
     chef::preprocess(m,ctrl,grs);
     clearRStream(rs);

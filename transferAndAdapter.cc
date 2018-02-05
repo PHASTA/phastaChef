@@ -27,11 +27,13 @@
 #include "SimMeshTools.h"
 #include "SimParasolidKrnl.h"
 #include <SimDiscrete.h>
-#include <cstring>
 
 #include "pcWriteFiles.h"
 #include "pcUpdateMesh.h"
 #include "pcAdapter.h"
+
+#include <cstring>
+#include <cassert>
 
 namespace {
   void freeMesh(apf::Mesh* m) {
@@ -85,6 +87,91 @@ namespace {
     return ph::loadMesh(g, meshfile);
   }
 
+  /* the following size field is hardcoded
+     for the 6-grain problem */
+  apf::Field* getPreSz(apf::Mesh* m) {
+    double isoSize;
+    double size[1];
+    double anisosize[3][3];
+    double center[3] = {0.0, 0.0, 0.0};
+    double r = 0.0;
+    double R = 0.456;
+    apf::Field* szFld = createFieldOn(m, "isoSize", apf::SCALAR);;
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      apf::Vector3 p;
+      m->getPoint(v, 0, p);
+      pVertex meshVertex = reinterpret_cast<pVertex>(v);
+      pGEntity clsModel = EN_whatIn(meshVertex);
+      int dim = GEN_type(clsModel);
+      int tag = GEN_tag(clsModel);
+      if ( EN_isBLEntity(meshVertex) ||
+           dim == Gvertex ||
+           dim == Gedge ||
+           dim == Gface ||
+          (dim == Gregion && tag == 40 ) ) {
+        int szType = V_size(meshVertex, size, anisosize);
+        assert(szType == 1);
+        if (size[0] > 0.5) {
+          printf("size is too large: %f on model (%d, %d)\n", size[0], dim, tag);
+          size[0] = size[0] / 2.0;
+        }
+        isoSize = size[0];
+      }
+      else {
+        assert(dim == Gregion);
+        switch(tag) {
+          case 110:
+            center[0] = -2.6;
+            center[1] = -0.8;
+            break;
+          case 163:
+            center[0] =  2.6;
+            center[1] = -0.8;
+            break;
+          case 223:
+            center[0] =  0.0;
+            center[1] = -0.8;
+            break;
+          case 290:
+            center[0] = -2.6;
+            center[1] =  0.8;
+            break;
+          case 364:
+            center[0] =  2.6;
+            center[1] =  0.8;
+            break;
+          case 445:
+            center[0] =  0.0;
+            center[1] =  0.8;
+            break;
+          default:
+            printf("not quite as the plan. tag = %d\n",tag);
+            assert(0);
+        }
+        if( p[0] <= (center[0] - 0.5) ) {
+          r = sqrt( (p[0]-(center[0]-0.5))*(p[0]-(center[0]-0.5)) +
+                    (p[1]-center[1])*(p[1]-center[1]) +
+                    (p[2]-center[2])*(p[2]-center[2]) );
+        }
+        else if ( p[0] >= (center[0] + 0.5) ) {
+          r = sqrt( (p[0]-(center[0]+0.5))*(p[0]-(center[0]+0.5)) +
+                    (p[1]-center[1])*(p[1]-center[1]) +
+                    (p[2]-center[2])*(p[2]-center[2]) );
+        }
+        else {
+          r = sqrt( (p[1]-center[1])*(p[1]-center[1]) +
+                    (p[2]-center[2])*(p[2]-center[2]) );
+        }
+        isoSize = 0.2 - 0.15 * r / R;
+      }
+      apf::setScalar(szFld,v,0,isoSize);
+    }
+    m->end(vit);
+    return szFld;
+  }
+
 } //end namespace
 
 int main(int argc, char** argv) {
@@ -112,7 +199,11 @@ int main(int argc, char** argv) {
   m->verify();
 
   /* take the initial mesh as size field */
-  apf::Field* szFld = samSz::isoSize(m);
+//  apf::Field* szFld = samSz::isoSize(m);
+
+  /* use the prescribed size field */
+  apf::Field* szFld = getPreSz(m);
+
   ctrl.rs = rs;
   clearGRStream(grs);
 
@@ -125,6 +216,7 @@ int main(int argc, char** argv) {
 
   /* do mesh adaptation and write new mesh */
   pc::runMeshAdapter(ctrl,m,szFld,step);
+//  pc::writeStats(ctrl,g,m,step); // writeStats doesn't work in loop
 
   /* write geombc and restart */
   chef::preprocess(m,ctrl,grs);

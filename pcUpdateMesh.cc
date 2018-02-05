@@ -53,6 +53,7 @@ namespace pc {
   /* ideally, this comes from some input file */
   meshMotion configureMotion(int caseId, int step) {
     double offset, disp, rang, sfct;
+    offset = 0.0;
     disp = 2e-4 + 2e-5;
     rang = 2.0;
     sfct = 0.9;
@@ -149,6 +150,15 @@ namespace pc {
     return true;
   }
 
+  void addImproverInMover(pMeshMover mmover) {
+    // mesh improver
+    if(!PCU_Comm_Self())
+      printf("Add mesh improver\n");
+    pVolumeMeshImprover vmi = MeshMover_createImprover(mmover);
+    VolumeMeshImprover_setModifyBL(vmi, 1);
+    VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3);
+  }
+
   bool updateSIMDiscreteCoord(apf::Mesh2* m) {
     pProgress progress = Progress_new();
 
@@ -177,6 +187,8 @@ namespace pc {
       printf("Start mesh mover\n");
     pMeshMover mmover = MeshMover_new(ppm, 0);
 
+//    addImproverInMover(mmover);
+
     // mesh motion of vertices in region
     vIter = M_vertexIter(pm);
     while((meshVertex = VIter_next(vIter))){
@@ -188,6 +200,7 @@ namespace pc {
       pPList closureRegion = GEN_regions(EN_whatIn(meshVertex));
       assert(PList_size(closureRegion));
       modelRegion = (pGRegion) PList_item(closureRegion, 0);
+      assert(GEN_isDiscreteEntity(modelRegion));
       MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newpt);
       PList_delete(closureRegion);
     }
@@ -201,7 +214,7 @@ namespace pc {
 
     // write model and mesh
     if(!PCU_Comm_Self())
-      printf("write model and mesh for mesh mover\n");
+      printf("write discrete model and mesh for mesh mover\n");
     GM_write(model, "updated_model.smd", 0, progress);
     PM_write(ppm, "after_mover.sms", progress);
 

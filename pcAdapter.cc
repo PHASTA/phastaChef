@@ -102,10 +102,13 @@ namespace pc {
       MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
 
       /* use size field before mesh motion */
+//      double* inVal = new double[apf::countComponents(szFld)];
       if(!PCU_Comm_Self())
         printf("Start mesh adapt of setting size field\n");
       vIter = M_vertexIter(pm);
       while((meshVertex = VIter_next(vIter))){
+//        apf::getComponents(szFld, reinterpret_cast<apf::MeshEntity*>(meshVertex), 0, inVal);
+//        MSA_setVertexSize(adapter, meshVertex, inVal[0]); // use the prescribed size field
         MSA_scaleVertexSize(adapter, meshVertex, 1.0); // use the size field of the mesh before mesh motion
       }
       VIter_delete(vIter);
