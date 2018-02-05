@@ -216,7 +216,6 @@ int main(int argc, char** argv) {
 
   /* do mesh adaptation and write new mesh */
   pc::runMeshAdapter(ctrl,m,szFld,step);
-//  pc::writeStats(ctrl,g,m,step); // writeStats doesn't work in loop
 
   /* write geombc and restart */
   chef::preprocess(m,ctrl,grs);
