@@ -4,8 +4,10 @@
 #include "SimModel.h"
 #include "SimUtil.h"
 #include "SimParasolidKrnl.h"
+#include "SimField.h"
 #include "SimMeshMove.h"
 #include "SimMeshTools.h"
+#include "SimDiscrete.h"
 #include "MeshSim.h"
 #include "MeshSimAdapt.h"
 #include "apfSIM.h"
@@ -159,8 +161,115 @@ namespace pc {
     VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3);
   }
 
+// temporarily used to write displacement field
+  bool updateAndWriteSIMDiscrete(apf::Mesh2* m) {
+    Sim_logOn("updateAndWriteSIMDiscrete.log");
+
+    pProgress progress = Progress_new();
+    Progress_setDefaultCallback(progress);
+
+    apf::MeshSIM* apf_msim = dynamic_cast<apf::MeshSIM*>(m);
+    gmi_model* gmiModel = apf_msim->getModel();
+    pGModel model = gmi_export_sim(gmiModel);
+    pParMesh ppm = apf_msim->getMesh();
+
+    // declaration
+    pGRegion modelRegion;
+    VIter vIter;
+    pVertex meshVertex;
+    double disp[3];
+    double xyz[3];
+
+/*
+    pMesh pm = M_createFromParMesh(ppm,3,progress);
+    M_release(ppm);
+*/
+/*
+    // migrate mesh to part 0
+    pGEntMeshMigrator gmig = GEntMeshMigrator_new(ppm, 3);
+    GRIter grIter = GM_regionIter(model);
+    while((modelRegion = GRIter_next(grIter))){
+      int gid = PMU_gid(0, 0);
+      GEntMeshMigrator_add(gmig, modelRegion, gid);
+    }
+    GRIter_delete(grIter);
+    GEntMeshMigrator_run(gmig, progress);
+    GEntMeshMigrator_delete(gmig);
+*/
+    pMesh pm = PM_mesh(ppm,0);
+
+    if(!PCU_Comm_Self())
+      printf("write mesh just after migration: before_mover.sms\n");
+    PM_write(ppm, "before_mover.sms", progress);
+
+    apf::Field* f = m->findField("motion_coords");
+    assert(f);
+    double* vals = new double[apf::countComponents(f)];
+    assert(apf::countComponents(f) == 3);
+
+    // start transfer to pField
+    if(!PCU_Comm_Self())
+      printf("Start transfer to pField\n");
+    pPolyField pf = PolyField_new(1, 0);
+    pField dispFd = Field_new(ppm, 3, "disp", "displacement", ShpLagrange, 1, 1, 1, pf);
+    Field_apply(dispFd, 3, progress);
+    pDofGroup dof;
+
+    // mesh motion of vertices in region
+    vIter = M_vertexIter(pm);
+    while((meshVertex = VIter_next(vIter))){
+      apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+      apf::getComponents(f, vtx, 0, vals);
+      V_coord(meshVertex, xyz);
+      disp[0] = vals[0] - xyz[0];
+      disp[1] = vals[1] - xyz[1];
+      disp[2] = vals[2] - xyz[2];
+
+      for(int eindex = 0; (dof = Field_entDof(dispFd,meshVertex,eindex)); eindex++) {
+        int dofs_per_node = DofGroup_numComp(dof);
+        assert(dofs_per_node == 3);
+        for(int ii = 0; ii < dofs_per_node; ii++)
+          DofGroup_setValue(dof,ii,0,disp[ii]);
+      }
+    }
+    VIter_delete(vIter);
+
+    // do real work
+    if(!PCU_Comm_Self())
+      printf("write sim field\n");
+    Field_write(dispFd, "dispFd.fld", 0, NULL, progress);
+
+    // used to write discrete model at a certain time step
+//    pDiscreteModel dmodel;
+
+/*
+    dmodel = DM_createFromMesh(pm, 0, progress);
+    // define the Discrete model
+    DM_findEdgesByFaceNormals(dmodel, 0, progress);
+    DM_eliminateDanglingEdges(dmodel, progress);
+    assert(!DM_completeTopology(dmodel, progress));
+*/
+/*
+    if(!PCU_Comm_Self()) {
+      dmodel = DM_createFromModel(model, pm);
+      assert(!DM_completeTopology(dmodel, progress));
+      printf("write extracted discrete model\n");
+      GM_write(dmodel, "extracted_model.smd", 0, progress);
+    }
+*/
+    // write model and mesh
+    if(!PCU_Comm_Self())
+      printf("write mesh after creating discrete model: after_mover.sms\n");
+    GM_write(model, "updated_model.smd", 0, progress);
+    PM_write(ppm, "after_mover.sms", progress);
+
+    Progress_delete(progress);
+    return true;
+  }
+
   bool updateSIMDiscreteCoord(apf::Mesh2* m) {
     pProgress progress = Progress_new();
+    Progress_setDefaultCallback(progress);
 
     apf::MeshSIM* apf_msim = dynamic_cast<apf::MeshSIM*>(m);
     pParMesh ppm = apf_msim->getMesh();
@@ -315,8 +424,10 @@ namespace pc {
     if (in.simmetrixMesh) {
       /* assumption: parametric model always needs a caseId
          when caseId = 0, it is supposed to be discrete model */
-      if (!caseId)
+      if (caseId == 0)
         done = updateSIMDiscreteCoord(m);
+      else if (caseId == -1) // hack!
+        done = updateAndWriteSIMDiscrete(m); // hack!
       else
         done = updateSIMCoord(m,step,caseId);
     }

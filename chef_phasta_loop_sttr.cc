@@ -68,29 +68,6 @@ namespace {
     }
   }
 
-  int isMeshqGood(apf::Mesh* m, double crtn) {
-    apf::Field* meshq = m->findField("meshQ");
-    if (!meshq) {
-      if (!PCU_Comm_Self())
-        fprintf(stderr, "Not find meshQ field.\n");
-      assert(meshq);
-    }
-    int meshGood = 1;
-    apf::MeshEntity* elm;
-    apf::MeshIterator* itr = m->begin(m->getDimension());
-    while( (elm = m->iterate(itr)) ) {
-      if (apf::getScalar(meshq, elm, 0) < crtn) {
-        meshGood = 0;
-        break;
-      }
-    }
-    m->end(itr);
-    PCU_Barrier();
-    if (PCU_Min_Int(meshGood) && !PCU_Comm_Self())
-      printf("Mesh is Good. No need for adaptation!\n");
-    return PCU_Min_Int(meshGood);
-  }
-
 } //end namespace
 
 int main(int argc, char** argv) {
@@ -132,17 +109,14 @@ int main(int argc, char** argv) {
     setupChef(ctrl,step);
     chef::readAndAttachFields(ctrl,m);
     pc::updateMeshCoord(ctrl,m,step,caseId);
-//    int doAdaptation = !isMeshqGood(m, ctrl.meshqCrtn);
-    int doAdaptation = 1; // make it run anyway
-
     m->verify();
-    if ( doAdaptation ) {
-      pc::writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step;
-      pc::writeSequence(m,seq,"test_"); seq++;
-      /* do mesh adaptation */
-      pc::runMeshAdapter(ctrl,m,szFld,step);
-      pc::writeSequence(m,seq,"test_"); seq++;
-    }
+
+    pc::writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step;
+    pc::writeSequence(m,seq,"test_"); seq++;
+    /* do mesh adaptation */
+    pc::runMeshAdapter(ctrl,m,szFld,step);
+    pc::writeSequence(m,seq,"test_"); seq++;
+
     chef::preprocess(m,ctrl,grs);
     clearRStream(rs);
   } while( step < maxStep );

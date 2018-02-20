@@ -24,11 +24,13 @@ namespace chefPhasta {
     SimField_start();
     SimAdvMeshing_start();
     SimMeshTools_start();
+    SimDiscrete_start(0);
     gmi_sim_start();
     gmi_register_sim();
     gmi_register_mesh();
   }
   void finalizeModelers() {
+    SimDiscrete_stop(0);
     SimMeshTools_stop();
     SimAdvMeshing_stop();
     gmi_sim_stop();

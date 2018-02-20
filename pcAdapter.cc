@@ -38,38 +38,52 @@ namespace pc {
     return outf;
   }
 
-  /* unpacked solution into serveral fields,
-     put these field explicitly into pPList */
-  pPList getSimFieldList(ph::Input& in, apf::Mesh2*& m){
+  int getSimFields(apf::Mesh2*& m, int simFlag, pField* sim_flds) {
     int num_flds = 0;
-    pField* sim_flds = new pField[7]; // Hardcoding
-    pPList sim_fld_lst = PList_new();
     if (m->findField("solution")) {
       num_flds += 3;
-      sim_flds[0] = apf::getSIMField(chef::extractField(m,"solution","pressure",1,apf::SCALAR,in.simmetrixMesh));
-      sim_flds[1] = apf::getSIMField(chef::extractField(m,"solution","velocity",2,apf::VECTOR,in.simmetrixMesh));
-      sim_flds[2] = apf::getSIMField(chef::extractField(m,"solution","temperature",5,apf::SCALAR,in.simmetrixMesh));
-      for (int i = 0; i < 3; i++)
-        PList_append(sim_fld_lst, sim_flds[i]);
+      sim_flds[0] = apf::getSIMField(chef::extractField(m,"solution","pressure",1,apf::SCALAR,simFlag));
+      sim_flds[1] = apf::getSIMField(chef::extractField(m,"solution","velocity",2,apf::VECTOR,simFlag));
+      sim_flds[2] = apf::getSIMField(chef::extractField(m,"solution","temperature",5,apf::SCALAR,simFlag));
+      apf::destroyField(m->findField("solution"));
     }
 
     if (m->findField("time derivative of solution")) {
       num_flds += 3;
-      sim_flds[3] = apf::getSIMField(chef::extractField(m,"time derivative of solution","der_pressure",1,apf::SCALAR,in.simmetrixMesh));
-      sim_flds[4] = apf::getSIMField(chef::extractField(m,"time derivative of solution","der_velocity",2,apf::VECTOR,in.simmetrixMesh));
-      sim_flds[5] = apf::getSIMField(chef::extractField(m,"time derivative of solution","der_temperature",5,apf::SCALAR,in.simmetrixMesh));
-      for (int i = 3; i < 6; i++)
-        PList_append(sim_fld_lst, sim_flds[i]);
+      sim_flds[3] = apf::getSIMField(chef::extractField(m,"time derivative of solution","der_pressure",1,apf::SCALAR,simFlag));
+      sim_flds[4] = apf::getSIMField(chef::extractField(m,"time derivative of solution","der_velocity",2,apf::VECTOR,simFlag));
+      sim_flds[5] = apf::getSIMField(chef::extractField(m,"time derivative of solution","der_temperature",5,apf::SCALAR,simFlag));
+      apf::destroyField(m->findField("time derivative of solution"));
     }
 
     if (m->findField("mesh_vel")) {
       num_flds += 1;
-      sim_flds[6] = apf::getSIMField(chef::extractField(m,"mesh_vel","mesh_vel_sim",1,apf::VECTOR,in.simmetrixMesh));
-      PList_append(sim_fld_lst, sim_flds[6]);
+      sim_flds[6] = apf::getSIMField(chef::extractField(m,"mesh_vel","mesh_vel_sim",1,apf::VECTOR,simFlag));
+      apf::destroyField(m->findField("mesh_vel"));
     }
+    return num_flds;
+  }
 
+  /* unpacked solution into serveral fields,
+     put these field explicitly into pPList */
+  pPList getSimFieldList(ph::Input& in, apf::Mesh2*& m){
+    pField* sim_flds = new pField[7]; // Hardcoding
+    int num_flds = getSimFields(m, in.simmetrixMesh, sim_flds);
     assert(num_flds == PList_size(sim_fld_lst));
+    pPList sim_fld_lst = PList_new();
+    for (int i = 0; i < num_flds; i++) {
+      PList_append(sim_fld_lst, sim_flds[i]);
+    }
     return sim_fld_lst;
+  }
+
+  void transferSimFields(apf::Mesh2*& m) {
+    if (m->findField("pressure")) // assume we had solution before
+      chef::combineField(m,"solution","pressure","velocity","temperature");
+    if (m->findField("der_pressure")) // assume we had time derivative of solution before
+      chef::combineField(m,"time derivative of solution","der_pressure","der_velocity","der_temperature");
+    if (m->findField("mesh_vel_sim"))
+      convertField(m, "mesh_vel_sim", "mesh_vel");
   }
 
   void runMeshAdapter(ph::Input& in, apf::Mesh2*& m, apf::Field*& orgSF, int step) {
@@ -135,12 +149,7 @@ namespace pc {
 
       /* transfer data back to apf */
       if (in.solutionMigration) {
-        if (m->findField("pressure")) // assume we had solution before
-          chef::combineField(m,"solution","pressure","velocity","temperature");
-        if (m->findField("der_pressure")) // assume we had time derivative of solution before
-          chef::combineField(m,"time derivative of solution","der_pressure","der_velocity","der_temperature");
-        if (m->findField("mesh_vel_sim"))
-          convertField(m, "mesh_vel_sim", "mesh_vel");
+        transferSimFields(m);
       }
     }
     else {

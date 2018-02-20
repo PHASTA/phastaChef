@@ -199,10 +199,10 @@ int main(int argc, char** argv) {
   m->verify();
 
   /* take the initial mesh as size field */
-//  apf::Field* szFld = samSz::isoSize(m);
+  apf::Field* szFld = samSz::isoSize(m);
 
   /* use the prescribed size field */
-  apf::Field* szFld = getPreSz(m);
+//  apf::Field* szFld = getPreSz(m);
 
   ctrl.rs = rs;
   clearGRStream(grs);
