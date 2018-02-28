@@ -69,11 +69,11 @@ namespace pc {
   pPList getSimFieldList(ph::Input& in, apf::Mesh2*& m){
     pField* sim_flds = new pField[7]; // Hardcoding
     int num_flds = getSimFields(m, in.simmetrixMesh, sim_flds);
-    assert(num_flds == PList_size(sim_fld_lst));
     pPList sim_fld_lst = PList_new();
     for (int i = 0; i < num_flds; i++) {
       PList_append(sim_fld_lst, sim_flds[i]);
     }
+    assert(num_flds == PList_size(sim_fld_lst));
     return sim_fld_lst;
   }
 
@@ -97,6 +97,10 @@ namespace pc {
     apf::Field* szFld = orgSF;
 
     if(in.simmetrixMesh == 1) {
+      Sim_logOn("sim_mesh_adaptation.log");
+      pProgress progress = Progress_new();
+      Progress_setDefaultCallback(progress);
+
       apf::MeshSIM* sim_m = dynamic_cast<apf::MeshSIM*>(m);
       pParMesh sim_pm = sim_m->getMesh();
       pMesh pm = PM_mesh(sim_pm,0);
@@ -137,7 +141,6 @@ namespace pc {
       /* run the adapter */
       if(!PCU_Comm_Self())
         printf("do real mesh adapt\n");
-      pProgress progress = Progress_new();
       MSA_adapt(adapter, progress);
       MSA_delete(adapter);
 

@@ -11,6 +11,8 @@
 namespace pc {
   int getSimFields(apf::Mesh2*& m, int simFlag, pField* sim_flds);
 
+  pPList getSimFieldList(ph::Input& in, apf::Mesh2*& m);
+
   void transferSimFields(apf::Mesh2*& m);
 
   void runMeshAdapter(ph::Input& in, apf::Mesh2*& m, apf::Field*& orgSF, int step);

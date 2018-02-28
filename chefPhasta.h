@@ -1,6 +1,7 @@
 #ifndef CHEF_PHASTA_H 
 #define CHEF_PHASTA_H
 
+#include <PCU.h>
 #include <gmi_mesh.h>
 #ifdef GMI_SIM_FOUND
 #include <gmi_sim.h>
@@ -28,6 +29,8 @@ namespace chefPhasta {
     gmi_sim_start();
     gmi_register_sim();
     gmi_register_mesh();
+    if(!PCU_Comm_Self())
+      printf("SimModSuite Version: %s\n",Sim_buildID());
   }
   void finalizeModelers() {
     SimDiscrete_stop(0);

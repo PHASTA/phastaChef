@@ -1,4 +1,5 @@
 #include "pcUpdateMesh.h"
+#include "pcAdapter.h"
 #include <SimPartitionedMesh.h>
 #include "SimAdvMeshing.h"
 #include "SimModel.h"
@@ -16,6 +17,7 @@
 #include <cassert>
 #include <list>
 #include <cstring>
+#include <cstdlib>
 
 namespace pc {
   struct movingBodyMotion {
@@ -152,14 +154,133 @@ namespace pc {
     return true;
   }
 
-  void addImproverInMover(pMeshMover mmover) {
+  void addImproverInMover(pMeshMover mmover, ph::Input& in, apf::Mesh2*& m) {
     // mesh improver
     if(!PCU_Comm_Self())
       printf("Add mesh improver\n");
     pVolumeMeshImprover vmi = MeshMover_createImprover(mmover);
     VolumeMeshImprover_setModifyBL(vmi, 1);
     VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3);
+    VolumeMeshImprover_setMapFields(vmi, pc::getSimFieldList(in, m));
   }
+
+// temporarily used to write serial moved mesh and model
+  bool updateAndWriteSIMDiscreteModel(apf::Mesh2* m) {
+    Sim_logOn("updateAndWriteSIMDiscreteModel.log");
+
+    pProgress progress = Progress_new();
+    Progress_setDefaultCallback(progress);
+
+    apf::MeshSIM* apf_msim = dynamic_cast<apf::MeshSIM*>(m);
+    gmi_model* gmiModel = apf_msim->getModel();
+    pGModel model = gmi_export_sim(gmiModel);
+    pParMesh ppm = apf_msim->getMesh();
+
+    PM_write(ppm, "before_mover_parallel.sms", progress);
+
+    // declaration
+    pGRegion modelRegion;
+    VIter vIter;
+    pVertex meshVertex;
+    double disp[3];
+    double xyz[3];
+    double newpt[3];
+
+    pMesh pm = M_createFromParMesh(ppm,3,progress);
+//    M_release(ppm);
+    if (pm)
+      M_write(pm, "before_mover_serial.sms", 0, progress);
+
+    FILE* sFile;
+    int id;
+if (pm) {
+    // open file for writing displacements
+    sFile = fopen ("allrank_id_disp.dat", "w");
+
+    apf::Field* f = m->findField("motion_coords");
+    assert(f);
+    double* vals = new double[apf::countComponents(f)];
+    assert(apf::countComponents(f) == 3);
+
+    // write id and displacement to file
+    id = 0;
+    vIter = M_vertexIter(pm);
+    while((meshVertex = VIter_next(vIter))){
+      apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+      apf::getComponents(f, vtx, 0, vals);
+      V_coord(meshVertex, xyz);
+      disp[0] = vals[0] - xyz[0];
+      disp[1] = vals[1] - xyz[1];
+      disp[2] = vals[2] - xyz[2];
+
+      fprintf(sFile, "%010d ", id);
+      for(int ii = 0; ii < 3; ii++) {
+        fprintf(sFile, " %f", disp[ii]);
+      }
+      fprintf(sFile, "\n");
+
+      id++;
+    }
+    VIter_delete(vIter);
+
+    // close file
+    fclose (sFile);
+
+    // write serial mesh and model
+    printf("write discrete model and serial mesh\n");
+    GM_write(M_model(pm), "discreteModel_serial.smd", 0, progress);
+    M_write(pm, "mesh_serial.sms", 0, progress);
+
+    // load serial mesh and displacement
+    pDiscreteModel dmodel = (pDiscreteModel) GM_load("discreteModel_serial.smd", 0, progress);
+    pMesh mesh = M_load("mesh_serial.sms", dmodel, progress);
+    sFile = fopen("allrank_id_disp.dat", "r");
+
+    printf("start mesh mover on the serial mesh\n");
+    pMeshMover mmover = MeshMover_new(mesh, 0);
+
+    // mesh motion of vertices in region
+    int counter = 0;
+    vIter = M_vertexIter(mesh);
+    while((meshVertex = VIter_next(vIter))){
+
+      fscanf(sFile, "%010d", &id);
+      assert(counter == id);
+      for (int i = 0; i < 3; i++)
+        fscanf(sFile, "%lf", &disp[i]);
+      counter++;
+
+      V_coord(meshVertex, xyz);
+      newpt[0] = xyz[0] + disp[0];
+      newpt[1] = xyz[1] + disp[1];
+      newpt[2] = xyz[2] + disp[2];
+
+      pPList closureRegion = GEN_regions(EN_whatIn(meshVertex));
+      assert(PList_size(closureRegion));
+      modelRegion = (pGRegion) PList_item(closureRegion, 0);
+      assert(GEN_isDiscreteEntity(modelRegion));
+      MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newpt);
+      PList_delete(closureRegion);
+    }
+    VIter_delete(vIter);
+
+    // do real work
+    printf("do real mesh mover\n");
+    assert(MeshMover_run(mmover, progress));
+    MeshMover_delete(mmover);
+
+    // write model and mesh
+    printf("write updated discrete model and serial mesh\n");
+    GM_write(M_model(pm), "updated_model.smd", 0, progress);
+    M_write(pm, "after_mover_serial.sms", 0, progress);
+    exit(0);
+}
+
+    Progress_delete(progress);
+    return true;
+  }
+
+
 
 // temporarily used to write displacement field
   bool updateAndWriteSIMDiscrete(apf::Mesh2* m) {
@@ -267,7 +388,9 @@ namespace pc {
     return true;
   }
 
-  bool updateSIMDiscreteCoord(apf::Mesh2* m) {
+  bool updateSIMDiscreteCoord(ph::Input& in, apf::Mesh2* m) {
+    Sim_logOn("updateSIMDiscreteCoord.log");
+
     pProgress progress = Progress_new();
     Progress_setDefaultCallback(progress);
 
@@ -296,7 +419,8 @@ namespace pc {
       printf("Start mesh mover\n");
     pMeshMover mmover = MeshMover_new(ppm, 0);
 
-//    addImproverInMover(mmover);
+    // add mesh improver and solution transfer
+    addImproverInMover(mmover, in, m);
 
     // mesh motion of vertices in region
     vIter = M_vertexIter(pm);
@@ -321,6 +445,9 @@ namespace pc {
     assert(MeshMover_run(mmover, progress));
     MeshMover_delete(mmover);
 
+    // transfer sim fields to apf fields
+    pc::transferSimFields(m);
+
     // write model and mesh
     if(!PCU_Comm_Self())
       printf("write discrete model and mesh for mesh mover\n");
@@ -333,6 +460,7 @@ namespace pc {
 
   bool updateSIMCoord(apf::Mesh2* m, int step, int caseId) {
     pProgress progress = Progress_new();
+    Progress_setDefaultCallback(progress);
 
     apf::MeshSIM* apf_msim = dynamic_cast<apf::MeshSIM*>(m);
     pParMesh ppm = apf_msim->getMesh();
@@ -425,9 +553,11 @@ namespace pc {
       /* assumption: parametric model always needs a caseId
          when caseId = 0, it is supposed to be discrete model */
       if (caseId == 0)
-        done = updateSIMDiscreteCoord(m);
-      else if (caseId == -1) // hack!
+        done = updateSIMDiscreteCoord(in, m);
+      else if (caseId == 10) // hack!
         done = updateAndWriteSIMDiscrete(m); // hack!
+      else if (caseId == 20) // hack!
+        done = updateAndWriteSIMDiscreteModel(m); // hack!
       else
         done = updateSIMCoord(m,step,caseId);
     }
