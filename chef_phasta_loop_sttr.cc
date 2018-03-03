@@ -108,15 +108,7 @@ int main(int argc, char** argv) {
       break;
     setupChef(ctrl,step);
     chef::readAndAttachFields(ctrl,m);
-    pc::updateMeshCoord(ctrl,m,step,caseId);
-    m->verify();
-
-    pc::writePHTfiles(phtStep, step-phtStep, PCU_Comm_Peers()); phtStep = step;
-    pc::writeSequence(m,seq,"test_"); seq++;
-    /* do mesh adaptation */
-    pc::runMeshAdapter(ctrl,m,szFld,step);
-    pc::writeSequence(m,seq,"test_"); seq++;
-
+    pc::updateMesh(ctrl,m,szFld,step,caseId);
     chef::preprocess(m,ctrl,grs);
     clearRStream(rs);
   } while( step < maxStep );

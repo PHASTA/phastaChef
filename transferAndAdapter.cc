@@ -211,13 +211,9 @@ int main(int argc, char** argv) {
   chef::readAndAttachFields(ctrl,m);
 
   /* update model and write new model */
-  pc::updateMeshCoord(ctrl,m,step,caseId);
-  m->verify();
+  pc::updateMesh(ctrl,m,szFld,step,caseId);
 
-  /* do mesh adaptation and write new mesh */
-  pc::runMeshAdapter(ctrl,m,szFld,step);
-
-  /* write geombc and restart */
+  /* write geombc and restart files */
   chef::preprocess(m,ctrl,grs);
   clearRStream(rs);
 

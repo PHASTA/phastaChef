@@ -8,7 +8,9 @@
 #include <chef.h>
 
 namespace pc {
-  void updateMeshCoord(ph::Input& in, apf::Mesh2* m, int step, int caseId);
+  void runMeshMover(ph::Input& in, apf::Mesh2* m, int step, int caseId);
+
+  void updateMesh(ph::Input& in, apf::Mesh2* m, apf::Field* szFld, int step, int caseId, int cooperation = 1);
 }
 
 #endif

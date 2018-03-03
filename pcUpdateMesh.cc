@@ -1,5 +1,6 @@
 #include "pcUpdateMesh.h"
 #include "pcAdapter.h"
+#include "pcWriteFiles.h"
 #include <SimPartitionedMesh.h>
 #include "SimAdvMeshing.h"
 #include "SimModel.h"
@@ -547,7 +548,7 @@ if (pm) {
     return true;
   }
 
-  void updateMeshCoord(ph::Input& in, apf::Mesh2* m, int step, int caseId) {
+  void runMeshMover(ph::Input& in, apf::Mesh2* m, int step, int caseId) {
     bool done = false;
     if (in.simmetrixMesh) {
       /* assumption: parametric model always needs a caseId
@@ -565,6 +566,28 @@ if (pm) {
       done = updateAPFCoord(m);
     }
     assert(done);
+  }
+
+  void runUpdater(ph::Input& in, apf::Mesh2* m, apf::Field* szFld, int step, int caseId) {
+    (void) in;
+    (void) m;
+    (void) szFld;
+    (void) step;
+    (void) caseId;
+  }
+
+  void updateMesh(ph::Input& in, apf::Mesh2* m, apf::Field* szFld, int step, int caseId, int cooperation) {
+    if (in.simmetrixMesh && cooperation) {
+      pc::runUpdater(in,m,szFld,step,caseId);
+    }
+    else {
+      pc::runMeshMover(in,m,step,caseId);
+      m->verify();
+      pc::writeSequence(m,step,"after_mover_");
+
+      pc::runMeshAdapter(in,m,szFld,step);
+      pc::writeSequence(m,step,"after_adapter_");
+    }
   }
 
 }

@@ -323,7 +323,7 @@ int main(int argc, char** argv) {
   chef::readAndAttachFields(ctrl,m);
 
   /* update model and write new model */
-  pc::updateMeshCoord(ctrl,m,step,caseId);
+  pc::runMeshMover(ctrl,m,step,caseId);
   m->verify();
 
   /* project solution to new mesh */
