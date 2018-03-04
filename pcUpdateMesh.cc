@@ -20,6 +20,8 @@
 #include <cstring>
 #include <cstdlib>
 
+extern void MSA_setBLSnapping(pMSAdapt, int onoff);
+
 namespace pc {
   struct movingBodyMotion {
     movingBodyMotion(int t = 0, double r = 0.0, double s = 0.0)
@@ -162,7 +164,34 @@ namespace pc {
     pVolumeMeshImprover vmi = MeshMover_createImprover(mmover);
     VolumeMeshImprover_setModifyBL(vmi, 1);
     VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3);
-    VolumeMeshImprover_setMapFields(vmi, pc::getSimFieldList(in, m));
+
+    // set field to be mapped
+    if (in.solutionMigration)
+      VolumeMeshImprover_setMapFields(vmi, pc::getSimFieldList(in, m));
+  }
+
+  void addAdapterInMover(pMeshMover mmover, ph::Input& in, apf::Mesh2*& m) {
+    // mesh adapter
+    if(!PCU_Comm_Self())
+      printf("Add mesh adapter\n");
+    pMSAdapt msa = MeshMover_createAdapter(mmover);
+    MSA_setAdaptBL(msa, 1);
+    MSA_setExposedBLBehavior(msa,BL_DisallowExposed);
+    MSA_setBLSnapping(msa, 0); // currently needed for parametric model
+    MSA_setBLMinLayerAspectRatio(msa, 0.0); // needed in parallel
+
+    // use current size field
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      pVertex meshVertex = reinterpret_cast<pVertex>(v);
+      MSA_scaleVertexSize(msa, meshVertex, 1.0); // use the size field of the mesh before mesh motion
+    }
+    m->end(vit);
+
+    // set field to be mapped
+    if (in.solutionMigration)
+      MSA_setMapFields(msa, pc::getSimFieldList(in, m));
   }
 
 // temporarily used to write serial moved mesh and model
@@ -389,7 +418,7 @@ if (pm) {
     return true;
   }
 
-  bool updateSIMDiscreteCoord(ph::Input& in, apf::Mesh2* m) {
+  bool updateSIMDiscreteCoord(ph::Input& in, apf::Mesh2* m, int cooperation) {
     Sim_logOn("updateSIMDiscreteCoord.log");
 
     pProgress progress = Progress_new();
@@ -420,9 +449,6 @@ if (pm) {
       printf("Start mesh mover\n");
     pMeshMover mmover = MeshMover_new(ppm, 0);
 
-    // add mesh improver and solution transfer
-    addImproverInMover(mmover, in, m);
-
     // mesh motion of vertices in region
     vIter = M_vertexIter(pm);
     while((meshVertex = VIter_next(vIter))){
@@ -440,6 +466,12 @@ if (pm) {
     }
     VIter_delete(vIter);
 
+    // add mesh improver and solution transfer
+    if (cooperation) {
+      addImproverInMover(mmover, in, m);
+      addAdapterInMover(mmover, in, m);
+    }
+
     // do real work
     if(!PCU_Comm_Self())
       printf("do real mesh mover\n");
@@ -447,7 +479,9 @@ if (pm) {
     MeshMover_delete(mmover);
 
     // transfer sim fields to apf fields
-    pc::transferSimFields(m);
+    if (cooperation) {
+      pc::transferSimFields(m);
+    }
 
     // write model and mesh
     if(!PCU_Comm_Self())
@@ -459,7 +493,9 @@ if (pm) {
     return true;
   }
 
-  bool updateSIMCoord(apf::Mesh2* m, int step, int caseId) {
+  bool updateSIMCoord(ph::Input& in, apf::Mesh2* m, int step, int caseId, int cooperation) {
+    Sim_logOn("updateSIMCoord.log");
+
     pProgress progress = Progress_new();
     Progress_setDefaultCallback(progress);
 
@@ -532,11 +568,22 @@ if (pm) {
       VIter_delete(vIter);
     }
 
+    // add mesh improver and solution transfer
+    if (cooperation) {
+      addImproverInMover(mmover, in, m);
+      addAdapterInMover(mmover, in, m);
+    }
+
     // do real work
     if(!PCU_Comm_Self())
       printf("do real mesh mover\n");
     assert(MeshMover_run(mmover, progress));
     MeshMover_delete(mmover);
+
+    // transfer sim fields to apf fields
+    if (cooperation) {
+      pc::transferSimFields(m);
+    }
 
     // write model and mesh
     if(!PCU_Comm_Self())
@@ -548,19 +595,19 @@ if (pm) {
     return true;
   }
 
-  void runMeshMover(ph::Input& in, apf::Mesh2* m, int step, int caseId) {
+  void runMeshMover(ph::Input& in, apf::Mesh2* m, int step, int caseId, int cooperation) {
     bool done = false;
     if (in.simmetrixMesh) {
       /* assumption: parametric model always needs a caseId
          when caseId = 0, it is supposed to be discrete model */
       if (caseId == 0)
-        done = updateSIMDiscreteCoord(in, m);
+        done = updateSIMDiscreteCoord(in, m, cooperation);
       else if (caseId == 10) // hack!
         done = updateAndWriteSIMDiscrete(m); // hack!
       else if (caseId == 20) // hack!
         done = updateAndWriteSIMDiscreteModel(m); // hack!
       else
-        done = updateSIMCoord(m,step,caseId);
+        done = updateSIMCoord(in, m, step, caseId, cooperation);
     }
     else {
       done = updateAPFCoord(m);
@@ -568,17 +615,9 @@ if (pm) {
     assert(done);
   }
 
-  void runUpdater(ph::Input& in, apf::Mesh2* m, apf::Field* szFld, int step, int caseId) {
-    (void) in;
-    (void) m;
-    (void) szFld;
-    (void) step;
-    (void) caseId;
-  }
-
   void updateMesh(ph::Input& in, apf::Mesh2* m, apf::Field* szFld, int step, int caseId, int cooperation) {
     if (in.simmetrixMesh && cooperation) {
-      pc::runUpdater(in,m,szFld,step,caseId);
+      pc::runMeshMover(in,m,step,caseId,1);
     }
     else {
       pc::runMeshMover(in,m,step,caseId);
