@@ -92,8 +92,8 @@ int main(int argc, char** argv) {
   chef::cook(g, m, ctrl, rs, grs);
   /* load input file for solver */
   phSolver::Input inp("solver.inp", "input.config");
-  int step = 0; int phtStep = 0; int seq  = 0;
-  pc::writeSequence(m,seq,"test_"); seq++;
+  pc::writeSequence(m,0,"init_");
+  int step = 0;
   do {
     m->verify();
     pass_info_to_phasta(m, ctrl);

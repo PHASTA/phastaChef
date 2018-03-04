@@ -115,8 +115,7 @@ namespace pc {
       pMSAdapt adapter = MSA_new(sim_pm, 1);
       MSA_setAdaptBL(adapter, 1);
       MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
-//      MSA_setNoMigration(adapter,1); // hack; since split/cut mesh is not supported with adaptation
-//      MSA_setBLSnapping(adapter, 0); // currently needed for parametric model
+      MSA_setBLSnapping(adapter, 0); // currently needed for parametric model
       MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
 
       /* use size field before mesh motion */

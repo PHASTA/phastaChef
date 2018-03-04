@@ -22,7 +22,7 @@ namespace pc {
     FILE* sFile = fopen (filename, "w");
     fprintf (sFile, "<?xml version=\"1.0\" ?>\n");
     fprintf (sFile, "<PhastaMetaFile number_of_pieces=\"%d\">\n", nproc);
-    fprintf (sFile, "  <GeometryFileNamePattern pattern=\"%d-procs_case/geombc.%d.%%d\"\n",nproc,step);
+    fprintf (sFile, "  <GeometryFileNamePattern pattern=\"%d/%d-procs_case/geombc.%d.%%d\"\n",step,nproc,step);
     fprintf (sFile, "                           has_piece_entry=\"1\"\n");
     fprintf (sFile, "                           has_time_entry=\"0\"/>\n");
     fprintf (sFile, "  <FieldFileNamePattern pattern=\"%d-procs_case/restart.%%d.%%d\"\n",nproc);

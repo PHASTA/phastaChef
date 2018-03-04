@@ -157,7 +157,7 @@ namespace pc {
     return true;
   }
 
-  void addImproverInMover(pMeshMover mmover, ph::Input& in, apf::Mesh2*& m) {
+  void addImproverInMover(pMeshMover mmover, pPList sim_fld_lst) {
     // mesh improver
     if(!PCU_Comm_Self())
       printf("Add mesh improver\n");
@@ -166,11 +166,11 @@ namespace pc {
     VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3);
 
     // set field to be mapped
-    if (in.solutionMigration)
-      VolumeMeshImprover_setMapFields(vmi, pc::getSimFieldList(in, m));
+    if (sim_fld_lst)
+      VolumeMeshImprover_setMapFields(vmi, sim_fld_lst);
   }
 
-  void addAdapterInMover(pMeshMover mmover, ph::Input& in, apf::Mesh2*& m) {
+  void addAdapterInMover(pMeshMover mmover,  pPList sim_fld_lst, apf::Mesh2*& m) {
     // mesh adapter
     if(!PCU_Comm_Self())
       printf("Add mesh adapter\n");
@@ -190,8 +190,8 @@ namespace pc {
     m->end(vit);
 
     // set field to be mapped
-    if (in.solutionMigration)
-      MSA_setMapFields(msa, pc::getSimFieldList(in, m));
+    if (sim_fld_lst)
+      MSA_setMapFields(msa, sim_fld_lst);
   }
 
 // temporarily used to write serial moved mesh and model
@@ -468,8 +468,11 @@ if (pm) {
 
     // add mesh improver and solution transfer
     if (cooperation) {
-      addImproverInMover(mmover, in, m);
-      addAdapterInMover(mmover, in, m);
+      pPList sim_fld_lst;
+      if (in.solutionMigration)
+        sim_fld_lst = getSimFieldList(in, m);
+      addImproverInMover(mmover, sim_fld_lst);
+      addAdapterInMover(mmover, sim_fld_lst, m);
     }
 
     // do real work
@@ -570,8 +573,11 @@ if (pm) {
 
     // add mesh improver and solution transfer
     if (cooperation) {
-      addImproverInMover(mmover, in, m);
-      addAdapterInMover(mmover, in, m);
+      pPList sim_fld_lst;
+      if (in.solutionMigration)
+        sim_fld_lst = getSimFieldList(in, m);
+      addImproverInMover(mmover, sim_fld_lst);
+      addAdapterInMover(mmover, sim_fld_lst, m);
     }
 
     // do real work
@@ -618,6 +624,8 @@ if (pm) {
   void updateMesh(ph::Input& in, apf::Mesh2* m, apf::Field* szFld, int step, int caseId, int cooperation) {
     if (in.simmetrixMesh && cooperation) {
       pc::runMeshMover(in,m,step,caseId,1);
+      m->verify();
+      pc::writeSequence(m,step,"updated_mesh_");
     }
     else {
       pc::runMeshMover(in,m,step,caseId);
