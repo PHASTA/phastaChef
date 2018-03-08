@@ -2,6 +2,7 @@
 #include "SimModel.h"
 #include "apfSIM.h"
 #include "apfMDS.h"
+#include <PCU.h>
 #include <sstream>
 #include <cstdio>
 #include <cassert>
@@ -14,15 +15,22 @@ namespace pc {
     apf::writeVtkFiles(tmp.c_str(),m);
   }
 
-  void writePHTfiles (int step, int nstep, int nproc) {
+  void writePHTfiles (int old_step, int step, phSolver::Input& inp) {
+    int ntout = (int)inp.GetValue("Number of Timesteps between Restarts");
+    double dt = (double)inp.GetValue("Time Step Size");
+    int nproc = PCU_Comm_Peers();
+    int nstep = (step - old_step) / ntout;
     std::ostringstream oss;
-    oss << "solution_" << step << ".pht";
+    oss << "solution_" << old_step << ".pht";
     const std::string tp = oss.str();
     const char* filename = tp.c_str();
     FILE* sFile = fopen (filename, "w");
     fprintf (sFile, "<?xml version=\"1.0\" ?>\n");
     fprintf (sFile, "<PhastaMetaFile number_of_pieces=\"%d\">\n", nproc);
-    fprintf (sFile, "  <GeometryFileNamePattern pattern=\"%d/%d-procs_case/geombc.%d.%%d\"\n",step,nproc,step);
+    if (old_step == 0)
+      fprintf (sFile, "  <GeometryFileNamePattern pattern=\"%d-procs_case/geombc.dat.%%d\"\n",nproc);
+    else
+      fprintf (sFile, "  <GeometryFileNamePattern pattern=\"%d/%d-procs_case/geombc.%d.%%d\"\n",old_step,nproc,old_step);
     fprintf (sFile, "                           has_piece_entry=\"1\"\n");
     fprintf (sFile, "                           has_time_entry=\"0\"/>\n");
     fprintf (sFile, "  <FieldFileNamePattern pattern=\"%d-procs_case/restart.%%d.%%d\"\n",nproc);
@@ -30,10 +38,10 @@ namespace pc {
     fprintf (sFile, "                        has_time_entry=\"1\"/>\n");
     fprintf (sFile, "  <TimeSteps number_of_steps=\"%d\"\n", nstep);
     fprintf (sFile, "             auto_generate_indices=\"1\"\n");
-    fprintf (sFile, "             start_index=\"%d\"\n", step+1);
-    fprintf (sFile, "             increment_index_by=\"1\"\n");
-    fprintf (sFile, "             start_value=\"0.0\"\n");
-    fprintf (sFile, "             increment_value_by=\"1.0e-6\">\n");
+    fprintf (sFile, "             start_index=\"%d\"\n", old_step+ntout);
+    fprintf (sFile, "             increment_index_by=\"%d\"\n",ntout);
+    fprintf (sFile, "             start_value=\"%12.16e\"\n",(double)((old_step+ntout)*dt));
+    fprintf (sFile, "             increment_value_by=\"%12.16e\">\n",dt);
     fprintf (sFile, "  </TimeSteps>\n");
     fprintf (sFile, "  <Fields number_of_fields=\"7\">\n");
     fprintf (sFile, "    <Field paraview_field_tag=\"pressure\"\n");

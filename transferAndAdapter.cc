@@ -211,7 +211,8 @@ int main(int argc, char** argv) {
   chef::readAndAttachFields(ctrl,m);
 
   /* update model and write new model */
-  pc::updateMesh(ctrl,m,szFld,step,caseId);
+  if(caseId == 0)
+    pc::updateMesh(ctrl,m,szFld,step);
 
   /* write geombc and restart files */
   chef::preprocess(m,ctrl,grs);

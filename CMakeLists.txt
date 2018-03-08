@@ -48,6 +48,7 @@ macro(setup_exe exename srcname IC)
     pcWriteFiles.cc
     pcUpdateMesh.cc
     pcAdapter.cc
+    pcTimeDepMesh.cc
   )
 
   add_executable(${exename} ${src})

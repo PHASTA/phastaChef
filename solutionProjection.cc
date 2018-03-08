@@ -279,14 +279,13 @@ int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   PCU_Comm_Init();
   PCU_Protect();
-  if( argc != 4 ) {
+  if( argc != 3 ) {
     if(!PCU_Comm_Self())
-      fprintf(stderr, "Usage: %s <dst_model.smd> <dst_mesh.sms> <motion case id>\n",argv[0]);
+      fprintf(stderr, "Usage: %s <dst_model.smd> <dst_mesh.sms> \n",argv[0]);
     exit(EXIT_FAILURE);
   }
   const char* attribFilename = argv[1];
   const char* meshFilename = argv[2];
-  int caseId  = atoi(argv[3]);
 
   chefPhasta::initModelers();
   rstream rs = makeRStream();
@@ -323,7 +322,7 @@ int main(int argc, char** argv) {
   chef::readAndAttachFields(ctrl,m);
 
   /* update model and write new model */
-  pc::runMeshMover(ctrl,m,step,caseId);
+  pc::runMeshMover(ctrl,m,step);
   m->verify();
 
   /* project solution to new mesh */

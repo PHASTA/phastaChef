@@ -74,13 +74,12 @@ int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   PCU_Comm_Init();
   PCU_Protect();
-  if( argc != 3 ) {
+  if( argc != 2 ) {
     if(!PCU_Comm_Self())
-      fprintf(stderr, "Usage: %s <maxTimeStep> <motion case id>\n",argv[0]);
+      fprintf(stderr, "Usage: %s <maxTimeStep> \n",argv[0]);
     exit(EXIT_FAILURE);
   }
   int maxStep = atoi(argv[1]);
-  int caseId  = atoi(argv[2]);
   chefPhasta::initModelers();
   rstream rs = makeRStream();
   grstream grs = makeGRStream();
@@ -93,13 +92,14 @@ int main(int argc, char** argv) {
   /* load input file for solver */
   phSolver::Input inp("solver.inp", "input.config");
   pc::writeSequence(m,0,"init_");
-  int step = 0;
+  int step = 0; int old_step = 0;
   do {
     m->verify();
     pass_info_to_phasta(m, ctrl);
     /* take the initial mesh as size field */
     apf::Field* szFld = samSz::isoSize(m);
     step = phasta(inp,grs,rs);
+    pc::writePHTfiles(old_step, step, inp); old_step = step;
     ctrl.rs = rs;
     clearGRStream(grs);
     if(!PCU_Comm_Self())
@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
     setupChef(ctrl,step);
     chef::readAndAttachFields(ctrl,m);
     /* perform mesh mover + improver + adapter */
-    pc::updateMesh(ctrl,m,szFld,step,caseId);
+    pc::updateMesh(ctrl,m,szFld,step);
     chef::preprocess(m,ctrl,grs);
     clearRStream(rs);
   } while( step < maxStep );

@@ -15,128 +15,107 @@
 #include "apfSIM.h"
 #include "gmi_sim.h"
 #include <PCU.h>
+#include <string.h>
 #include <cassert>
-#include <list>
-#include <cstring>
-#include <cstdlib>
+#include <cstdio>
 
 extern void MSA_setBLSnapping(pMSAdapt, int onoff);
 
 namespace pc {
-  struct movingBodyMotion {
-    movingBodyMotion(int t = 0, double r = 0.0, double s = 0.0)
-    {
-      tag = t;
-      memset(trans, 0.0, sizeof trans);
-      memset(rotaxis, 0.0, sizeof rotaxis);
-      memset(rotpt, 0.0, sizeof rotpt);
-      rotang = r;
-      scale = s;
-    }
-    int tag;
-    double trans[3];
-    double rotaxis[3];
-    double rotpt[3];
-    double rotang;
-    double scale;
-    void set_trans(double x, double y, double z){
-      trans[0] = x; trans[1] = y; trans[2] = z;
-    }
-    void set_rotaxis(double x, double y, double z){
-      rotaxis[0] = x; rotaxis[1] = y; rotaxis[2] = z;
-    }
-    void set_rotpt(double x, double y, double z){
-      rotpt[0] = x; rotpt[1] = y; rotpt[2] = z;
-    }
-  };
 
-  struct meshMotion {
-    std::list<movingBodyMotion> movingBodyMotions;
-    std::list<int> surfaceTags;
-    std::list<int> edgeTags;
-    std::list<int> regionTags;
-  };
-
-  /* ideally, this comes from some input file */
-  meshMotion configureMotion(int caseId, int step) {
-    double offset, disp, rang, sfct;
-    offset = 0.0;
-    disp = 2e-4 + 2e-5;
-    rang = 2.0;
-    sfct = 0.9;
-    if (caseId == 1) {
-      offset = 2e-4 * (double)(step - 1) + 2e-5;
-      printf("current step is %d; offset = %f\n",step,offset);
+  int getValueByString(char* header, char* token, double* val) {
+    if (token == NULL || token[0] == '\n') return 0;
+    int counter = 0;
+    if (strcmp(header, token) == 0)
+      printf("found token: %s\n", token); //debugging
+    else
+      return 0;
+    while(token != NULL && token[0] != '\n') {
+      token = strtok (NULL, " \n");
+      if (token != NULL && token[0] != '\n') {
+        val[counter] = atof(token);
+        counter++;
+      }
     }
-    else if (caseId == 2) {
-      offset = 4e-4;
+    return counter;
+  }
+
+  bool configureMotion(int step, meshMotion& mm) {
+    FILE* pFile = fopen("meshMotion.inp", "r");
+    if(!pFile) {
+      printf("cannot find file: meshMotion.inp\n");
+      return false;
+    }
+    char target[1024] = "\0";
+    char* token;
+    double* val = new double[100];
+    double* pdVal = new double[100];
+    int nt, caseId, i, npd;
+    while( fgets(target, 1024, pFile) && !feof(pFile) ) {
+      if (target[0] == '#') continue; // ignore comment line
+      token = strtok ( target, ":\n" );
+      nt = getValueByString("Case ID", token, val);
+      if(nt) {
+        caseId = (int)val[0];
+        if (caseId > 0) break;
+      }
+
+      nt = getValueByString("Discrete deforming", token, val);
+      for(i = 0; i < nt; i++)
+        mm.disDefRegions.push_back((int)val[i]);
+
+      nt = getValueByString("Discrete surrounding", token, val);
+      for(i = 0; i < nt; i++)
+        mm.disSurRegions.push_back((int)val[i]);
+
+      nt = getValueByString("Parametric surrounding regions", token, val);
+      for(i = 0; i < nt; i++)
+        mm.parSurRegions.push_back((int)val[i]);
+
+      nt = getValueByString("Parametric surrounding faces", token, val);
+      for(i = 0; i < nt; i++)
+        mm.parSurFaces.push_back((int)val[i]);
+
+      nt = getValueByString("Parametric surrounding edges", token, val);
+      for(i = 0; i < nt; i++)
+        mm.parSurEdges.push_back((int)val[i]);
+
+      nt = getValueByString("Parametric deforming", token, val);
+      if(nt > 0) npd = nt;
+      for(i = 0; i < nt; i++)
+        pdVal[i] = val[i];
+    }
+
+    if (caseId > 0) {
+      mm = pc::getTDMeshMotion(caseId, step);
+      return true;
     }
     else {
-      printf("wrong case id\n");
-      assert(0);
+      if (npd) {
+        rewind(pFile);
+        while( fgets(target, 1024, pFile) && !feof(pFile) ) {
+          if (target[0] == '#') continue; // ignore comment line
+          token = strtok ( target, ":\n" );
+          char buf[50] = "\0";
+          for(i = 0; i < npd; i++){
+            sprintf(buf, "Parametric deforming tag %d", (int)pdVal[i]);
+            nt = getValueByString(buf, token, val);
+            if (nt > 0) {
+              assert(nt == 11);
+              for(int ii = 0; ii < nt; ii++) {
+                printf("val[%d] = %f\n",ii,val[ii]);
+              }
+              rigidBodyMotion rbm = rigidBodyMotion((int)pdVal[i], val[9], val[10]);
+              rbm.set_trans(val[0], val[1], val[2]);
+              rbm.set_rotaxis(val[3], val[4], val[5]);
+              rbm.set_rotpt(val[6], val[7], val[8]);
+              mm.rigidBodyMotions.push_back(rbm);
+            }
+          }
+        }
+      }
+      return true;
     }
-    meshMotion mm;
-    movingBodyMotion mbm;
-    mm.surfaceTags.push_back(54);
-    mm.surfaceTags.push_back(46);
-    mm.surfaceTags.push_back(41);
-    mm.regionTags.push_back(1);
-// grain11
-    mbm = movingBodyMotion(1339, rang, sfct);
-    mbm.set_trans(disp, 0.0, 0.0);
-    mbm.set_rotaxis(0.0, 0.0, 1.0);
-    mbm.set_rotpt(0.5e-3 + offset, 1.125e-3, 0.0);
-    mm.movingBodyMotions.push_back(mbm);
-// grain12
-    mbm = movingBodyMotion(1036, rang, sfct);
-    mbm.set_trans(disp, 0.0, 0.0);
-    mbm.set_rotaxis(0.0, 0.0, 1.0);
-    mbm.set_rotpt(2.625e-3 + offset, 1.125e-3, 0.0);
-    mm.movingBodyMotions.push_back(mbm);
-// grain13
-    mbm = movingBodyMotion(733, rang, sfct);
-    mbm.set_trans(disp, 0.0, 0.0);
-    mbm.set_rotaxis(0.0, 0.0, 1.0);
-    mbm.set_rotpt(4.75e-3 + offset, 1.125e-3, 0.0);
-    mm.movingBodyMotions.push_back(mbm);
-// grain21
-    mbm = movingBodyMotion(1440, 0.0, sfct);
-    mbm.set_trans(disp, 0.0, 0.0);
-    mbm.set_rotaxis(0.0, 0.0, 1.0);
-    mbm.set_rotpt(0.5e-3 + offset, 0.0, 0.0);
-    mm.movingBodyMotions.push_back(mbm);
-// grain22
-    mbm = movingBodyMotion(1137, 0.0, sfct);
-    mbm.set_trans(disp, 0.0, 0.0);
-    mbm.set_rotaxis(0.0, 0.0, 1.0);
-    mbm.set_rotpt(2.625e-3 + offset, 0.0, 0.0);
-    mm.movingBodyMotions.push_back(mbm);
-// grain23
-    mbm = movingBodyMotion(834, 0.0, sfct);
-    mbm.set_trans(disp, 0.0, 0.0);
-    mbm.set_rotaxis(0.0, 0.0, 1.0);
-    mbm.set_rotpt(4.75e-3 + offset, 0.0, 0.0);
-    mm.movingBodyMotions.push_back(mbm);
-// grain31
-    mbm = movingBodyMotion(1238, rang, sfct);
-    mbm.set_trans(disp, 0.0, 0.0);
-    mbm.set_rotaxis(0.0, 0.0, -1.0);
-    mbm.set_rotpt(0.5e-3 + offset, -1.125e-3, 0.0);
-    mm.movingBodyMotions.push_back(mbm);
-// grain32
-    mbm = movingBodyMotion(935, rang, sfct);
-    mbm.set_trans(disp, 0.0, 0.0);
-    mbm.set_rotaxis(0.0, 0.0, -1.0);
-    mbm.set_rotpt(2.625e-3 + offset, -1.125e-3, 0.0);
-    mm.movingBodyMotions.push_back(mbm);
-// grain33
-    mbm = movingBodyMotion(632, rang, sfct);
-    mbm.set_trans(disp, 0.0, 0.0);
-    mbm.set_rotaxis(0.0, 0.0, -1.0);
-    mbm.set_rotpt(4.75e-3 + offset, -1.125e-3, 0.0);
-    mm.movingBodyMotions.push_back(mbm);
-// return
-    return mm;
   }
 
   bool updateAPFCoord(apf::Mesh2* m) {
@@ -310,8 +289,6 @@ if (pm) {
     return true;
   }
 
-
-
 // temporarily used to write displacement field
   bool updateAndWriteSIMDiscrete(apf::Mesh2* m) {
     Sim_logOn("updateAndWriteSIMDiscrete.log");
@@ -418,6 +395,9 @@ if (pm) {
     return true;
   }
 
+
+
+
   bool updateSIMDiscreteCoord(ph::Input& in, apf::Mesh2* m, int cooperation) {
     Sim_logOn("updateSIMDiscreteCoord.log");
 
@@ -496,7 +476,7 @@ if (pm) {
     return true;
   }
 
-  bool updateSIMCoord(ph::Input& in, apf::Mesh2* m, int step, int caseId, int cooperation) {
+  bool updateSIMCoord(ph::Input& in, apf::Mesh2* m, int cooperation, meshMotion& mm) {
     Sim_logOn("updateSIMCoord.log");
 
     pProgress progress = Progress_new();
@@ -530,11 +510,8 @@ if (pm) {
       printf("Start mesh mover\n");
     pMeshMover mmover = MeshMover_new(ppm, 0);
 
-    // configure mesh motion
-    meshMotion mm = configureMotion(caseId, step);
-
     // mesh motion of moving body
-    for (std::list<movingBodyMotion>::iterator mit = mm.movingBodyMotions.begin(); mit != mm.movingBodyMotions.end(); ++mit) {
+    for (std::list<rigidBodyMotion>::iterator mit = mm.rigidBodyMotions.begin(); mit != mm.rigidBodyMotions.end(); ++mit) {
       assert(modelRegion = (pGRegion) GM_entityByTag(model, 3, mit->tag));
       printf("set moving body: region %d\n",mit->tag);
       MeshMover_setTransform(mmover, modelRegion, mit->trans, mit->rotaxis, mit->rotpt, mit->rotang, mit->scale);
@@ -542,7 +519,7 @@ if (pm) {
 
     // mesh motion of vertices on surfaces
     std::list<int>::iterator lit;
-    for (lit = mm.surfaceTags.begin(); lit != mm.surfaceTags.end(); ++lit) {
+    for (lit = mm.parSurFaces.begin(); lit != mm.parSurFaces.end(); ++lit) {
       assert(modelFace = (pGFace) GM_entityByTag(model, 2, *lit));
       printf("set move on surface: face %d\n",*lit);
       vIter = M_classifiedVertexIter(pm, modelFace, 1);
@@ -558,7 +535,7 @@ if (pm) {
     }
 
     // mesh motion of vertices in region
-    for (lit = mm.regionTags.begin(); lit != mm.regionTags.end(); ++lit) {
+    for (lit = mm.parSurRegions.begin(); lit != mm.parSurRegions.end(); ++lit) {
       assert(modelRegion = (pGRegion) GM_entityByTag(model, 3, *lit));
       printf("set move on region: region %d\n",*lit);
       vIter = M_classifiedVertexIter(pm, modelRegion, 0);
@@ -601,19 +578,18 @@ if (pm) {
     return true;
   }
 
-  void runMeshMover(ph::Input& in, apf::Mesh2* m, int step, int caseId, int cooperation) {
+  void runMeshMover(ph::Input& in, apf::Mesh2* m, int step, int cooperation) {
     bool done = false;
     if (in.simmetrixMesh) {
-      /* assumption: parametric model always needs a caseId
-         when caseId = 0, it is supposed to be discrete model */
-      if (caseId == 0)
-        done = updateSIMDiscreteCoord(in, m, cooperation);
-      else if (caseId == 10) // hack!
-        done = updateAndWriteSIMDiscrete(m); // hack!
-      else if (caseId == 20) // hack!
-        done = updateAndWriteSIMDiscreteModel(m); // hack!
+      meshMotion mm;
+      if (configureMotion(step, mm))
+        done = updateSIMCoord(in, m, cooperation, mm);
       else
-        done = updateSIMCoord(in, m, step, caseId, cooperation);
+        done = updateSIMDiscreteCoord(in, m, cooperation);
+//      else if (caseId == 10) // hack!
+//        done = updateAndWriteSIMDiscrete(m); // hack!
+//      else if (caseId == 20) // hack!
+//        done = updateAndWriteSIMDiscreteModel(m); // hack!
     }
     else {
       done = updateAPFCoord(m);
@@ -621,14 +597,14 @@ if (pm) {
     assert(done);
   }
 
-  void updateMesh(ph::Input& in, apf::Mesh2* m, apf::Field* szFld, int step, int caseId, int cooperation) {
+  void updateMesh(ph::Input& in, apf::Mesh2* m, apf::Field* szFld, int step, int cooperation) {
     if (in.simmetrixMesh && cooperation) {
-      pc::runMeshMover(in,m,step,caseId,1);
+      pc::runMeshMover(in,m,step,1);
       m->verify();
       pc::writeSequence(m,step,"updated_mesh_");
     }
     else {
-      pc::runMeshMover(in,m,step,caseId);
+      pc::runMeshMover(in,m,step);
       m->verify();
       pc::writeSequence(m,step,"after_mover_");
 
