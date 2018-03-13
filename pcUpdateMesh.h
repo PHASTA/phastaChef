@@ -40,7 +40,7 @@ namespace pc {
   };
 
   struct meshMotion {
-    int caseId;
+    int caseId;  // may not be used
     std::list<rigidBodyMotion> rigidBodyMotions;
     std::list<int> disDefRegions;
     std::list<int> disSurRegions;
@@ -54,6 +54,8 @@ namespace pc {
   void runMeshMover(ph::Input& in, apf::Mesh2* m, int step, int cooperation = 0);
 
   void updateMesh(ph::Input& in, apf::Mesh2* m, apf::Field* szFld, int step, int cooperation = 1);
+
+  bool updateAndWriteSIMDiscreteModel(apf::Mesh2* m);
 
 }
 

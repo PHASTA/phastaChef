@@ -180,10 +180,10 @@ int main(int argc, char** argv) {
   PCU_Protect();
   if( argc != 2 ) {
     if(!PCU_Comm_Self())
-      fprintf(stderr, "Usage: %s <motion case id>\n",argv[0]);
+      fprintf(stderr, "Usage: %s <mode id>\n",argv[0]);
     exit(EXIT_FAILURE);
   }
-  int caseId  = atoi(argv[1]);
+  int modeId  = atoi(argv[1]);
   chefPhasta::initModelers();
   rstream rs = makeRStream();
   grstream grs = makeGRStream();
@@ -211,8 +211,10 @@ int main(int argc, char** argv) {
   chef::readAndAttachFields(ctrl,m);
 
   /* update model and write new model */
-  if(caseId == 0)
+  if(modeId == 0)
     pc::updateMesh(ctrl,m,szFld,step);
+  else if(modeId == 1)
+    pc::updateAndWriteSIMDiscreteModel(m);
 
   /* write geombc and restart files */
   chef::preprocess(m,ctrl,grs);

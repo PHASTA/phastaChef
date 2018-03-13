@@ -217,13 +217,13 @@ namespace {
           double cent[3] = {0.0, 0.0, 0.0};
           double dist[1] = {0.0};
           pRegion foundMR = MeshRegionFinder_find(mrf, loc, params, dist);
-          if(foundMR) {
-            R_centroid(foundMR, cent);
-            printf("\nrank: %d; we found: (%f, %f, %f)\n", PCU_Comm_Self(), xyz[0], xyz[1], xyz[2]);
-            printf("  center of source region: (%f, %f, %f)\n", cent[0], cent[1], cent[2]);
-            printf("  parametric of point: (%f, %f, %f)\n", params[0], params[1], params[2]);
-            printf("  distance to domain: %12.16e; (tol = %12.16e)\n", dist[0], tol);
-          }
+//          if(foundMR) {
+//            R_centroid(foundMR, cent);
+//            printf("\nrank: %d; we found: (%f, %f, %f)\n", PCU_Comm_Self(), xyz[0], xyz[1], xyz[2]);
+//            printf("  center of source region: (%f, %f, %f)\n", cent[0], cent[1], cent[2]);
+//            printf("  parametric of point: (%f, %f, %f)\n", params[0], params[1], params[2]);
+//            printf("  distance to domain: %12.16e; (tol = %12.16e)\n", dist[0], tol);
+//          }
           if(foundMR && (dist[0] < tol)) {
             // loop over fields
             for(int i = 0; i < num_flds; i++) {
@@ -258,7 +258,8 @@ namespace {
     MD_deleteMeshDataId(mdid);
 
     // partition the dst mesh
-    printf("start to partition the dst mesh\n");
+    if(!PCU_Comm_Self())
+      printf("start to partition the dst mesh\n");
     pPartitionOpts pOpts = PartitionOpts_new();
     PartitionOpts_setTotalNumParts(pOpts, numParts);
     PM_partition(dst_ppm, pOpts, progress);
@@ -303,14 +304,14 @@ int main(int argc, char** argv) {
   /* load the model and mesh */
   gmi_model* dst_g = 0;
   apf::Mesh2* dst_m = 0;
-  chef::cook(dst_g, dst_m, dst_ctrl, dst_grs); // this should be as simple as load model and mesh
+  chef::cook(dst_g, dst_m, dst_ctrl, dst_grs); // used to load model and mesh
   dst_m->verify();
 
   gmi_model* g = 0;
   apf::Mesh2* m = 0;
   int step = ctrl.timeStepNumber;
   setupChef(ctrl, step);
-  chef::cook(g, m, ctrl, grs); // this should be as simple as load model and mesh
+  chef::cook(g, m, ctrl, grs); // used to load model and mesh
   m->verify();
 
   ctrl.rs = rs;

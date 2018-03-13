@@ -50,23 +50,22 @@ namespace pc {
     char* token;
     double* val = new double[100];
     double* pdVal = new double[100];
-    int nt, caseId, i, npd;
+    int i = 0;
+    int nt = 0;
+    int npd = 0;
+    int caseId = 0;
     while( fgets(target, 1024, pFile) && !feof(pFile) ) {
       if (target[0] == '#') continue; // ignore comment line
       token = strtok ( target, ":\n" );
-      nt = getValueByString("Case ID", token, val);
-      if(nt) {
+
+      nt = getValueByString("Parametric deforming", token, val);
+      if(nt > 0) npd = nt;
+      for(i = 0; i < nt; i++)
+        pdVal[i] = val[i];
+
+      nt = getValueByString("Time depended parametric deforming case ID", token, val);
+      if(nt)
         caseId = (int)val[0];
-        if (caseId > 0) break;
-      }
-
-      nt = getValueByString("Discrete deforming", token, val);
-      for(i = 0; i < nt; i++)
-        mm.disDefRegions.push_back((int)val[i]);
-
-      nt = getValueByString("Discrete surrounding", token, val);
-      for(i = 0; i < nt; i++)
-        mm.disSurRegions.push_back((int)val[i]);
 
       nt = getValueByString("Parametric surrounding regions", token, val);
       for(i = 0; i < nt; i++)
@@ -80,15 +79,17 @@ namespace pc {
       for(i = 0; i < nt; i++)
         mm.parSurEdges.push_back((int)val[i]);
 
-      nt = getValueByString("Parametric deforming", token, val);
-      if(nt > 0) npd = nt;
+      nt = getValueByString("Discrete deforming", token, val);
       for(i = 0; i < nt; i++)
-        pdVal[i] = val[i];
+        mm.disDefRegions.push_back((int)val[i]);
+
+      nt = getValueByString("Discrete surrounding", token, val);
+      for(i = 0; i < nt; i++)
+        mm.disSurRegions.push_back((int)val[i]);
     }
 
     if (caseId > 0) {
       mm = pc::getTDMeshMotion(caseId, step);
-      return true;
     }
     else {
       if (npd) {
@@ -273,6 +274,9 @@ if (pm) {
     }
     VIter_delete(vIter);
 
+    // close file
+    fclose (sFile);
+
     // do real work
     printf("do real mesh mover\n");
     assert(MeshMover_run(mmover, progress));
@@ -422,7 +426,6 @@ if (pm) {
     pGRegion modelRegion;
     VIter vIter;
     pVertex meshVertex;
-    double newpt[3];
 
     // start mesh mover
     if(!PCU_Comm_Self())
@@ -434,14 +437,12 @@ if (pm) {
     while((meshVertex = VIter_next(vIter))){
       apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
       apf::getComponents(f, vtx, 0, vals);
-      newpt[0] = vals[0];
-      newpt[1] = vals[1];
-      newpt[2] = vals[2];
+      const double newloc[3] = {vals[0], vals[1], vals[2]};
       pPList closureRegion = GEN_regions(EN_whatIn(meshVertex));
       assert(PList_size(closureRegion));
       modelRegion = (pGRegion) PList_item(closureRegion, 0);
       assert(GEN_isDiscreteEntity(modelRegion));
-      MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newpt);
+      MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newloc);
       PList_delete(closureRegion);
     }
     VIter_delete(vIter);
@@ -499,6 +500,7 @@ if (pm) {
     // declaration
     pGRegion modelRegion;
     pGFace modelFace;
+    pGEdge modelEdge;
     VIter vIter;
     pVertex meshVertex;
     double newpt[3];
@@ -510,18 +512,35 @@ if (pm) {
       printf("Start mesh mover\n");
     pMeshMover mmover = MeshMover_new(ppm, 0);
 
-    // mesh motion of moving body
+    // mesh motion of parametric deforming model region
     for (std::list<rigidBodyMotion>::iterator mit = mm.rigidBodyMotions.begin(); mit != mm.rigidBodyMotions.end(); ++mit) {
       assert(modelRegion = (pGRegion) GM_entityByTag(model, 3, mit->tag));
-      printf("set moving body: region %d\n",mit->tag);
+      assert(!GEN_isDiscreteEntity(modelRegion));
+      printf("set rigid body motion: region %d\n",mit->tag);
       MeshMover_setTransform(mmover, modelRegion, mit->trans, mit->rotaxis, mit->rotpt, mit->rotang, mit->scale);
     }
 
-    // mesh motion of vertices on surfaces
     std::list<int>::iterator lit;
+    // mesh motion of parametric surrounding model region
+    for (lit = mm.parSurRegions.begin(); lit != mm.parSurRegions.end(); ++lit) {
+      assert(modelRegion = (pGRegion) GM_entityByTag(model, 3, *lit));
+      assert(!GEN_isDiscreteEntity(modelRegion));
+      printf("set move on parametric surrounding region %d\n",*lit);
+      vIter = M_classifiedVertexIter(pm, modelRegion, 0);
+      while((meshVertex = VIter_next(vIter))){
+        apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+        apf::getComponents(f, vtx, 0, vals);
+        const double newloc[3] = {vals[0], vals[1], vals[2]};
+        MeshMover_setVolumeMove(mmover,meshVertex,newloc);
+      }
+      VIter_delete(vIter);
+    }
+
+    // mesh motion of parametric surrounding model face
     for (lit = mm.parSurFaces.begin(); lit != mm.parSurFaces.end(); ++lit) {
       assert(modelFace = (pGFace) GM_entityByTag(model, 2, *lit));
-      printf("set move on surface: face %d\n",*lit);
+      assert(!GEN_isDiscreteEntity(modelFace));
+      printf("set move on parametric face %d\n",*lit);
       vIter = M_classifiedVertexIter(pm, modelFace, 1);
       while((meshVertex = VIter_next(vIter))){
         V_coord(meshVertex, xyz);
@@ -534,10 +553,43 @@ if (pm) {
       VIter_delete(vIter);
     }
 
-    // mesh motion of vertices in region
-    for (lit = mm.parSurRegions.begin(); lit != mm.parSurRegions.end(); ++lit) {
+    // mesh motion of parametric surrounding model edge
+    for (lit = mm.parSurEdges.begin(); lit != mm.parSurEdges.end(); ++lit) {
+      assert(modelEdge = (pGEdge) GM_entityByTag(model, 1, *lit));
+      assert(!GEN_isDiscreteEntity(modelEdge));
+      printf("set move on parametric edge %d\n",*lit);
+      vIter = M_classifiedVertexIter(pm, modelEdge, 1);
+      while((meshVertex = VIter_next(vIter))){
+        V_coord(meshVertex, xyz);
+        apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+        apf::getComponents(f, vtx, 0, vals);
+        const double disp[3] = {vals[0]-xyz[0], vals[1]-xyz[1], vals[2]-xyz[2]};
+        V_movedParamPoint(meshVertex,disp,newpar,newpt);
+        MeshMover_setSurfaceMove(mmover,meshVertex,newpar,newpt);
+      }
+      VIter_delete(vIter);
+    }
+
+    // mesh motion of discrete deforming model region
+    for (lit = mm.disDefRegions.begin(); lit != mm.disDefRegions.end(); ++lit) {
       assert(modelRegion = (pGRegion) GM_entityByTag(model, 3, *lit));
-      printf("set move on region: region %d\n",*lit);
+      assert(GEN_isDiscreteEntity(modelRegion));
+      printf("set move on discrete deforming region %d\n",*lit);
+      vIter = M_classifiedVertexIter(pm, modelRegion, 1);
+      while((meshVertex = VIter_next(vIter))){
+        apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+        apf::getComponents(f, vtx, 0, vals);
+        const double newloc[3] = {vals[0], vals[1], vals[2]};
+        MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newloc);
+      }
+      VIter_delete(vIter);
+    }
+
+    // mesh motion of discrete surrounding model region
+    for (lit = mm.disSurRegions.begin(); lit != mm.disSurRegions.end(); ++lit) {
+      assert(modelRegion = (pGRegion) GM_entityByTag(model, 3, *lit));
+      assert(GEN_isDiscreteEntity(modelRegion));
+      printf("set move on discrete surrounding region %d\n",*lit);
       vIter = M_classifiedVertexIter(pm, modelRegion, 0);
       while((meshVertex = VIter_next(vIter))){
         apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
