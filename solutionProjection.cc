@@ -10,7 +10,6 @@
 #include "phIO.h"
 #include <ph.h>
 #include <phBC.h>
-#include <phiotimer.h>
 #include <phstream.h>
 #include <sam.h>
 #include <phastaChef.h>
@@ -44,7 +43,7 @@ namespace {
   /* may not need this */
   static FILE* openfile_read(ph::Input&, const char* path) {
     FILE* f = NULL;
-    PHASTAIO_OPENTIME(f = pcu_group_open(path, false);)
+    f = pcu_group_open(path, false);
     return f;
   }
 
@@ -54,7 +53,7 @@ namespace {
     std::string restartStr("restart");
     FILE* f = NULL;
     if( fname.find(restartStr) != std::string::npos )
-      PHASTAIO_OPENTIME(f = openRStreamRead(in.rs);)
+      f = openRStreamRead(in.rs);
     else {
       fprintf(stderr,
         "ERROR %s type of stream %s is unknown... exiting\n",
