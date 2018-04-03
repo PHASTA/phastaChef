@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
   /* load the model and mesh */
   gmi_model* g = 0;
   apf::Mesh2* m = 0;
-  chef::cook(g, m, ctrl, rs, grs);
+  chef::cook(g, m, ctrl, grs);
   /* load input file for solver */
   phSolver::Input inp("solver.inp", "input.config");
   pc::writeSequence(m,0,"init_");
