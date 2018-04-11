@@ -15,6 +15,7 @@
 #include "apfSIM.h"
 #include "gmi_sim.h"
 #include <PCU.h>
+#include <phastaChef.h>
 #include <string.h>
 #include <cassert>
 #include <cstdio>
@@ -629,6 +630,188 @@ if (pm) {
     Progress_delete(progress);
     return true;
   }
+
+
+// check if a model entity is (on) a rigid body
+  int isOnRigidBody(pGModel model, pGEntity modelEnt, std::vector<ph::rigidBodyMotion> rbms) {
+    for(unsigned id = 0; id < rbms.size(); id++)
+      if(GEN_inClosure(GM_entityByTag(model, 3, rbms[id].tag), modelEnt)) return (int)id;
+    // not find
+    return -1;
+  }
+
+// auto detect non-rigid body model entities
+  bool updateSIMCoordAuto(ph::Input& in, apf::Mesh2* m, int cooperation) {
+    Sim_logOn("updateSIMCoord.log");
+
+    pProgress progress = Progress_new();
+    Progress_setDefaultCallback(progress);
+
+    apf::MeshSIM* apf_msim = dynamic_cast<apf::MeshSIM*>(m);
+    pParMesh ppm = apf_msim->getMesh();
+    pMesh pm = PM_mesh(ppm,0);
+
+    PM_write(ppm, "before_mover.sms", progress);
+
+    gmi_model* gmiModel = apf_msim->getModel();
+    pGModel model = gmi_export_sim(gmiModel);
+
+    apf::Field* f = m->findField("motion_coords");
+    assert(f);
+    double* vals = new double[apf::countComponents(f)];
+    assert(apf::countComponents(f) == 3);
+
+    // declaration
+    pGRegion modelRegion;
+    pGFace modelFace;
+    pGEdge modelEdge;
+    VIter vIter;
+    pVertex meshVertex;
+    double newpt[3];
+    double newpar[2];
+    double xyz[3];
+
+    // start mesh mover
+    if(!PCU_Comm_Self())
+      printf("Start mesh mover\n");
+    pMeshMover mmover = MeshMover_new(ppm, 0);
+
+    std::vector<ph::rigidBodyMotion> rbms;
+    core_get_rbms(rbms);
+    // loop over model regions
+    GRIter grIter = GM_regionIter(model);
+    while((modelRegion=GRIter_next(grIter))){
+      int id = isOnRigidBody(model, modelRegion, rbms);
+      if(id >= 0) {
+        assert(!GEN_isDiscreteEntity(modelRegion)); // should be parametric geometry
+        printf("set rigid body motion: region %d\n", GEN_tag(modelRegion));
+        MeshMover_setTransform(mmover, modelRegion, rbms[id].trans, rbms[id].rotaxis,
+                                   rbms[id].rotpt, rbms[id].rotang, rbms[id].scale);
+      }
+      else {
+        if (!GEN_isDiscreteEntity(modelRegion)) { // parametric
+          printf("set move on parametric region %d\n", GEN_tag(modelRegion));
+          vIter = M_classifiedVertexIter(pm, modelRegion, 0);
+          while((meshVertex = VIter_next(vIter))){
+            apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+            apf::getComponents(f, vtx, 0, vals);
+            const double newloc[3] = {vals[0], vals[1], vals[2]};
+            MeshMover_setVolumeMove(mmover,meshVertex,newloc);
+          }
+          VIter_delete(vIter);
+        }
+        else { // discrete
+          /* we assume: 1. if a model region is discrete, its downward adjacent
+             model entities are also discrete; 2. there is no discrete model
+             surface/edge/vertex that hangs alone without adjacent to a discrete
+             model region */
+          printf("set move on discrete region %d\n", GEN_tag(modelRegion));
+          vIter = M_classifiedVertexIter(pm, modelRegion, 1);
+          while((meshVertex = VIter_next(vIter))){
+            apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+            apf::getComponents(f, vtx, 0, vals);
+            const double newloc[3] = {vals[0], vals[1], vals[2]};
+            MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newloc);
+          }
+          VIter_delete(vIter);
+        }
+      }
+    }
+    GRIter_delete(grIter);
+
+    // loop over model surfaces
+    GFIter gfIter = GM_faceIter(model);
+    while((modelFace=GFIter_next(gfIter))){
+      int id = isOnRigidBody(model, modelFace, rbms);
+      if(id >= 0) {
+        assert(!GEN_isDiscreteEntity(modelFace)); // should be parametric geometry
+        printf("skip rigid body motion: surface %d\n", GEN_tag(modelFace));
+        continue;
+      }
+      else {
+        if (!GEN_isDiscreteEntity(modelFace)) { // parametric
+          printf("set move on parametric face %d\n", GEN_tag(modelFace));
+          vIter = M_classifiedVertexIter(pm, modelFace, 0);
+          while((meshVertex = VIter_next(vIter))){
+            V_coord(meshVertex, xyz);
+            apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+            apf::getComponents(f, vtx, 0, vals);
+            const double disp[3] = {vals[0]-xyz[0], vals[1]-xyz[1], vals[2]-xyz[2]};
+            V_movedParamPoint(meshVertex,disp,newpar,newpt);
+            MeshMover_setSurfaceMove(mmover,meshVertex,newpar,newpt);
+          }
+          VIter_delete(vIter);
+        }
+        else { // discrete
+          printf("skip discrete face %d\n", GEN_tag(modelFace));
+          continue;
+        }
+      }
+    }
+    GFIter_delete(gfIter);
+
+    // loop over model edges
+    GEIter geIter = GM_edgeIter(model);
+    while((modelEdge=GEIter_next(geIter))){
+      int id = isOnRigidBody(model, modelEdge, rbms);
+      if(id >= 0) {
+        assert(!GEN_isDiscreteEntity(modelEdge)); // should be parametric geometry
+        printf("skip rigid body motion: edge %d\n", GEN_tag(modelEdge));
+        continue;
+      }
+      else {
+        if (!GEN_isDiscreteEntity(modelEdge)) { // parametric
+          printf("set move on parametric edge %d\n", GEN_tag(modelEdge));
+          vIter = M_classifiedVertexIter(pm, modelEdge, 0);
+          while((meshVertex = VIter_next(vIter))){
+            V_coord(meshVertex, xyz);
+            apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+            apf::getComponents(f, vtx, 0, vals);
+            const double disp[3] = {vals[0]-xyz[0], vals[1]-xyz[1], vals[2]-xyz[2]};
+            V_movedParamPoint(meshVertex,disp,newpar,newpt);
+            MeshMover_setSurfaceMove(mmover,meshVertex,newpar,newpt);
+          }
+          VIter_delete(vIter);
+        }
+        else { // discrete
+          printf("skip discrete edge %d\n", GEN_tag(modelEdge));
+          continue;
+        }
+      }
+    }
+    GEIter_delete(geIter);
+
+    // add mesh improver and solution transfer
+    if (cooperation) {
+      pPList sim_fld_lst;
+      if (in.solutionMigration)
+        sim_fld_lst = getSimFieldList(in, m);
+      addImproverInMover(mmover, sim_fld_lst);
+      addAdapterInMover(mmover, sim_fld_lst, m);
+    }
+
+    // do real work
+    if(!PCU_Comm_Self())
+      printf("do real mesh mover\n");
+    assert(MeshMover_run(mmover, progress));
+    MeshMover_delete(mmover);
+
+    // transfer sim fields to apf fields
+    if (cooperation) {
+      pc::transferSimFields(m);
+    }
+
+    // write model and mesh
+    if(!PCU_Comm_Self())
+      printf("write model and mesh for mesh mover\n");
+    GM_write(model, "updated_model.smd", 0, progress);
+    PM_write(ppm, "after_mover.sms", progress);
+
+    Progress_delete(progress);
+    return true;
+  }
+
+
 
   void runMeshMover(ph::Input& in, apf::Mesh2* m, int step, int cooperation) {
     bool done = false;
