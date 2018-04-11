@@ -665,6 +665,7 @@ if (pm) {
     pGRegion modelRegion;
     pGFace modelFace;
     pGEdge modelEdge;
+    pGVertex modelVertex;
     VIter vIter;
     pVertex meshVertex;
     double newpt[3];
@@ -701,12 +702,8 @@ if (pm) {
           VIter_delete(vIter);
         }
         else { // discrete
-          /* we assume: 1. if a model region is discrete, its downward adjacent
-             model entities are also discrete; 2. there is no discrete model
-             surface/edge/vertex that hangs alone without adjacent to a discrete
-             model region */
           printf("set move on discrete region %d\n", GEN_tag(modelRegion));
-          vIter = M_classifiedVertexIter(pm, modelRegion, 1);
+          vIter = M_classifiedVertexIter(pm, modelRegion, 0);
           while((meshVertex = VIter_next(vIter))){
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
             apf::getComponents(f, vtx, 0, vals);
@@ -743,8 +740,20 @@ if (pm) {
           VIter_delete(vIter);
         }
         else { // discrete
-          printf("skip discrete face %d\n", GEN_tag(modelFace));
-          continue;
+          printf("set move on discrete face %d\n", GEN_tag(modelFace));
+          vIter = M_classifiedVertexIter(pm, modelFace, 0);
+          while((meshVertex = VIter_next(vIter))){
+            apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+            apf::getComponents(f, vtx, 0, vals);
+            const double newloc[3] = {vals[0], vals[1], vals[2]};
+            pPList closureRegion = GEN_regions(modelFace);
+            assert(PList_size(closureRegion));
+            modelRegion = (pGRegion) PList_item(closureRegion, 0);
+            assert(GEN_isDiscreteEntity(modelRegion));
+            MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newloc);
+            PList_delete(closureRegion);
+          }
+          VIter_delete(vIter);
         }
       }
     }
@@ -774,8 +783,62 @@ if (pm) {
           VIter_delete(vIter);
         }
         else { // discrete
-          printf("skip discrete edge %d\n", GEN_tag(modelEdge));
-          continue;
+          printf("set move on discrete edge %d\n", GEN_tag(modelEdge));
+          vIter = M_classifiedVertexIter(pm, modelEdge, 0);
+          while((meshVertex = VIter_next(vIter))){
+            apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+            apf::getComponents(f, vtx, 0, vals);
+            const double newloc[3] = {vals[0], vals[1], vals[2]};
+            pPList closureRegion = GEN_regions(modelEdge);
+            assert(PList_size(closureRegion));
+            modelRegion = (pGRegion) PList_item(closureRegion, 0);
+            assert(GEN_isDiscreteEntity(modelRegion));
+            MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newloc);
+            PList_delete(closureRegion);
+          }
+          VIter_delete(vIter);
+        }
+      }
+    }
+    GEIter_delete(geIter);
+
+    // loop over model vertices
+    GVIter gvIter = GM_vertexIter(model);
+    while((modelVertex=GVIter_next(gvIter))){
+      int id = isOnRigidBody(model, modelVertex, rbms);
+      if(id >= 0) {
+        assert(!GEN_isDiscreteEntity(modelVertex)); // should be parametric geometry
+        printf("skip rigid body motion: vertex %d\n", GEN_tag(modelVertex));
+        continue;
+      }
+      else {
+        if (!GEN_isDiscreteEntity(modelVertex)) { // parametric
+          printf("set move on parametric vertex %d\n", GEN_tag(modelVertex));
+          vIter = M_classifiedVertexIter(pm, modelVertex, 0);
+          while((meshVertex = VIter_next(vIter))){
+            V_coord(meshVertex, xyz);
+            apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+            apf::getComponents(f, vtx, 0, vals);
+            const double disp[3] = {vals[0]-xyz[0], vals[1]-xyz[1], vals[2]-xyz[2]};
+            assert(sqrt(disp[0]*disp[0] + disp[1]*disp[1] + disp[2]*disp[2]) < 1e-10); // threshold 1e-10
+          }
+          VIter_delete(vIter);
+        }
+        else { // discrete
+          printf("set move on discrete vertex %d\n", GEN_tag(modelVertex));
+          vIter = M_classifiedVertexIter(pm, modelRegion, 0);
+          while((meshVertex = VIter_next(vIter))){
+            apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
+            apf::getComponents(f, vtx, 0, vals);
+            const double newloc[3] = {vals[0], vals[1], vals[2]};
+            pPList closureRegion = GEN_regions(modelVertex);
+            assert(PList_size(closureRegion));
+            modelRegion = (pGRegion) PList_item(closureRegion, 0);
+            assert(GEN_isDiscreteEntity(modelRegion));
+            MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newloc);
+            PList_delete(closureRegion);
+          }
+          VIter_delete(vIter);
         }
       }
     }
