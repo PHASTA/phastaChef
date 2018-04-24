@@ -38,6 +38,24 @@ namespace pc {
     return outf;
   }
 
+  /* remove all fields except for solution, time
+           derivative of solution, mesh velocity */
+  void removeOtherFields(apf::Mesh2*& m) {
+    int index = 0;
+    while (m->countFields() > 3) {
+      apf::Field* f = m->getField(index);
+      if ( f == m->findField("solution") ||
+           f == m->findField("time derivative of solution") ||
+           f == m->findField("mesh_vel") ) {
+        index++;
+        continue;
+      }
+      m->removeField(f);
+      apf::destroyField(f);
+    }
+    m->verify();
+  }
+
   int getSimFields(apf::Mesh2*& m, int simFlag, pField* sim_flds) {
     int num_flds = 0;
     if (m->findField("solution")) {
@@ -67,6 +85,7 @@ namespace pc {
   /* unpacked solution into serveral fields,
      put these field explicitly into pPList */
   pPList getSimFieldList(ph::Input& in, apf::Mesh2*& m){
+    removeOtherFields(m);
     pField* sim_flds = new pField[7]; // Hardcoding
     int num_flds = getSimFields(m, in.simmetrixMesh, sim_flds);
     pPList sim_fld_lst = PList_new();
