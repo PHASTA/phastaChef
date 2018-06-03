@@ -22,16 +22,16 @@ namespace pc {
     if (outf)
       apf::destroyField(outf);
     outf = apf::createPackedField(m, outFieldname, size);
-    double* inVal = new double[size];
-    double* outVal = new double[size];
+    apf::NewArray<double> inVal(size);
+    apf::NewArray<double> outVal(size);
     apf::MeshEntity* vtx;
     apf::MeshIterator* it = m->begin(0);
     while ((vtx = m->iterate(it))) {
-      apf::getComponents(inf, vtx, 0, inVal);
+      apf::getComponents(inf, vtx, 0, &inVal[0]);
       for (int i = 0; i < size; i++){
         outVal[i] = inVal[i];
       }
-      apf::setComponents(outf,vtx, 0, outVal);
+      apf::setComponents(outf,vtx, 0, &outVal[0]);
     }
     m->end(it);
     apf::destroyField(inf);
@@ -93,6 +93,9 @@ namespace pc {
       PList_append(sim_fld_lst, sim_flds[i]);
     }
     assert(num_flds == PList_size(sim_fld_lst));
+// debugging {
+    delete [] sim_flds; // not sure if delete contents of pPList
+// debugging }
     return sim_fld_lst;
   }
 
@@ -138,13 +141,10 @@ namespace pc {
       MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
 
       /* use size field before mesh motion */
-//      double* inVal = new double[apf::countComponents(szFld)];
       if(!PCU_Comm_Self())
         printf("Start mesh adapt of setting size field\n");
       vIter = M_vertexIter(pm);
       while((meshVertex = VIter_next(vIter))){
-//        apf::getComponents(szFld, reinterpret_cast<apf::MeshEntity*>(meshVertex), 0, inVal);
-//        MSA_setVertexSize(adapter, meshVertex, inVal[0]); // use the prescribed size field
         MSA_scaleVertexSize(adapter, meshVertex, 1.0); // use the size field of the mesh before mesh motion
       }
       VIter_delete(vIter);

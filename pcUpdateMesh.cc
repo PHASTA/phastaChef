@@ -233,6 +233,7 @@ if (pm) {
       id++;
     }
     VIter_delete(vIter);
+    delete [] vals;
 
     // close file
     fclose (sFile);
@@ -366,6 +367,7 @@ if (pm) {
       }
     }
     VIter_delete(vIter);
+    delete [] vals;
 
     // do real work
     if(!PCU_Comm_Self())
@@ -447,6 +449,7 @@ if (pm) {
       PList_delete(closureRegion);
     }
     VIter_delete(vIter);
+    delete [] vals;
 
     // add mesh improver and solution transfer
     if (cooperation) {
@@ -601,6 +604,9 @@ if (pm) {
       VIter_delete(vIter);
     }
 
+    // delete vals
+    delete [] vals;
+
     // add mesh improver and solution transfer
     if (cooperation) {
       pPList sim_fld_lst;
@@ -658,7 +664,7 @@ if (pm) {
 
     apf::Field* f = m->findField("motion_coords");
     assert(f);
-    double* vals = new double[apf::countComponents(f)];
+    apf::NewArray<double> vals(apf::countComponents(f));
     assert(apf::countComponents(f) == 3);
 
     // declaration
@@ -685,7 +691,8 @@ if (pm) {
       int id = isOnRigidBody(model, modelRegion, rbms);
       if(id >= 0) {
         assert(!GEN_isDiscreteEntity(modelRegion)); // should be parametric geometry
-        printf("set rigid body motion: region %d\n", GEN_tag(modelRegion));
+        printf("set rigid body motion: region %d; disp = (%e,%e,%e)\n",
+                GEN_tag(modelRegion), rbms[id].trans[0], rbms[id].trans[1], rbms[id].trans[2]);
         MeshMover_setTransform(mmover, modelRegion, rbms[id].trans, rbms[id].rotaxis,
                                    rbms[id].rotpt, rbms[id].rotang, rbms[id].scale);
       }
@@ -695,7 +702,7 @@ if (pm) {
           vIter = M_classifiedVertexIter(pm, modelRegion, 0);
           while((meshVertex = VIter_next(vIter))){
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
-            apf::getComponents(f, vtx, 0, vals);
+            apf::getComponents(f, vtx, 0, &vals[0]);
             const double newloc[3] = {vals[0], vals[1], vals[2]};
             MeshMover_setVolumeMove(mmover,meshVertex,newloc);
           }
@@ -706,7 +713,7 @@ if (pm) {
           vIter = M_classifiedVertexIter(pm, modelRegion, 0);
           while((meshVertex = VIter_next(vIter))){
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
-            apf::getComponents(f, vtx, 0, vals);
+            apf::getComponents(f, vtx, 0, &vals[0]);
             const double newloc[3] = {vals[0], vals[1], vals[2]};
             MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newloc);
           }
@@ -732,7 +739,7 @@ if (pm) {
           while((meshVertex = VIter_next(vIter))){
             V_coord(meshVertex, xyz);
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
-            apf::getComponents(f, vtx, 0, vals);
+            apf::getComponents(f, vtx, 0, &vals[0]);
             const double disp[3] = {vals[0]-xyz[0], vals[1]-xyz[1], vals[2]-xyz[2]};
             V_movedParamPoint(meshVertex,disp,newpar,newpt);
             MeshMover_setSurfaceMove(mmover,meshVertex,newpar,newpt);
@@ -744,7 +751,7 @@ if (pm) {
           vIter = M_classifiedVertexIter(pm, modelFace, 0);
           while((meshVertex = VIter_next(vIter))){
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
-            apf::getComponents(f, vtx, 0, vals);
+            apf::getComponents(f, vtx, 0, &vals[0]);
             const double newloc[3] = {vals[0], vals[1], vals[2]};
             pPList closureRegion = GEN_regions(modelFace);
             assert(PList_size(closureRegion));
@@ -775,7 +782,7 @@ if (pm) {
           while((meshVertex = VIter_next(vIter))){
             V_coord(meshVertex, xyz);
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
-            apf::getComponents(f, vtx, 0, vals);
+            apf::getComponents(f, vtx, 0, &vals[0]);
             const double disp[3] = {vals[0]-xyz[0], vals[1]-xyz[1], vals[2]-xyz[2]};
             V_movedParamPoint(meshVertex,disp,newpar,newpt);
             MeshMover_setSurfaceMove(mmover,meshVertex,newpar,newpt);
@@ -787,7 +794,7 @@ if (pm) {
           vIter = M_classifiedVertexIter(pm, modelEdge, 0);
           while((meshVertex = VIter_next(vIter))){
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
-            apf::getComponents(f, vtx, 0, vals);
+            apf::getComponents(f, vtx, 0, &vals[0]);
             const double newloc[3] = {vals[0], vals[1], vals[2]};
             pPList closureRegion = GEN_regions(modelEdge);
             assert(PList_size(closureRegion));
@@ -818,7 +825,7 @@ if (pm) {
           while((meshVertex = VIter_next(vIter))){
             V_coord(meshVertex, xyz);
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
-            apf::getComponents(f, vtx, 0, vals);
+            apf::getComponents(f, vtx, 0, &vals[0]);
             const double disp[3] = {vals[0]-xyz[0], vals[1]-xyz[1], vals[2]-xyz[2]};
             assert(sqrt(disp[0]*disp[0] + disp[1]*disp[1] + disp[2]*disp[2]) < 1e-10); // threshold 1e-10
           }
@@ -829,7 +836,7 @@ if (pm) {
           vIter = M_classifiedVertexIter(pm, modelRegion, 0);
           while((meshVertex = VIter_next(vIter))){
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
-            apf::getComponents(f, vtx, 0, vals);
+            apf::getComponents(f, vtx, 0, &vals[0]);
             const double newloc[3] = {vals[0], vals[1], vals[2]};
             pPList closureRegion = GEN_regions(modelVertex);
             assert(PList_size(closureRegion));
@@ -842,16 +849,17 @@ if (pm) {
         }
       }
     }
-    GEIter_delete(geIter);
+    GVIter_delete(gvIter);
 
     // add mesh improver and solution transfer
+    pPList sim_fld_lst = PList_new();
     if (cooperation) {
-      pPList sim_fld_lst;
       if (in.solutionMigration)
         sim_fld_lst = getSimFieldList(in, m);
       addImproverInMover(mmover, sim_fld_lst);
       addAdapterInMover(mmover, sim_fld_lst, m);
     }
+    PList_delete(sim_fld_lst);
 
     // do real work
     if(!PCU_Comm_Self())
@@ -863,6 +871,10 @@ if (pm) {
     if (cooperation) {
       pc::transferSimFields(m);
     }
+
+    // set rigid body total disp to be zero
+    for (size_t i_rbpd = 0; i_rbpd < 3*in.nRigidBody; i_rbpd++)
+      in.rbParamData[i_rbpd] = 0.0;
 
     // write model and mesh
     if(!PCU_Comm_Self())
@@ -883,7 +895,8 @@ if (pm) {
       if (configureMotion(step, mm))
         done = updateSIMCoord(in, m, cooperation, mm);
       else
-        done = updateSIMDiscreteCoord(in, m, cooperation);
+//        done = updateSIMDiscreteCoord(in, m, cooperation);
+        done = updateSIMCoordAuto(in, m, cooperation);
 //      else if (caseId == 10) // hack!
 //        done = updateAndWriteSIMDiscrete(m); // hack!
 //      else if (caseId == 20) // hack!
