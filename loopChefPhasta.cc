@@ -88,7 +88,10 @@ int main(int argc, char** argv) {
   /* load the model and mesh */
   gmi_model* g = 0;
   apf::Mesh2* m = 0;
-  chef::cook(g, m, ctrl, rs, grs);
+  chef::cook(g, m, ctrl, grs);
+  /* setup stream reading */
+  ctrl.openfile_read = openstream_read;
+  ctrl.rs = rs;
   /* load input file for solver */
   phSolver::Input inp("solver.inp", "input.config");
   pc::writeSequence(m,0,"init_");
@@ -115,6 +118,8 @@ int main(int argc, char** argv) {
   } while( step < maxStep );
   destroyGRStream(grs);
   destroyRStream(rs);
+  // debug error in case no mesh modification
+  printf("rank %d there are %d fields", PCU_Comm_Self(), m->countFields());
   freeMesh(m);
   chefPhasta::finalizeModelers();
   PCU_Comm_Free();
