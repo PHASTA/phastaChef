@@ -23,7 +23,7 @@
 extern void MSA_setBLSnapping(pMSAdapt, int onoff);
 
 namespace pc {
-
+/*
   int getValueByString(char* header, char* token, double* val) {
     if (token == NULL || token[0] == '\n') return 0;
     int counter = 0;
@@ -119,6 +119,7 @@ namespace pc {
       return true;
     }
   }
+*/
 
   bool updateAPFCoord(apf::Mesh2* m) {
     apf::Field* f = m->findField("motion_coords");
@@ -138,23 +139,23 @@ namespace pc {
     return true;
   }
 
-  void addImproverInMover(pMeshMover mmover, pPList sim_fld_lst) {
+  void addImproverInMover(pMeshMover& mmover, pPList sim_fld_lst) {
     // mesh improver
     if(!PCU_Comm_Self())
-      printf("Add mesh improver\n");
+      printf("Add mesh improver attributes\n");
     pVolumeMeshImprover vmi = MeshMover_createImprover(mmover);
     VolumeMeshImprover_setModifyBL(vmi, 1);
     VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3);
 
     // set field to be mapped
-    if (sim_fld_lst)
+    if (PList_size(sim_fld_lst))
       VolumeMeshImprover_setMapFields(vmi, sim_fld_lst);
   }
 
-  void addAdapterInMover(pMeshMover mmover,  pPList sim_fld_lst, apf::Mesh2*& m) {
+  void addAdapterInMover(pMeshMover& mmover,  pPList sim_fld_lst, apf::Mesh2*& m) {
     // mesh adapter
     if(!PCU_Comm_Self())
-      printf("Add mesh adapter\n");
+      printf("Add mesh adapter attributes\n");
     pMSAdapt msa = MeshMover_createAdapter(mmover);
     MSA_setAdaptBL(msa, 1);
     MSA_setExposedBLBehavior(msa,BL_DisallowExposed);
@@ -171,7 +172,7 @@ namespace pc {
     m->end(vit);
 
     // set field to be mapped
-    if (sim_fld_lst)
+    if (PList_size(sim_fld_lst))
       MSA_setMapFields(msa, sim_fld_lst);
   }
 
@@ -404,7 +405,7 @@ if (pm) {
 
 
 
-
+/*
   bool updateSIMDiscreteCoord(ph::Input& in, apf::Mesh2* m, int cooperation) {
     Sim_logOn("updateSIMDiscreteCoord.log");
 
@@ -636,7 +637,7 @@ if (pm) {
     Progress_delete(progress);
     return true;
   }
-
+*/
 
 // check if a model entity is (on) a rigid body
   int isOnRigidBody(pGModel model, pGEntity modelEnt, std::vector<ph::rigidBodyMotion> rbms) {
@@ -853,12 +854,14 @@ if (pm) {
 
     // add mesh improver and solution transfer
     pPList sim_fld_lst = PList_new();
+    PList_clear(sim_fld_lst);
     if (cooperation) {
       if (in.solutionMigration)
         sim_fld_lst = getSimFieldList(in, m);
       addImproverInMover(mmover, sim_fld_lst);
       addAdapterInMover(mmover, sim_fld_lst, m);
     }
+    PList_clear(sim_fld_lst);
     PList_delete(sim_fld_lst);
 
     // do real work
@@ -866,6 +869,8 @@ if (pm) {
       printf("do real mesh mover\n");
     assert(MeshMover_run(mmover, progress));
     MeshMover_delete(mmover);
+//    MSA_delete(msa); // fix not unique id bug; but not proper
+//    VolumeMeshImprover_delete(vmi); // // fix not unique id bug; but not proper
 
     // transfer sim fields to apf fields
     if (cooperation) {
@@ -891,10 +896,10 @@ if (pm) {
   void runMeshMover(ph::Input& in, apf::Mesh2* m, int step, int cooperation) {
     bool done = false;
     if (in.simmetrixMesh) {
-      meshMotion mm;
-      if (configureMotion(step, mm))
-        done = updateSIMCoord(in, m, cooperation, mm);
-      else
+//      meshMotion mm;
+//      if (configureMotion(step, mm))
+//        done = updateSIMCoord(in, m, cooperation, mm);
+//      else
 //        done = updateSIMDiscreteCoord(in, m, cooperation);
         done = updateSIMCoordAuto(in, m, cooperation);
 //      else if (caseId == 10) // hack!
