@@ -16,11 +16,11 @@
 #include <MeshSimAdapt.h>
 namespace chefPhasta {
   void initModelers() {
+    Sim_logOn("phastaChef.log");
     MS_init();
     SimModel_start();
     Sim_readLicenseFile(0);
     SimPartitionedMesh_start(0, 0);
-    Sim_logOn("phastaChef.log");
     SimParasolid_start(1);
     SimField_start();
     SimAdvMeshing_start();
@@ -38,12 +38,12 @@ namespace chefPhasta {
     SimAdvMeshing_stop();
     gmi_sim_stop();
     SimField_stop();
-    Sim_logOff();
     SimPartitionedMesh_stop();
     SimParasolid_stop(1);
     Sim_unregisterAllKeys();
     SimModel_stop();
     MS_exit();
+    Sim_logOff();
   }
 }
 #else
