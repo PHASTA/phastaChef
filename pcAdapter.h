@@ -9,6 +9,8 @@
 #include <chef.h>
 
 namespace pc {
+  void removeOtherFields(apf::Mesh2*& m);
+
   int getSimFields(apf::Mesh2*& m, int simFlag, pField* sim_flds);
 
   pPList getSimFieldList(ph::Input& in, apf::Mesh2*& m);
