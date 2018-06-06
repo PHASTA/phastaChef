@@ -118,8 +118,6 @@ int main(int argc, char** argv) {
   } while( step < maxStep );
   destroyGRStream(grs);
   destroyRStream(rs);
-  // debug error in case no mesh modification
-  printf("rank %d there are %d fields", PCU_Comm_Self(), m->countFields());
   freeMesh(m);
   chefPhasta::finalizeModelers();
   PCU_Comm_Free();
