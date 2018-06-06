@@ -93,9 +93,7 @@ namespace pc {
       PList_append(sim_fld_lst, sim_flds[i]);
     }
     assert(num_flds == PList_size(sim_fld_lst));
-// debugging {
-    delete [] sim_flds; // not sure if delete contents of pPList
-// debugging }
+    delete [] sim_flds;
     return sim_fld_lst;
   }
 
