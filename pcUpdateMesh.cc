@@ -143,7 +143,8 @@ if (pm) {
     fclose (sFile);
 
     // write serial mesh and model
-    printf("write discrete model and serial mesh\n");
+    if(!PCU_Comm_Self())
+      printf("write discrete model and serial mesh\n");
     GM_write(M_model(pm), "discreteModel_serial.smd", 0, progress);
     M_write(pm, "mesh_serial.sms", 0, progress);
 
@@ -152,7 +153,8 @@ if (pm) {
     pMesh mesh = M_load("mesh_serial.sms", dmodel, progress);
     sFile = fopen("allrank_id_disp.dat", "r");
 
-    printf("start mesh mover on the serial mesh\n");
+    if(!PCU_Comm_Self())
+      printf("start mesh mover on the serial mesh\n");
     pMeshMover mmover = MeshMover_new(mesh, 0);
 
     // mesh motion of vertices in region
@@ -184,12 +186,14 @@ if (pm) {
     fclose (sFile);
 
     // do real work
-    printf("do real mesh mover\n");
+    if(!PCU_Comm_Self())
+      printf("do real mesh mover\n");
     assert(MeshMover_run(mmover, progress));
     MeshMover_delete(mmover);
 
     // write model and mesh
-    printf("write updated discrete model and serial mesh\n");
+    if(!PCU_Comm_Self())
+      printf("write updated discrete model and serial mesh\n");
     GM_write(M_model(pm), "updated_model.smd", 0, progress);
     M_write(pm, "after_mover_serial.sms", 0, progress);
     exit(0);
@@ -367,7 +371,6 @@ if (pm) {
       }
       else {
         if (!GEN_isDiscreteEntity(modelRegion)) { // parametric
-          printf("set move on parametric region %d\n", GEN_tag(modelRegion));
           vIter = M_classifiedVertexIter(pm, modelRegion, 0);
           while((meshVertex = VIter_next(vIter))){
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
@@ -378,7 +381,6 @@ if (pm) {
           VIter_delete(vIter);
         }
         else { // discrete
-          printf("set move on discrete region %d\n", GEN_tag(modelRegion));
           vIter = M_classifiedVertexIter(pm, modelRegion, 0);
           while((meshVertex = VIter_next(vIter))){
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
@@ -398,12 +400,10 @@ if (pm) {
       int id = isOnRigidBody(model, modelFace, rbms);
       if(id >= 0) {
         assert(!GEN_isDiscreteEntity(modelFace)); // should be parametric geometry
-        printf("skip rigid body motion: surface %d\n", GEN_tag(modelFace));
         continue;
       }
       else {
         if (!GEN_isDiscreteEntity(modelFace)) { // parametric
-          printf("set move on parametric face %d\n", GEN_tag(modelFace));
           vIter = M_classifiedVertexIter(pm, modelFace, 0);
           while((meshVertex = VIter_next(vIter))){
             V_coord(meshVertex, xyz);
@@ -416,7 +416,6 @@ if (pm) {
           VIter_delete(vIter);
         }
         else { // discrete
-          printf("set move on discrete face %d\n", GEN_tag(modelFace));
           vIter = M_classifiedVertexIter(pm, modelFace, 0);
           while((meshVertex = VIter_next(vIter))){
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
@@ -441,12 +440,10 @@ if (pm) {
       int id = isOnRigidBody(model, modelEdge, rbms);
       if(id >= 0) {
         assert(!GEN_isDiscreteEntity(modelEdge)); // should be parametric geometry
-        printf("skip rigid body motion: edge %d\n", GEN_tag(modelEdge));
         continue;
       }
       else {
         if (!GEN_isDiscreteEntity(modelEdge)) { // parametric
-          printf("set move on parametric edge %d\n", GEN_tag(modelEdge));
           vIter = M_classifiedVertexIter(pm, modelEdge, 0);
           while((meshVertex = VIter_next(vIter))){
             V_coord(meshVertex, xyz);
@@ -459,7 +456,6 @@ if (pm) {
           VIter_delete(vIter);
         }
         else { // discrete
-          printf("set move on discrete edge %d\n", GEN_tag(modelEdge));
           vIter = M_classifiedVertexIter(pm, modelEdge, 0);
           while((meshVertex = VIter_next(vIter))){
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
@@ -484,12 +480,10 @@ if (pm) {
       int id = isOnRigidBody(model, modelVertex, rbms);
       if(id >= 0) {
         assert(!GEN_isDiscreteEntity(modelVertex)); // should be parametric geometry
-        printf("skip rigid body motion: vertex %d\n", GEN_tag(modelVertex));
         continue;
       }
       else {
         if (!GEN_isDiscreteEntity(modelVertex)) { // parametric
-          printf("set move on parametric vertex %d\n", GEN_tag(modelVertex));
           vIter = M_classifiedVertexIter(pm, modelVertex, 0);
           while((meshVertex = VIter_next(vIter))){
             V_coord(meshVertex, xyz);
@@ -501,7 +495,6 @@ if (pm) {
           VIter_delete(vIter);
         }
         else { // discrete
-          printf("set move on discrete vertex %d\n", GEN_tag(modelVertex));
           vIter = M_classifiedVertexIter(pm, modelRegion, 0);
           while((meshVertex = VIter_next(vIter))){
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
