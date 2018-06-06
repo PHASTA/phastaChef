@@ -48,7 +48,7 @@ namespace pc {
       printf("Add mesh improver attributes\n");
     pVolumeMeshImprover vmi = MeshMover_createImprover(mmover);
     VolumeMeshImprover_setModifyBL(vmi, 1);
-    VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3);
+    VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.15); // default setting
 
     // set field to be mapped
     if (PList_size(sim_fld_lst))
