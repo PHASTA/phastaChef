@@ -48,7 +48,7 @@ namespace pc {
       printf("Add mesh improver attributes\n");
     pVolumeMeshImprover vmi = MeshMover_createImprover(mmover);
     VolumeMeshImprover_setModifyBL(vmi, 1);
-    VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.15); // default setting
+    VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3); // should be user-defined
 
     // set field to be mapped
     if (PList_size(sim_fld_lst))
@@ -188,7 +188,8 @@ if (pm) {
     // do real work
     if(!PCU_Comm_Self())
       printf("do real mesh mover\n");
-    assert(MeshMover_run(mmover, progress));
+    int isRunMover = MeshMover_run(mmover, progress);
+    assert(isRunMover);
     MeshMover_delete(mmover);
 
     // write model and mesh
@@ -528,10 +529,9 @@ if (pm) {
     // do real work
     if(!PCU_Comm_Self())
       printf("do real mesh mover\n");
-    assert(MeshMover_run(mmover, progress));
+    int isRunMover = MeshMover_run(mmover, progress);
+    assert(isRunMover);
     MeshMover_delete(mmover);
-//    MSA_delete(msa); // fix not unique id bug; but not proper
-//    VolumeMeshImprover_delete(vmi); // // fix not unique id bug; but not proper
 
     // transfer sim fields to apf fields
     if (cooperation) {
