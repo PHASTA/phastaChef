@@ -567,7 +567,7 @@ if (pm) {
 
   void updateMesh(ph::Input& in, apf::Mesh2* m, apf::Field* szFld, int step, int cooperation) {
     if (in.simmetrixMesh && cooperation) {
-      pc::runMeshMover(in,m,step,1);
+      pc::runMeshMover(in,m,step,cooperation);
       m->verify();
       pc::writeSequence(m,step,"updated_mesh_");
     }
