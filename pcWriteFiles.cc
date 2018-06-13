@@ -16,8 +16,11 @@ namespace pc {
   }
 
   void writePHTfiles (int old_step, int step, phSolver::Input& inp) {
+    int nfields = 7;
     int ntout = (int)inp.GetValue("Number of Timesteps between Restarts");
     double dt = (double)inp.GetValue("Time Step Size");
+    if((string)inp.GetValue("Write non-linear residual to restart") == "Yes")
+      nfields = nfields + 3;
     int nproc = PCU_Comm_Peers();
     int nstep = (step - old_step) / ntout;
     std::ostringstream oss;
@@ -43,7 +46,7 @@ namespace pc {
     fprintf (sFile, "             start_value=\"%12.16e\"\n",(double)((old_step+ntout)*dt));
     fprintf (sFile, "             increment_value_by=\"%12.16e\">\n",dt);
     fprintf (sFile, "  </TimeSteps>\n");
-    fprintf (sFile, "  <Fields number_of_fields=\"7\">\n");
+    fprintf (sFile, "  <Fields number_of_fields=\"%d\">\n",nfields);
     fprintf (sFile, "    <Field paraview_field_tag=\"pressure\"\n");
     fprintf (sFile, "           phasta_field_tag=\"solution\"\n");
     fprintf (sFile, "           start_index_in_phasta_array=\"0\"\n");
@@ -80,6 +83,26 @@ namespace pc {
     fprintf (sFile, "           start_index_in_phasta_array=\"0\"\n");
     fprintf (sFile, "           number_of_components=\"1\"\n");
     fprintf (sFile, "           data_dependency=\"1\"/>\n");
+    if((string)inp.GetValue("Write non-linear residual to restart") == "Yes") {
+     fprintf (sFile, "    <Field paraview_field_tag=\"residual_mass\"\n");
+     fprintf (sFile, "           phasta_field_tag=\"residual\"\n");
+     fprintf (sFile, "           start_index_in_phasta_array=\"0\"\n");
+     fprintf (sFile, "           number_of_components=\"1\"\n");
+     fprintf (sFile, "           data_dependency=\"0\"\n");
+     fprintf (sFile, "           data_type=\"double\"/>\n");
+     fprintf (sFile, "    <Field paraview_field_tag=\"residual_momentum\"\n");
+     fprintf (sFile, "           phasta_field_tag=\"residual\"\n");
+     fprintf (sFile, "           start_index_in_phasta_array=\"1\"\n");
+     fprintf (sFile, "           number_of_components=\"3\"\n");
+     fprintf (sFile, "           data_dependency=\"0\"\n");
+     fprintf (sFile, "           data_type=\"double\"/>\n");
+     fprintf (sFile, "    <Field paraview_field_tag=\"residual_energy\"\n");
+     fprintf (sFile, "           phasta_field_tag=\"residual\"\n");
+     fprintf (sFile, "           start_index_in_phasta_array=\"4\"\n");
+     fprintf (sFile, "           number_of_components=\"1\"\n");
+     fprintf (sFile, "           data_dependency=\"0\"\n");
+     fprintf (sFile, "           data_type=\"double\"/>\n");
+    }
     fprintf (sFile, "  </Fields>\n");
     fprintf (sFile, "</PhastaMetaFile>\n");
     fclose (sFile);
