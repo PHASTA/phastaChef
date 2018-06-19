@@ -496,7 +496,7 @@ if (pm) {
           VIter_delete(vIter);
         }
         else { // discrete
-          vIter = M_classifiedVertexIter(pm, modelRegion, 0);
+          vIter = M_classifiedVertexIter(pm, modelVertex, 0);
           while((meshVertex = VIter_next(vIter))){
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
             apf::getComponents(f, vtx, 0, &vals[0]);
