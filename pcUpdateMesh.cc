@@ -80,7 +80,7 @@ namespace pc {
   }
 
 // temporarily used to write serial moved mesh and model
-  bool updateAndWriteSIMDiscreteModel(apf::Mesh2* m) {
+  bool updateAndWriteSIMDiscreteCoord(apf::Mesh2* m) {
     Sim_logOn("updateAndWriteSIMDiscreteModel.log");
 
     pProgress progress = Progress_new();
@@ -147,7 +147,7 @@ if (pm) {
       printf("write discrete model and serial mesh\n");
     GM_write(M_model(pm), "discreteModel_serial.smd", 0, progress);
     M_write(pm, "mesh_serial.sms", 0, progress);
-
+/*
     // load serial mesh and displacement
     pDiscreteModel dmodel = (pDiscreteModel) GM_load("discreteModel_serial.smd", 0, progress);
     pMesh mesh = M_load("mesh_serial.sms", dmodel, progress);
@@ -198,8 +198,9 @@ if (pm) {
     GM_write(M_model(pm), "updated_model.smd", 0, progress);
     M_write(pm, "after_mover_serial.sms", 0, progress);
     exit(0);
+*/
 }
-
+    PCU_Barrier();
     Progress_delete(progress);
     return true;
   }

@@ -210,15 +210,16 @@ int main(int argc, char** argv) {
   chef::readAndAttachFields(ctrl,m);
 
   /* update model and write new model */
-  if(modeId == 0)
+  if(modeId == 0) {
     pc::updateMesh(ctrl,m,szFld,step);
-  else if(modeId == 1)
-    pc::updateAndWriteSIMDiscreteModel(m);
+    /* write geombc and restart files */
+    chef::preprocess(m,ctrl,grs);
+  }
+  else if(modeId == 1) {
+    pc::updateAndWriteSIMDiscreteCoord(m);
+  }
 
-  /* write geombc and restart files */
-  chef::preprocess(m,ctrl,grs);
   clearRStream(rs);
-
   destroyGRStream(grs);
   destroyRStream(rs);
   freeMesh(m);

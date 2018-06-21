@@ -55,7 +55,7 @@ namespace pc {
 
   void updateMesh(ph::Input& in, apf::Mesh2* m, apf::Field* szFld, int step, int cooperation = 1);
 
-  bool updateAndWriteSIMDiscreteModel(apf::Mesh2* m);
+  bool updateAndWriteSIMDiscreteCoord(apf::Mesh2* m);
 
 }
 
