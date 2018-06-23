@@ -141,7 +141,7 @@ namespace {
     int num_flds = pc::getSimFields(src_m, 1, src_flds);
 
     // create fields on destination mesh
-    int valueType;
+    int valueType = 0;
     for(int i = 0; i < num_flds; i++) {
       if (Field_numComp(src_flds[i]) == 1)
         valueType = apf::SCALAR;
@@ -201,7 +201,7 @@ namespace {
               min = el;
           }
         }
-        double tol = 0.1 * min; // hardcoding
+        double tol = 0.5 * min; // hardcoding
 
     // loop over downward vertices
         dvList = R_vertices(dst_meshRegion, 1);
@@ -223,7 +223,8 @@ namespace {
 //            printf("  parametric of point: (%f, %f, %f)\n", params[0], params[1], params[2]);
 //            printf("  distance to domain: %12.16e; (tol = %12.16e)\n", dist[0], tol);
 //          }
-          if(foundMR && (dist[0] < tol)) {
+//          if(foundMR && (dist[0] < tol)) {
+          if(foundMR) {
             // loop over fields
             for(int i = 0; i < num_flds; i++) {
             // get value from source mesh
@@ -243,6 +244,12 @@ namespace {
             }
           // mark this destination vertex
             EN_attachDataInt(dst_meshVertex, mdid, 1);
+          }
+          else {
+            if (foundMR == 0)
+              printf("cannot find mesh region by point (%f,%f,%f)\n",loc[0],loc[1],loc[2]);
+            else
+              printf("dist %f is larger than tol %f\n",dist[0],tol);
           }
         }
         PList_delete(dvList);
@@ -314,7 +321,7 @@ int main(int argc, char** argv) {
   m->verify();
 
   ctrl.rs = rs;
-  ctrl.rs = dst_rs;
+  dst_ctrl.rs = dst_rs;
   clearGRStream(grs);
   clearGRStream(dst_grs);
 
@@ -322,7 +329,8 @@ int main(int argc, char** argv) {
   chef::readAndAttachFields(ctrl,m);
 
   /* update model and write new model */
-  pc::runMeshMover(ctrl,m,step);
+//  pc::runMeshMover(ctrl,m,step);
+  pc::updateAPFCoord(m);
   m->verify();
 
   /* project solution to new mesh */

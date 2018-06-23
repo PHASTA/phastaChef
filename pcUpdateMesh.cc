@@ -80,6 +80,7 @@ namespace pc {
   }
 
 // temporarily used to write serial moved mesh and model
+// it also writes coordinates to file
   bool updateAndWriteSIMDiscreteCoord(apf::Mesh2* m) {
     Sim_logOn("updateAndWriteSIMDiscreteModel.log");
 
