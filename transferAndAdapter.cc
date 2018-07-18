@@ -218,6 +218,9 @@ int main(int argc, char** argv) {
   else if(modeId == 1) {
     pc::updateAndWriteSIMDiscreteCoord(m);
   }
+  else if(modeId == 2) {
+    pc::updateAndWriteSIMDiscreteField(m);
+  }
 
   clearRStream(rs);
   destroyGRStream(grs);

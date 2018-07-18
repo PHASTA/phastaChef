@@ -207,8 +207,8 @@ if (pm) {
   }
 
 // temporarily used to write displacement field
-  bool updateAndWriteSIMDiscrete(apf::Mesh2* m) {
-    Sim_logOn("updateAndWriteSIMDiscrete.log");
+  bool updateAndWriteSIMDiscreteField(apf::Mesh2* m) {
+    Sim_logOn("updateAndWriteSIMDiscreteField.log");
 
     pProgress progress = Progress_new();
     Progress_setDefaultCallback(progress);
@@ -244,7 +244,7 @@ if (pm) {
     pMesh pm = PM_mesh(ppm,0);
 
     if(!PCU_Comm_Self())
-      printf("write mesh just after migration: before_mover.sms\n");
+      printf("write mesh: before_mover.sms\n");
     PM_write(ppm, "before_mover.sms", progress);
 
     apf::Field* f = m->findField("motion_coords");
