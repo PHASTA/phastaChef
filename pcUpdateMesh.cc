@@ -384,7 +384,7 @@ if (pm) {
           VIter_delete(vIter);
         }
         else { // discrete
-          vIter = M_classifiedVertexIter(pm, modelRegion, 0);
+          vIter = M_classifiedVertexIter(pm, modelRegion, 1);
           while((meshVertex = VIter_next(vIter))){
             apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
             apf::getComponents(f, vtx, 0, &vals[0]);
@@ -418,21 +418,6 @@ if (pm) {
           }
           VIter_delete(vIter);
         }
-        else { // discrete
-          vIter = M_classifiedVertexIter(pm, modelFace, 0);
-          while((meshVertex = VIter_next(vIter))){
-            apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
-            apf::getComponents(f, vtx, 0, &vals[0]);
-            const double newloc[3] = {vals[0], vals[1], vals[2]};
-            pPList closureRegion = GEN_regions(modelFace);
-            assert(PList_size(closureRegion));
-            modelRegion = (pGRegion) PList_item(closureRegion, 0);
-            assert(GEN_isDiscreteEntity(modelRegion));
-            MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newloc);
-            PList_delete(closureRegion);
-          }
-          VIter_delete(vIter);
-        }
       }
     }
     GFIter_delete(gfIter);
@@ -458,21 +443,6 @@ if (pm) {
           }
           VIter_delete(vIter);
         }
-        else { // discrete
-          vIter = M_classifiedVertexIter(pm, modelEdge, 0);
-          while((meshVertex = VIter_next(vIter))){
-            apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
-            apf::getComponents(f, vtx, 0, &vals[0]);
-            const double newloc[3] = {vals[0], vals[1], vals[2]};
-            pPList closureRegion = GEN_regions(modelEdge);
-            assert(PList_size(closureRegion));
-            modelRegion = (pGRegion) PList_item(closureRegion, 0);
-            assert(GEN_isDiscreteEntity(modelRegion));
-            MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newloc);
-            PList_delete(closureRegion);
-          }
-          VIter_delete(vIter);
-        }
       }
     }
     GEIter_delete(geIter);
@@ -494,21 +464,6 @@ if (pm) {
             apf::getComponents(f, vtx, 0, &vals[0]);
             const double disp[3] = {vals[0]-xyz[0], vals[1]-xyz[1], vals[2]-xyz[2]};
             assert(sqrt(disp[0]*disp[0] + disp[1]*disp[1] + disp[2]*disp[2]) < 1e-10); // threshold 1e-10
-          }
-          VIter_delete(vIter);
-        }
-        else { // discrete
-          vIter = M_classifiedVertexIter(pm, modelVertex, 0);
-          while((meshVertex = VIter_next(vIter))){
-            apf::MeshEntity* vtx = reinterpret_cast<apf::MeshEntity*>(meshVertex);
-            apf::getComponents(f, vtx, 0, &vals[0]);
-            const double newloc[3] = {vals[0], vals[1], vals[2]};
-            pPList closureRegion = GEN_regions(modelVertex);
-            assert(PList_size(closureRegion));
-            modelRegion = (pGRegion) PList_item(closureRegion, 0);
-            assert(GEN_isDiscreteEntity(modelRegion));
-            MeshMover_setDiscreteDeformMove(mmover,modelRegion,meshVertex,newloc);
-            PList_delete(closureRegion);
           }
           VIter_delete(vIter);
         }
