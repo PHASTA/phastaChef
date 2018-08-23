@@ -1,5 +1,6 @@
 #include "pcUpdateMesh.h"
 #include "pcAdapter.h"
+#include "pcSmooth.h"
 #include "pcWriteFiles.h"
 #include <SimPartitionedMesh.h>
 #include "SimAdvMeshing.h"
@@ -56,6 +57,9 @@ namespace pc {
   }
 
   void addAdapterInMover(pMeshMover& mmover,  pPList sim_fld_lst, apf::Mesh2*& m) {
+    apf::Field* sizes = m->findField("sizes");
+    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
+
     // mesh adapter
     if(!PCU_Comm_Self())
       printf("Add mesh adapter attributes\n");
@@ -69,14 +73,18 @@ namespace pc {
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
     while ((v = m->iterate(vit))) {
+      apf::getVector(sizes,v,0,v_mag);
       pVertex meshVertex = reinterpret_cast<pVertex>(v);
-      MSA_scaleVertexSize(msa, meshVertex, 1.0); // use the size field of the mesh before mesh motion
+      MSA_setVertexSize(msa, meshVertex, v_mag[0]);
     }
     m->end(vit);
 
     // set field to be mapped
     if (PList_size(sim_fld_lst))
       MSA_setMapFields(msa, sim_fld_lst);
+
+    // destroy mesh size field
+    apf::destroyField(m->findField("sizes"));
   }
 
 // temporarily used to write serial moved mesh and model
@@ -313,6 +321,69 @@ if (pm) {
     return true;
   }
 
+// hardcoding {
+  void prescribe_proj_mesh_size(
+    pGModel model, pMesh pm, apf::Mesh2* m,
+    apf::Field* sizes, double proj_disp
+  ) {
+    // find the range of the refinement zone around the projectile
+    pGFace p_left = (pGFace)GM_entityByTag(model, 2, 1);  // tail face
+    pGFace p_rigt = (pGFace)GM_entityByTag(model, 2, 29); // head face
+    double x_min = 1.6;
+    double x_max = 0.0;
+
+    double xyz[3];
+    VIter vIter;
+    pVertex meshVertex;
+    vIter = M_classifiedVertexIter(pm, p_left, 1);
+    while((meshVertex = VIter_next(vIter))){
+      V_coord(meshVertex, xyz);
+      if (xyz[0] < x_min) x_min = xyz[0];
+    }
+    VIter_delete(vIter);
+
+    vIter = M_classifiedVertexIter(pm, p_rigt, 1);
+    while((meshVertex = VIter_next(vIter))){
+      V_coord(meshVertex, xyz);
+      if (xyz[0] > x_max) x_max = xyz[0];
+    }
+    VIter_delete(vIter);
+
+    PCU_Min_Doubles(&x_min, 1);
+    PCU_Max_Doubles(&x_max, 1);
+
+    x_min = x_min - 0.02 + proj_disp;
+    x_max = x_max + 0.11 + proj_disp;
+
+    printf("x_min and x_max = %f and %f\n",x_min,x_max);
+
+    // set refinement zone 1: around the projectile size = D/40
+    double ref_r = 0.048 + 0.0001;
+    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      pVertex meshVertex = reinterpret_cast<pVertex>(v);
+      double xyz[3];
+      V_coord(meshVertex, xyz);
+      if (xyz[1]*xyz[1]+xyz[2]*xyz[2] <= ref_r*ref_r) {
+        if (xyz[0] >= 0.0 && xyz[0] < x_min) {
+          v_mag = apf::Vector3(0.012,0.012,0.012);
+          apf::setVector(sizes,v,0,v_mag);
+        }
+        else if (xyz[0] >= x_min && xyz[0] <= x_max) {
+          v_mag = apf::Vector3(0.003,0.003,0.003);
+          apf::setVector(sizes,v,0,v_mag);
+        }
+        else if (xyz[0] > x_max && xyz[0] <= 1.6) {
+          v_mag = apf::Vector3(0.012,0.012,0.012);
+          apf::setVector(sizes,v,0,v_mag);
+        }
+      }
+    }
+    m->end(vit);
+  }
+// hardcoding }
 
 // check if a model entity is (on) a rigid body
   int isOnRigidBody(pGModel model, pGEntity modelEnt, std::vector<ph::rigidBodyMotion> rbms) {
@@ -477,6 +548,20 @@ if (pm) {
     if (cooperation) {
       if (in.solutionMigration)
         sim_fld_lst = getSimFieldList(in, m);
+// create a field to store mesh size
+      if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
+      if(m->findField("frames")) apf::destroyField(m->findField("frames"));
+      apf::Field* sizes  = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
+      apf::Field* frames = apf::createSIMFieldOn(m, "frames", apf::MATRIX);
+      ph::attachSIMSizeField(m, sizes, frames);
+
+// prescribe mesh size field for the projectile case
+// this is hardcoded, please comment out this call for other usage
+//      prescribe_proj_mesh_size(model, pm, m, sizes, in.rbParamData[0]);
+
+// add mesh smooth/gradation function here
+//      addSmootherInMover(m);
+
       addImproverInMover(mmover, sim_fld_lst);
       addAdapterInMover(mmover, sim_fld_lst, m);
     }
