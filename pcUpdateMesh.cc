@@ -431,7 +431,12 @@ if (pm) {
     pMeshMover mmover = MeshMover_new(ppm, 0);
 
     std::vector<ph::rigidBodyMotion> rbms;
-    core_get_rbms(rbms);
+    if (in.nRigidBody > 0) {
+      core_get_rbms(rbms);
+    }
+    else {
+      rbms.clear();
+    }
     // loop over model regions
     GRIter grIter = GM_regionIter(model);
     while((modelRegion=GRIter_next(grIter))){
