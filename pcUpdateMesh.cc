@@ -314,8 +314,8 @@ if (pm) {
     // write model and mesh
     if(!PCU_Comm_Self())
       printf("write mesh after creating discrete model: after_mover.sms\n");
-    GM_write(model, "updated_model.smd", 0, progress);
-    PM_write(ppm, "after_mover.sms", progress);
+    writeSIMModel(model, in.timeStepNumber, "sim_model_");
+    writeSIMMesh(ppm, in.timeStepNumber, "sim_mesh_");
 
     Progress_delete(progress);
     return true;
@@ -587,8 +587,8 @@ if (pm) {
     // write model and mesh
     if(!PCU_Comm_Self())
       printf("write model and mesh for mesh mover\n");
-    GM_write(model, "updated_model.smd", 0, progress);
-    PM_write(ppm, "after_mover.sms", progress);
+    writeSIMModel(model, in.timeStepNumber, "sim_model_");
+    writeSIMMesh(ppm, in.timeStepNumber, "sim_mesh_");
 
     Progress_delete(progress);
     return true;

@@ -6,13 +6,32 @@
 #include <sstream>
 #include <cstdio>
 #include <cassert>
+#include <SimPartitionedMesh.h>
+#include "SimModel.h"
+#include "SimUtil.h"
+#include "SimParasolidKrnl.h"
+#include "SimMeshTools.h"
 
 namespace pc {
   void writeSequence (apf::Mesh2* m, int step, const char* filename) {
     std::ostringstream oss;
-    oss << filename << step;
+    oss << filename << step << ".sms";
     const std::string tmp = oss.str();
     apf::writeVtkFiles(tmp.c_str(),m);
+  }
+
+  void writeSIMModel (pGModel model, int step, const char* filename) {
+    std::ostringstream oss;
+    oss << filename << step << ".smd";
+    const std::string tmp = oss.str();
+    GM_write(model,tmp.c_str(),0,NULL);
+  }
+
+  void writeSIMMesh (pParMesh mesh, int step, const char* filename) {
+    std::ostringstream oss;
+    oss << filename << step;
+    const std::string tmp = oss.str();
+    PM_write(mesh,tmp.c_str(),NULL);
   }
 
   void writePHTfiles (int old_step, int step, phSolver::Input& inp) {
