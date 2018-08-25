@@ -404,7 +404,7 @@ if (pm) {
     pParMesh ppm = apf_msim->getMesh();
     pMesh pm = PM_mesh(ppm,0);
 
-    PM_write(ppm, "before_mover.sms", progress);
+    writeSIMMesh(ppm, in.timeStepNumber, "before_mover_");
 
     gmi_model* gmiModel = apf_msim->getModel();
     pGModel model = gmi_export_sim(gmiModel);
@@ -557,10 +557,10 @@ if (pm) {
 
 // prescribe mesh size field for the projectile case
 // this is hardcoded, please comment out this call for other usage
-//      prescribe_proj_mesh_size(model, pm, m, sizes, in.rbParamData[0]);
+      prescribe_proj_mesh_size(model, pm, m, sizes, in.rbParamData[0]);
 
 // add mesh smooth/gradation function here
-//      addSmootherInMover(m);
+      addSmootherInMover(m);
 
       addImproverInMover(mmover, sim_fld_lst);
       addAdapterInMover(mmover, sim_fld_lst, m);
