@@ -213,6 +213,7 @@ int main(int argc, char** argv) {
   if(modeId == 0) {
     pc::updateMesh(ctrl,m,szFld,step);
     /* write geombc and restart files */
+    in.writeRestartFiles = 1;
     chef::preprocess(m,ctrl,grs);
   }
   else if(modeId == 1) {
