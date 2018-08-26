@@ -15,7 +15,7 @@
 namespace pc {
   void writeSequence (apf::Mesh2* m, int step, const char* filename) {
     std::ostringstream oss;
-    oss << filename << step << ".sms";
+    oss << filename << step;
     const std::string tmp = oss.str();
     apf::writeVtkFiles(tmp.c_str(),m);
   }
@@ -29,7 +29,7 @@ namespace pc {
 
   void writeSIMMesh (pParMesh mesh, int step, const char* filename) {
     std::ostringstream oss;
-    oss << filename << step;
+    oss << filename << step << ".sms";
     const std::string tmp = oss.str();
     PM_write(mesh,tmp.c_str(),NULL);
   }
