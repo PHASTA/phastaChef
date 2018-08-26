@@ -87,6 +87,32 @@ namespace pc {
     apf::destroyField(m->findField("sizes"));
   }
 
+  void balanceEqualWeights(pParMesh pmesh, pProgress progress) {
+    // get total number of processors
+    int totalNumProcs = PMU_size();
+    // get total number of parts
+    int totalNumParts = PM_totalNumParts(pmesh);
+
+    // we assume one part per processor
+    if (totalNumProcs != totalNumParts) {
+      if( !PCU_Comm_Self() )
+        fprintf(stderr, "Error: N of procs %d not equal to N of parts %d\n",
+                totalNumProcs, totalNumParts);
+    }
+
+    // start load balance
+    if(!PCU_Comm_Self())
+      printf("Start load balance\n");
+    pPartitionOpts pOpts = PartitionOpts_new();
+    // Set total no. of parts
+    PartitionOpts_setTotalNumParts(pOpts, totalNumParts);
+    // Sets processes to be equally weighted
+    PartitionOpts_setProcWtEqual(pOpts);
+    PM_partition(pmesh, pOpts, progress);     // Do the partitioning
+    PartitionOpts_delete(pOpts);              // Done with options
+  }
+
+
 // temporarily used to write serial moved mesh and model
 // it also writes coordinates to file
   bool updateAndWriteSIMDiscreteCoord(apf::Mesh2* m) {
@@ -579,6 +605,9 @@ if (pm) {
     int isRunMover = MeshMover_run(mmover, progress);
     assert(isRunMover);
     MeshMover_delete(mmover);
+
+    // load balance
+    balanceEqualWeights(ppm, progress);
 
     // transfer sim fields to apf fields
     if (cooperation) {
