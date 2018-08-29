@@ -330,7 +330,7 @@ int main(int argc, char** argv) {
 
   /* update model and write new model */
 //  pc::runMeshMover(ctrl,m,step);
-  pc::updateAPFCoord(m);
+  pc::updateAPFCoord(ctrl,m);
   m->verify();
 
   /* project solution to new mesh */

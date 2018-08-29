@@ -25,7 +25,7 @@ extern void MSA_setBLSnapping(pMSAdapt, int onoff);
 
 namespace pc {
 
-  bool updateAPFCoord(apf::Mesh2* m) {
+  bool updateAPFCoord(ph::Input& in, apf::Mesh2* m) {
     apf::Field* f = m->findField("motion_coords");
     assert(f);
     double* vals = new double[apf::countComponents(f)];
@@ -40,6 +40,7 @@ namespace pc {
     }
     m->end(itr);
     delete [] vals;
+    pc::writeSequence(m, in.timeStepNumber, "pvtu_mesh_");
     return true;
   }
 
@@ -430,8 +431,6 @@ if (pm) {
     pParMesh ppm = apf_msim->getMesh();
     pMesh pm = PM_mesh(ppm,0);
 
-    writeSIMMesh(ppm, in.timeStepNumber, "before_mover_");
-
     gmi_model* gmiModel = apf_msim->getModel();
     pGModel model = gmi_export_sim(gmiModel);
 
@@ -620,7 +619,7 @@ if (pm) {
 
     // write model and mesh
     if(!PCU_Comm_Self())
-      printf("write model and mesh for mesh mover\n");
+      printf("write model and mesh after mesh modification\n");
     writeSIMModel(model, in.timeStepNumber, "sim_model_");
     writeSIMMesh(ppm, in.timeStepNumber, "sim_mesh_");
 
@@ -636,7 +635,7 @@ if (pm) {
       done = updateSIMCoordAuto(in, m, cooperation);
     }
     else {
-      done = updateAPFCoord(m);
+      done = updateAPFCoord(in, m);
     }
     assert(done);
   }
@@ -645,15 +644,13 @@ if (pm) {
     if (in.simmetrixMesh && cooperation) {
       pc::runMeshMover(in,m,step,cooperation);
       m->verify();
-      pc::writeSequence(m,step,"updated_mesh_");
     }
     else {
       pc::runMeshMover(in,m,step);
       m->verify();
-      pc::writeSequence(m,step,"after_mover_");
 
       pc::runMeshAdapter(in,m,szFld,step);
-      pc::writeSequence(m,step,"after_adapter_");
+      pc::writeSequence(m,step,"pvtu_adapted_mesh_");
     }
   }
 

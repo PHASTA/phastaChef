@@ -51,7 +51,7 @@ namespace pc {
 
   meshMotion getTDMeshMotion(int caseId, int step);
 
-  bool updateAPFCoord(apf::Mesh2* m);
+  bool updateAPFCoord(ph::Input& in, apf::Mesh2* m);
 
   bool updateAndWriteSIMDiscreteCoord(apf::Mesh2* m);
 
