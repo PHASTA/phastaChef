@@ -591,7 +591,7 @@ if (pm) {
 //      prescribe_proj_mesh_size(model, pm, m, sizes, in.rbParamData[0]);
 
 // add mesh smooth/gradation function here
-//      addSmootherInMover(m);
+      addSmootherInMover(m, in.gradingFactor);
 
       addImproverInMover(mmover, sim_fld_lst);
       addAdapterInMover(mmover, sim_fld_lst, m);

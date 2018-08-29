@@ -167,14 +167,17 @@ int serialGradation(apf::Mesh* m, std::queue<apf::MeshEntity*> &markedEdges,doub
   return needsParallel;
 }
 
-void addSmootherInMover(apf::Mesh2* m)
+void addSmootherInMover(apf::Mesh2* m, double gradingFactor) {
+  meshGradation(m, gradingFactor);
+}
+
+void meshGradation(apf::Mesh2* m, double gradingFactor)
 {
   if(!PCU_Comm_Self())
     std::cout<<"Starting grading\n";
   apf::MeshEntity* edge;
   apf::Adjacent edgAdjVert;
   apf::Adjacent vertAdjEdg;
-  double gradingFactor = 1.4; // hardcoding; should be user-defined
   double size[2];
   std::queue<apf::MeshEntity*> markedEdges;
   apf::MeshTag* isMarked = m->createIntTag("isMarked",1);
