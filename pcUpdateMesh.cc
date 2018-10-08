@@ -468,8 +468,11 @@ if (pm) {
       int id = isOnRigidBody(model, modelRegion, rbms);
       if(id >= 0) {
         assert(!GEN_isDiscreteEntity(modelRegion)); // should be parametric geometry
-        printf("set rigid body motion: region %d; disp = (%e,%e,%e)\n",
-                GEN_tag(modelRegion), rbms[id].trans[0], rbms[id].trans[1], rbms[id].trans[2]);
+        printf("set rigid body motion: region %d; disp = (%e,%e,%e); rotaxis = (%e,%e,%e); rotpt = (%e,%e,%e); rotang = %f; scale = %f\n",
+                GEN_tag(modelRegion), rbms[id].trans[0], rbms[id].trans[1], rbms[id].trans[2],
+                rbms[id].rotaxis[0], rbms[id].rotaxis[1], rbms[id].rotaxis[2],
+                rbms[id].rotpt[0], rbms[id].rotpt[1], rbms[id].rotpt[2],
+                rbms[id].rotang, rbms[id].scale);
         MeshMover_setTransform(mmover, modelRegion, rbms[id].trans, rbms[id].rotaxis,
                                    rbms[id].rotpt, rbms[id].rotang, rbms[id].scale);
       }
@@ -590,7 +593,7 @@ if (pm) {
 //      prescribe_proj_mesh_size(model, pm, m, sizes, in.rbParamData[0]);
 
 // add mesh smooth/gradation function here
-      addSmootherInMover(m, in.gradingFactor);
+//      addSmootherInMover(m, in.gradingFactor);
 
       addImproverInMover(mmover, sim_fld_lst);
       addAdapterInMover(mmover, sim_fld_lst, m);
@@ -615,6 +618,9 @@ if (pm) {
 
     // set rigid body total disp to be zero
     for (size_t i_rbpd = 0; (int)i_rbpd < 3*in.nRigidBody; i_rbpd++)
+      in.rbParamData[i_rbpd] = 0.0;
+    // set rigid body total rotation angle to be zero
+    for (size_t i_rbpd = 12*in.nRigidBody; (int)i_rbpd < 13*in.nRigidBody; i_rbpd++)
       in.rbParamData[i_rbpd] = 0.0;
 
     // write model and mesh
