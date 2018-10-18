@@ -137,8 +137,10 @@ namespace {
     pMeshDataId mdid = MD_newMeshDataId("done_flag");
 
     // load fields
-    pField* src_flds = new pField[7]; // Hardcoding
-    int num_flds = pc::getSimFields(src_m, 1, src_flds);
+    phSolver::Input inp("solver.inp", "input.config");
+    int num_flds = pc::getNumOfMappedFields(inp);
+    pField* src_flds = new pField[num_flds];
+    pc::getSimFields(src_m, 1, src_flds, inp);
 
     // create fields on destination mesh
     int valueType = 0;

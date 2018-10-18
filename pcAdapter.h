@@ -7,11 +7,14 @@
 #include <apfSIM.h>
 #include <apfMDS.h>
 #include <chef.h>
+#include <phasta.h>
 
 namespace pc {
-  void removeOtherFields(apf::Mesh2*& m);
+  int getNumOfMappedFields(phSolver::Input& inp);
 
-  int getSimFields(apf::Mesh2*& m, int simFlag, pField* sim_flds);
+  void removeOtherFields(apf::Mesh2*& m, phSolver::Input& inp);
+
+  int getSimFields(apf::Mesh2*& m, int simFlag, pField* sim_flds, phSolver::Input& inp);
 
   pPList getSimFieldList(ph::Input& in, apf::Mesh2*& m);
 

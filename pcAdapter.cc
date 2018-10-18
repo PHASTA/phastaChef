@@ -38,15 +38,36 @@ namespace pc {
     return outf;
   }
 
+  int getNumOfMappedFields(phSolver::Input& inp) {
+    /* initially, we have 7 fields: pressure, velocity, temperature,
+       time der of pressure, time der of velocity, time der of temperature,
+       and mehs velocity */
+    int numOfMappedFields = 7;
+    /* if we have DC lag field, then we need to add one more field */
+    if((string)inp.GetValue("Discontinuity Capturing Lag") == "On") {
+      numOfMappedFields += 1;
+    }
+    return numOfMappedFields;
+  }
+
   /* remove all fields except for solution, time
            derivative of solution, mesh velocity */
-  void removeOtherFields(apf::Mesh2*& m) {
+  void removeOtherFields(apf::Mesh2*& m, phSolver::Input& inp) {
     int index = 0;
-    while (m->countFields() > 3) {
+    int numOfPackFields = 3;
+    if((string)inp.GetValue("Discontinuity Capturing Lag") == "On") {
+      numOfPackFields += 1;
+    }
+    while (m->countFields() > numOfPackFields) {
       apf::Field* f = m->getField(index);
       if ( f == m->findField("solution") ||
            f == m->findField("time derivative of solution") ||
            f == m->findField("mesh_vel") ) {
+        index++;
+        continue;
+      }
+      if ((string)inp.GetValue("Discontinuity Capturing Lag") == "On" &&
+           f == m->findField("solution") ) {
         index++;
         continue;
       }
@@ -56,7 +77,7 @@ namespace pc {
     m->verify();
   }
 
-  int getSimFields(apf::Mesh2*& m, int simFlag, pField* sim_flds) {
+  int getSimFields(apf::Mesh2*& m, int simFlag, pField* sim_flds, phSolver::Input& inp) {
     int num_flds = 0;
     if (m->findField("solution")) {
       num_flds += 3;
@@ -79,15 +100,23 @@ namespace pc {
       sim_flds[6] = apf::getSIMField(chef::extractField(m,"mesh_vel","mesh_vel_sim",1,apf::VECTOR,simFlag));
       apf::destroyField(m->findField("mesh_vel"));
     }
+
+    if ((string)inp.GetValue("Discontinuity Capturing Lag") == "On" && m->findField("dc_lag")) {
+      num_flds += 1;
+      sim_flds[7] = apf::getSIMField(chef::extractField(m,"dc_lag","dc_lag_sim",1,apf::SCALAR,simFlag));
+    }
     return num_flds;
   }
 
   /* unpacked solution into serveral fields,
      put these field explicitly into pPList */
   pPList getSimFieldList(ph::Input& in, apf::Mesh2*& m){
-    removeOtherFields(m);
-    pField* sim_flds = new pField[7]; // Hardcoding
-    int num_flds = getSimFields(m, in.simmetrixMesh, sim_flds);
+    /* load input file for solver */
+    phSolver::Input inp("solver.inp", "input.config");
+    int num_flds = getNumOfMappedFields(inp);
+    removeOtherFields(m,inp);
+    pField* sim_flds = new pField[num_flds];
+    getSimFields(m, in.simmetrixMesh, sim_flds, inp);
     pPList sim_fld_lst = PList_new();
     for (int i = 0; i < num_flds; i++) {
       PList_append(sim_fld_lst, sim_flds[i]);
@@ -104,6 +133,8 @@ namespace pc {
       chef::combineField(m,"time derivative of solution","der_pressure","der_velocity","der_temperature");
     if (m->findField("mesh_vel_sim"))
       convertField(m, "mesh_vel_sim", "mesh_vel");
+    if (m->findField("dc_lag_sim"))
+      convertField(m, "dc_lag_sim", "dc_lag");
   }
 
   void runMeshAdapter(ph::Input& in, apf::Mesh2*& m, apf::Field*& orgSF, int step) {
