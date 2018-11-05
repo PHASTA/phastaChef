@@ -83,6 +83,7 @@ int main(int argc, char** argv) {
     std::string numRestart="numRestart.dat";   // if you link to <numprocs>-procs_case/numstart.dat no need to write this
     std::ifstream numR(numRestart.c_str());
     numR >> Rstep;
+    step=Rstep;  // otherwise the code uses non updated step from inp file
     numR.close();
 
     std::ifstream numM(numAdaptMesh.c_str());
