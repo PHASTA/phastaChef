@@ -40,8 +40,8 @@ namespace {
     ctrl.solutionMigration = 1;
     if(step>1) {
       if(!PCU_Comm_Self()) {
-        fprintf(stderr, "STATUS error based adapt %d\n", step);
-        fprintf(stderr, "STATUS ctrl.attributeFileName %s step %d\n",
+        fprintf(stdout, "STATUS error based adapt %d\n", step);
+        fprintf(stdout, "STATUS ctrl.attributeFileName %s step %d\n",
             ctrl.attributeFileName.c_str(), step);
       }
       ctrl.adaptStrategy = 1; //error field adapt
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
   lion_set_verbosity(1);
   if( argc != 3 ) {
     if(!PCU_Comm_Self())
-      fprintf(stderr, "Usage: %s <nAdaptCycle> <chef input config>\n",argv[0]);
+      fprintf(stdout, "Usage: %s <nAdaptCycle> <chef input config>\n",argv[0]);
     exit(EXIT_FAILURE);
   }
   if( !PCU_Comm_Self() )
@@ -75,6 +75,8 @@ int main(int argc, char** argv) {
   apf::Mesh2* m = NULL;
 
 // override what was in inp file for starting mesh and restart so that chain jobs continue
+  double lastTime = PCU_Time();
+  double newTime; 
   int Rstep,Mstep;
   int step = ctrl.timeStepNumber;
   std::string numAdaptMesh="numAdaptMesh.dat"; // this will need to be written after a successful adapt but assumes
@@ -101,49 +103,105 @@ int main(int argc, char** argv) {
       ctrl.writeGeomBCFiles= 1; // Assuming we will need this viz and above for adapt 
     }
   }
+
+  newTime = PCU_Time();
+  if(!PCU_Comm_Self())
+      fprintf(stdout, "prep for pre-cook %f seconds\n", newTime-lastTime);
+  lastTime=newTime;
+
   int iAdaptCycle=0;
   /* read restart files (and split and adapt if requested) */
   chef::cook(mdl,m,ctrl,grs);
-  if(ctrl.adaptFlag ==1) { // there was an adapt at start so write the step number to a file in case it is one cycle run
-    std::ofstream numM(numAdaptMesh.c_str());
-    numM << step;
-    numM.close();
+
+  newTime = PCU_Time();
+  if(!PCU_Comm_Self())
+      fprintf(stdout, "First cook %f seconds\n", newTime-lastTime);
+  lastTime=newTime;
+
+  if(!PCU_Comm_Self()) {   // only rank 0 needs to write this as otherwise file system will hate you (and go slow)
+    if(ctrl.adaptFlag ==1) { // there was an adapt at start so write the step number to a file in case it is one cycle run
+      std::ofstream numM(numAdaptMesh.c_str());
+      numM << step;
+      numM.close();
+    }
   }
   assert(m);
   rstream rs = makeRStream();
+
+  newTime = PCU_Time();
+  if(!PCU_Comm_Self())
+      fprintf(stdout, "First Stream Prep %f seconds\n", newTime-lastTime);
+  lastTime=newTime;
+
   phSolver::Input inp("solver.inp", "input.config");
+
+  newTime = PCU_Time();
+  if(!PCU_Comm_Self())
+      fprintf(stdout, "First inp %f seconds\n", newTime-lastTime);
+  lastTime=newTime;
 
   do {
     double cycleStart = PCU_Time();
     step = phasta(inp,grs,rs);
+
+  newTime = PCU_Time();
+  if(!PCU_Comm_Self())
+      fprintf(stdout, " phasta Run  %f seconds\n", newTime-lastTime);
+  lastTime=newTime;
+
     iAdaptCycle++;
     clearGRStream(grs);
     if(!PCU_Comm_Self())
-      fprintf(stderr, "STATUS ran to step %d\n", step);
+      fprintf(stdout, "STATUS ran to step %d\n", step);
     if( iAdaptCycle >= nAdaptCycle )
       break;
     if(nAdaptCycle - iAdaptCycle == 1) { // this will be the last adapt so turn on mesh write flags to enable chain
       ctrl.outMeshFileName="bz2:mdsMesh_bz2/"; // this will get the step number inserted within Chef
       ctrl.writeGeomBCFiles= 1; // Assuming we will need this viz and above for adapt 
     }
+
+  newTime = PCU_Time();
+  if(!PCU_Comm_Self())
+      fprintf(stdout, " Prep before setupChef  %f seconds\n", newTime-lastTime);
+  lastTime=newTime;
+
     setupChef(ctrl,step);
+
+  newTime = PCU_Time();
+  if(!PCU_Comm_Self())
+      fprintf(stdout, " setupChef  %f seconds\n", newTime-lastTime);
+  lastTime=newTime;
+
     chef::cook(mdl,m,ctrl,rs,grs);
 
+  newTime = PCU_Time();
+  if(!PCU_Comm_Self())
+      fprintf(stdout, " loop cook  %f seconds\n", newTime-lastTime);
+  lastTime=newTime;
+
+
 // write the step number to a file
+  if(!PCU_Comm_Self()) {   // only rank 0 needs to write this as otherwise file system will hate you (and go slow)
     std::ofstream numM(numAdaptMesh.c_str());
     numM << step;
     numM.close();
-  
+  }
     clearRStream(rs);
     if(!PCU_Comm_Self())
-      fprintf(stderr, "STATUS cycle time %f seconds\n", PCU_Time()-cycleStart);
+      fprintf(stdout, "STATUS cycle time %f seconds\n", PCU_Time()-cycleStart);
+
+  newTime = PCU_Time();
+  if(!PCU_Comm_Self())
+      fprintf(stdout, " Stream end of while  %f seconds\n", newTime-lastTime);
+  lastTime=newTime;
+
   } while( iAdaptCycle < nAdaptCycle ); // could rewrite this as a for loop but ok for now to leave as is
   destroyGRStream(grs);
   destroyRStream(rs);
   freeMesh(m);
   chefPhasta::finalizeModelers();
   if(!PCU_Comm_Self())
-    fprintf(stderr, "STATUS done %f seconds\n", PCU_Time()-t0);
+    fprintf(stdout, "STATUS done %f seconds\n", PCU_Time()-t0);
   PCU_Comm_Free();
   MPI_Finalize();
 }
