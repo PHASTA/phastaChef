@@ -69,6 +69,7 @@ namespace pc {
     MSA_setExposedBLBehavior(msa,BL_DisallowExposed);
     MSA_setBLSnapping(msa, 0); // currently needed for parametric model
     MSA_setBLMinLayerAspectRatio(msa, 0.0); // needed in parallel
+    MSA_setSizeGradation(msa, 1, 0.66667); // set mesh gradation
 
     // use current size field
     apf::MeshEntity* v;
@@ -353,11 +354,31 @@ if (pm) {
     pGModel model, pMesh pm, apf::Mesh2* m,
     apf::Field* sizes, double proj_disp
   ) {
+    // hardcoded parameters
+//    int tailFace = 110; // 2mm case
+//    int headFace = 145; // 2mm case
+    int tailFace = 473; // touch case
+    int headFace = 553; // touch case
+    double tail = 2.0;
+    double head = 0.0;
+    double t_min = 0.0;
+    double t_max = 2.0;
+    double fine_zone_left_dis_tail = 0.002;
+    double fine_zone_rigt_dis_tail = 0.046;
+    double mode_zone_left_dis_tail = 0.018;
+    double mode_zone_rigt_dis_head = 0.110;
+    double zone_r = 0.044;
+    double tube_r = 0.060;
+    double ref_tol = 0.0001;
+    zone_r = zone_r + ref_tol;
+    tube_r = tube_r + ref_tol;
+    apf::Vector3 fine_size = apf::Vector3(0.0005,0.0005,0.0005);
+    apf::Vector3 mode_size = apf::Vector3(0.004,0.004,0.004);
+    apf::Vector3 cors_size = apf::Vector3(0.008,0.008,0.008);
+
     // find the range of the refinement zone around the projectile
-    pGFace p_left = (pGFace)GM_entityByTag(model, 2, 1);  // tail face
-    pGFace p_rigt = (pGFace)GM_entityByTag(model, 2, 29); // head face
-    double x_min = 1.6;
-    double x_max = 0.0;
+    pGFace p_left = (pGFace)GM_entityByTag(model, 2, tailFace); // tail face
+    pGFace p_rigt = (pGFace)GM_entityByTag(model, 2, headFace); // head face
 
     double xyz[3];
     VIter vIter;
@@ -365,46 +386,67 @@ if (pm) {
     vIter = M_classifiedVertexIter(pm, p_left, 1);
     while((meshVertex = VIter_next(vIter))){
       V_coord(meshVertex, xyz);
-      if (xyz[0] < x_min) x_min = xyz[0];
+      if (xyz[0] < tail) tail = xyz[0];
     }
     VIter_delete(vIter);
 
     vIter = M_classifiedVertexIter(pm, p_rigt, 1);
     while((meshVertex = VIter_next(vIter))){
       V_coord(meshVertex, xyz);
-      if (xyz[0] > x_max) x_max = xyz[0];
+      if (xyz[0] > head) head = xyz[0];
     }
     VIter_delete(vIter);
 
-    PCU_Min_Doubles(&x_min, 1);
-    PCU_Max_Doubles(&x_max, 1);
+    PCU_Min_Doubles(&tail, 1);
+    PCU_Max_Doubles(&head, 1);
 
-    x_min = x_min - 0.02 + proj_disp;
-    x_max = x_max + 0.11 + proj_disp;
+    double fine_zone_min = proj_disp + tail - fine_zone_left_dis_tail;
+    double fine_zone_max = proj_disp + tail + fine_zone_rigt_dis_tail;
+    double mode_zone_min = proj_disp + tail - mode_zone_left_dis_tail;
+    double mode_zone_max = proj_disp + head + mode_zone_rigt_dis_head;
 
-    printf("x_min and x_max = %f and %f\n",x_min,x_max);
+    if(!PCU_Comm_Self())
+      printf("tail and head and proj_disp = %f and %f and %f\n",tail,head,proj_disp);
 
     // set refinement zone 1: around the projectile size = D/40
-    double ref_r = 0.048 + 0.0001;
-    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
+    apf::Vector3 cur_size = apf::Vector3(0.0,0.0,0.0);
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
     while ((v = m->iterate(vit))) {
       pVertex meshVertex = reinterpret_cast<pVertex>(v);
       double xyz[3];
       V_coord(meshVertex, xyz);
-      if (xyz[1]*xyz[1]+xyz[2]*xyz[2] <= ref_r*ref_r) {
-        if (xyz[0] >= 0.0 && xyz[0] < x_min) {
-          v_mag = apf::Vector3(0.012,0.012,0.012);
-          apf::setVector(sizes,v,0,v_mag);
+      if (xyz[1]*xyz[1]+xyz[2]*xyz[2] <= zone_r*zone_r) {
+        if (xyz[0] >= t_min && xyz[0] < mode_zone_min) {
+          apf::setVector(sizes,v,0,cors_size);
         }
-        else if (xyz[0] >= x_min && xyz[0] <= x_max) {
-          v_mag = apf::Vector3(0.003,0.003,0.003);
-          apf::setVector(sizes,v,0,v_mag);
+        else if (xyz[0] >= mode_zone_min && xyz[0] < fine_zone_min) {
+          apf::setVector(sizes,v,0,mode_size);
         }
-        else if (xyz[0] > x_max && xyz[0] <= 1.6) {
-          v_mag = apf::Vector3(0.012,0.012,0.012);
-          apf::setVector(sizes,v,0,v_mag);
+        else if (xyz[0] >= fine_zone_min && xyz[0] <= fine_zone_max) {
+          apf::getVector(sizes,v,0,cur_size);
+          if( cur_size[0] < fine_size[0] )
+            apf::setVector(sizes,v,0,fine_size);
+        }
+        else if (xyz[0] > fine_zone_max && xyz[0] < mode_zone_max) {
+          apf::setVector(sizes,v,0,mode_size);
+        }
+        else if (xyz[0] >= mode_zone_max && xyz[0] < t_max) {
+          apf::setVector(sizes,v,0,cors_size);
+        }
+      }
+      else if (xyz[1]*xyz[1]+xyz[2]*xyz[2] >  zone_r*zone_r
+            && xyz[1]*xyz[1]+xyz[2]*xyz[2] <= tube_r*tube_r ) {
+        if (xyz[0] >= t_min && xyz[0] < fine_zone_min) {
+          apf::setVector(sizes,v,0,mode_size);
+        }
+        else if (xyz[0] >= fine_zone_min && xyz[0] <= fine_zone_max) {
+          apf::getVector(sizes,v,0,cur_size);
+          if( cur_size[0] < fine_size[0] )
+            apf::setVector(sizes,v,0,fine_size);
+        }
+        else if (xyz[0] > fine_zone_max && xyz[0] < t_max) {
+          apf::setVector(sizes,v,0,mode_size);
         }
       }
     }
@@ -468,11 +510,13 @@ if (pm) {
       int id = isOnRigidBody(model, modelRegion, rbms);
       if(id >= 0) {
         assert(!GEN_isDiscreteEntity(modelRegion)); // should be parametric geometry
+/*
         printf("set rigid body motion: region %d; disp = (%e,%e,%e); rotaxis = (%e,%e,%e); rotpt = (%e,%e,%e); rotang = %f; scale = %f\n",
                 GEN_tag(modelRegion), rbms[id].trans[0], rbms[id].trans[1], rbms[id].trans[2],
                 rbms[id].rotaxis[0], rbms[id].rotaxis[1], rbms[id].rotaxis[2],
                 rbms[id].rotpt[0], rbms[id].rotpt[1], rbms[id].rotpt[2],
                 rbms[id].rotang, rbms[id].scale);
+*/
         MeshMover_setTransform(mmover, modelRegion, rbms[id].trans, rbms[id].rotaxis,
                                    rbms[id].rotpt, rbms[id].rotang, rbms[id].scale);
       }
@@ -608,12 +652,14 @@ if (pm) {
     assert(isRunMover);
     MeshMover_delete(mmover);
 
-    // load balance
-    balanceEqualWeights(ppm, progress);
 
-    // transfer sim fields to apf fields
     if (cooperation) {
-      pc::transferSimFields(m);
+      // load balance
+      balanceEqualWeights(ppm, progress);
+
+      // transfer sim fields to apf fields
+      if (in.solutionMigration)
+        pc::transferSimFields(m);
     }
 
     // set rigid body total disp to be zero
@@ -654,9 +700,8 @@ if (pm) {
     else {
       pc::runMeshMover(in,m,step);
       m->verify();
-
       pc::runMeshAdapter(in,m,szFld,step);
-      pc::writeSequence(m,step,"pvtu_adapted_mesh_");
+      m->verify();
     }
   }
 

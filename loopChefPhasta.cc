@@ -112,7 +112,7 @@ int main(int argc, char** argv) {
     setupChef(ctrl,step);
     chef::readAndAttachFields(ctrl,m);
     /* perform mesh mover + improver + adapter */
-    pc::updateMesh(ctrl,m,szFld,step);
+    pc::updateMesh(ctrl,m,szFld,step,0);
     chef::preprocess(m,ctrl,grs);
     clearRStream(rs);
   } while( step < maxStep );

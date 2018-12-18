@@ -61,6 +61,14 @@ namespace pc {
 
   void updateMesh(ph::Input& in, apf::Mesh2* m, apf::Field* szFld, int step, int cooperation = 1);
 
+  void balanceEqualWeights(pParMesh pmesh, pProgress progress);
+
+// hardcoding {
+  void prescribe_proj_mesh_size(
+    pGModel model, pMesh pm, apf::Mesh2* m,
+    apf::Field* sizes, double proj_disp);
+// hardcoding }
+
 }
 
 #endif

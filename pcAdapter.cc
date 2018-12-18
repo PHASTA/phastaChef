@@ -1,12 +1,18 @@
 #include "pcAdapter.h"
+#include "pcUpdateMesh.h"
+#include "pcSmooth.h"
+#include "pcWriteFiles.h"
 #include <MeshSimAdapt.h>
 #include <SimUtil.h>
 #include <SimPartitionedMesh.h>
 #include <SimDiscrete.h>
+#include "SimMeshMove.h"
+#include "SimMeshTools.h"
 #include "apfSIM.h"
 #include "gmi_sim.h"
 #include <PCU.h>
 #include <cassert>
+#include <phastaChef.h>
 
 extern void MSA_setBLSnapping(pMSAdapt, int onoff);
 
@@ -138,12 +144,6 @@ namespace pc {
   }
 
   void runMeshAdapter(ph::Input& in, apf::Mesh2*& m, apf::Field*& orgSF, int step) {
-    if (m->findField("material_type"))
-      apf::destroyField(m->findField("material_type"));
-    if (m->findField("meshQ"))
-      apf::destroyField(m->findField("meshQ"));
-    in.writeGeomBCFiles = 1; //write GeomBC file for visualization
-
     /* use the size field of the mesh before mesh motion */
     apf::Field* szFld = orgSF;
 
@@ -156,9 +156,18 @@ namespace pc {
       pParMesh sim_pm = sim_m->getMesh();
       pMesh pm = PM_mesh(sim_pm,0);
 
+      gmi_model* gmiModel = sim_m->getModel();
+      pGModel model = gmi_export_sim(gmiModel);
+
       // declaration
       VIter vIter;
       pVertex meshVertex;
+
+      /* set fields to be mapped */
+      pPList sim_fld_lst = PList_new();
+      PList_clear(sim_fld_lst);
+      if (in.solutionMigration)
+        sim_fld_lst = getSimFieldList(in, m);
 
       /* create the Simmetrix adapter */
       if(!PCU_Comm_Self())
@@ -168,22 +177,39 @@ namespace pc {
       MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
       MSA_setBLSnapping(adapter, 0); // currently needed for parametric model
       MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
+      MSA_setSizeGradation(adapter, 1, 0.5); // set mesh gradation
 
-      /* use size field before mesh motion */
+// create a field to store mesh size
+      if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
+      if(m->findField("frames")) apf::destroyField(m->findField("frames"));
+      apf::Field* sizes  = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
+      apf::Field* frames = apf::createSIMFieldOn(m, "frames", apf::MATRIX);
+      ph::attachSIMSizeField(m, sizes, frames);
+
+// prescribe mesh size field for the projectile case
+// this is hardcoded, please comment out this call for other usage
+//      pc::prescribe_proj_mesh_size(model, pm, m, sizes, in.rbParamData[0]);
+
+// add mesh smooth/gradation function here
+//      pc::addSmootherInMover(m, in.gradingFactor);
+
+      /* use current size field */
       if(!PCU_Comm_Self())
         printf("Start mesh adapt of setting size field\n");
-      vIter = M_vertexIter(pm);
-      while((meshVertex = VIter_next(vIter))){
-        MSA_scaleVertexSize(adapter, meshVertex, 1.0); // use the size field of the mesh before mesh motion
+
+      apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
+      apf::MeshEntity* v;
+      apf::MeshIterator* vit = m->begin(0);
+      while ((v = m->iterate(vit))) {
+        apf::getVector(sizes,v,0,v_mag);
+        pVertex meshVertex = reinterpret_cast<pVertex>(v);
+        MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
       }
-      VIter_delete(vIter);
+      m->end(vit);
 
       /* set fields to be mapped */
-      if (in.solutionMigration) {
-        pPList sim_fld_lst = getSimFieldList(in, m);
+      if (in.solutionMigration)
         MSA_setMapFields(adapter, sim_fld_lst);
-        PList_delete(sim_fld_lst);
-      }
 
       /* run the adapter */
       if(!PCU_Comm_Self())
@@ -191,16 +217,34 @@ namespace pc {
       MSA_adapt(adapter, progress);
       MSA_delete(adapter);
 
-      // write mesh
+      /* create Simmetrix improver */ 
+      pVolumeMeshImprover vmi = VolumeMeshImprover_new(sim_pm);
+      VolumeMeshImprover_setModifyBL(vmi, 1);
+      VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3);
+
+      /* set fields to be mapped */
+      if (in.solutionMigration)
+        VolumeMeshImprover_setMapFields(vmi, sim_fld_lst);
+
+      /* run the improver */
+      VolumeMeshImprover_execute(vmi, progress);
+      VolumeMeshImprover_delete(vmi);
+
+      PList_clear(sim_fld_lst);
+      PList_delete(sim_fld_lst);
+
+      /* load balance */
+      pc::balanceEqualWeights(sim_pm, progress);
+
+      /* write mesh */
       if(!PCU_Comm_Self())
-        printf("write mesh for mesh adapt\n");
-      PM_write(sim_pm, "adapted_mesh.sms", progress);
+        printf("write mesh after mesh adaptation\n");
+      writeSIMMesh(sim_pm, in.timeStepNumber, "adapted_mesh_");
       Progress_delete(progress);
 
       /* transfer data back to apf */
-      if (in.solutionMigration) {
+      if (in.solutionMigration)
         transferSimFields(m);
-      }
     }
     else {
       assert(szFld);
@@ -208,9 +252,9 @@ namespace pc {
       apf::synchronize(m->getCoordinateField());
       /* do SCOREC mesh adaptation */
       chef::adapt(m,szFld,in);
+      chef::balance(in,m);
     }
     m->verify();
-    chef::balance(in,m);
   }
 
 }
