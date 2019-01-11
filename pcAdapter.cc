@@ -239,7 +239,7 @@ namespace pc {
       /* write mesh */
       if(!PCU_Comm_Self())
         printf("write mesh after mesh adaptation\n");
-      writeSIMMesh(sim_pm, in.timeStepNumber, "adapted_mesh_");
+      writeSIMMesh(sim_pm, in.timeStepNumber, "sim_mesh_");
       Progress_delete(progress);
 
       /* transfer data back to apf */

@@ -673,7 +673,8 @@ if (pm) {
     if(!PCU_Comm_Self())
       printf("write model and mesh after mesh modification\n");
     writeSIMModel(model, in.timeStepNumber, "sim_model_");
-    writeSIMMesh(ppm, in.timeStepNumber, "sim_mesh_");
+    if (cooperation)
+      writeSIMMesh(ppm, in.timeStepNumber, "sim_mesh_");
 
     Progress_delete(progress);
     return true;
