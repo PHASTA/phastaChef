@@ -73,7 +73,7 @@ namespace pc {
         continue;
       }
       if ((string)inp.GetValue("Discontinuity Capturing Lag") == "On" &&
-           f == m->findField("solution") ) {
+           f == m->findField("dc_lag") ) {
         index++;
         continue;
       }
@@ -110,6 +110,7 @@ namespace pc {
     if ((string)inp.GetValue("Discontinuity Capturing Lag") == "On" && m->findField("dc_lag")) {
       num_flds += 1;
       sim_flds[7] = apf::getSIMField(chef::extractField(m,"dc_lag","dc_lag_sim",1,apf::SCALAR,simFlag));
+      apf::destroyField(m->findField("dc_lag"));
     }
     return num_flds;
   }

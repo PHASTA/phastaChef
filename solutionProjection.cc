@@ -140,7 +140,9 @@ namespace {
     phSolver::Input inp("solver.inp", "input.config");
     int num_flds = pc::getNumOfMappedFields(inp);
     pField* src_flds = new pField[num_flds];
-    pc::getSimFields(src_m, 1, src_flds, inp);
+    pc::removeOtherFields(src_m, inp);
+    int num_chck = pc::getSimFields(src_m, 1, src_flds, inp);
+    PCU_ALWAYS_ASSERT(num_chck == num_flds);
 
     // create fields on destination mesh
     int valueType = 0;
@@ -158,7 +160,7 @@ namespace {
       if(dst_m->findField(Field_name(src_flds[i])))
         apf::destroyField(dst_m->findField(Field_name(src_flds[i])));
       if(!PCU_Comm_Self())
-        printf("create a sim field %s on mesh\n", Field_name(src_flds[i]));
+        printf("create a sim field %s on destination mesh\n", Field_name(src_flds[i]));
       apf::Field* rf = apf::createSIMFieldOn(dst_m, Field_name(src_flds[i]), valueType);
     }
 
@@ -219,14 +221,14 @@ namespace {
           double dist[1] = {0.0};
           pRegion foundMR = MeshRegionFinder_find(mrf, loc, params, dist);
 //          if(foundMR) {
-//            R_centroid(foundMR, cent);
+//            EN_centroid(foundMR, cent);
 //            printf("\nrank: %d; we found: (%f, %f, %f)\n", PCU_Comm_Self(), xyz[0], xyz[1], xyz[2]);
 //            printf("  center of source region: (%f, %f, %f)\n", cent[0], cent[1], cent[2]);
 //            printf("  parametric of point: (%f, %f, %f)\n", params[0], params[1], params[2]);
 //            printf("  distance to domain: %12.16e; (tol = %12.16e)\n", dist[0], tol);
 //          }
-//          if(foundMR && (dist[0] < tol)) {
-          if(foundMR) {
+          if(foundMR && (dist[0] < tol)) {
+//          if(foundMR) {
             // loop over fields
             for(int i = 0; i < num_flds; i++) {
             // get value from source mesh
@@ -277,6 +279,7 @@ namespace {
     // transfer fields
     PCU_Barrier();
     printf("rank %d transfer sim fields to apf fields\n", PCU_Comm_Self());
+    pc::removeOtherFields(dst_m, inp);
     pc::transferSimFields(dst_m);
 
     Progress_delete(progress);
