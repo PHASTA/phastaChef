@@ -227,8 +227,8 @@ namespace {
 //            printf("  parametric of point: (%f, %f, %f)\n", params[0], params[1], params[2]);
 //            printf("  distance to domain: %12.16e; (tol = %12.16e)\n", dist[0], tol);
 //          }
-          if(foundMR && (dist[0] < tol)) {
-//          if(foundMR) {
+//          if(foundMR && (dist[0] < tol)) {
+          if(foundMR) {
             // loop over fields
             for(int i = 0; i < num_flds; i++) {
             // get value from source mesh
