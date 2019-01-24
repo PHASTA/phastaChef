@@ -279,7 +279,6 @@ namespace {
     // transfer fields
     PCU_Barrier();
     printf("rank %d transfer sim fields to apf fields\n", PCU_Comm_Self());
-    pc::removeOtherFields(dst_m, inp);
     pc::transferSimFields(dst_m);
 
     Progress_delete(progress);
