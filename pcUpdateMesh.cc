@@ -49,44 +49,15 @@ namespace pc {
     if(!PCU_Comm_Self())
       printf("Add mesh improver attributes\n");
     pVolumeMeshImprover vmi = MeshMover_createImprover(mmover);
-    VolumeMeshImprover_setModifyBL(vmi, 1);
-    VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3); // should be user-defined
-
-    // set field to be mapped
-    if (PList_size(sim_fld_lst))
-      VolumeMeshImprover_setMapFields(vmi, sim_fld_lst);
+    pc::setupSimImprover(vmi, sim_fld_lst);
   }
 
   void addAdapterInMover(pMeshMover& mmover,  pPList sim_fld_lst, apf::Mesh2*& m) {
-    apf::Field* sizes = m->findField("sizes");
-    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
-
     // mesh adapter
     if(!PCU_Comm_Self())
       printf("Add mesh adapter attributes\n");
     pMSAdapt msa = MeshMover_createAdapter(mmover);
-    MSA_setAdaptBL(msa, 1);
-    MSA_setExposedBLBehavior(msa,BL_DisallowExposed);
-    MSA_setBLSnapping(msa, 0); // currently needed for parametric model
-    MSA_setBLMinLayerAspectRatio(msa, 0.0); // needed in parallel
-    MSA_setSizeGradation(msa, 1, 0.66667); // set mesh gradation
-
-    // use current size field
-    apf::MeshEntity* v;
-    apf::MeshIterator* vit = m->begin(0);
-    while ((v = m->iterate(vit))) {
-      apf::getVector(sizes,v,0,v_mag);
-      pVertex meshVertex = reinterpret_cast<pVertex>(v);
-      MSA_setVertexSize(msa, meshVertex, v_mag[0]);
-    }
-    m->end(vit);
-
-    // set field to be mapped
-    if (PList_size(sim_fld_lst))
-      MSA_setMapFields(msa, sim_fld_lst);
-
-    // destroy mesh size field
-    apf::destroyField(m->findField("sizes"));
+    pc::setupSimAdapter(msa, m, sim_fld_lst);
   }
 
   void balanceEqualWeights(pParMesh pmesh, pProgress progress) {
@@ -625,20 +596,6 @@ if (pm) {
     if (cooperation) {
       if (in.solutionMigration)
         sim_fld_lst = getSimFieldList(in, m);
-// create a field to store mesh size
-      if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
-      if(m->findField("frames")) apf::destroyField(m->findField("frames"));
-      apf::Field* sizes  = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
-      apf::Field* frames = apf::createSIMFieldOn(m, "frames", apf::MATRIX);
-      ph::attachSIMSizeField(m, sizes, frames);
-
-// prescribe mesh size field for the projectile case
-// this is hardcoded, please comment out this call for other usage
-//      prescribe_proj_mesh_size(model, pm, m, sizes, in.rbParamData[0]);
-
-// add mesh smooth/gradation function here
-//      addSmootherInMover(m, in.gradingFactor);
-
       addImproverInMover(mmover, sim_fld_lst);
       addAdapterInMover(mmover, sim_fld_lst, m);
     }

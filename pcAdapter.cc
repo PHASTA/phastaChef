@@ -57,11 +57,15 @@ namespace pc {
   }
 
   /* remove all fields except for solution, time
-           derivative of solution, mesh velocity */
+     derivative of solution, mesh velocity and keep 
+     certain field if corresponding option is on */
   void removeOtherFields(apf::Mesh2*& m, phSolver::Input& inp) {
     int index = 0;
     int numOfPackFields = 3;
     if((string)inp.GetValue("Discontinuity Capturing Lag") == "On") {
+      numOfPackFields += 1;
+    }
+    if ((string)inp.GetValue("Error Estimation Option") == "True") {
       numOfPackFields += 1;
     }
     while (m->countFields() > numOfPackFields) {
@@ -74,6 +78,11 @@ namespace pc {
       }
       if ((string)inp.GetValue("Discontinuity Capturing Lag") == "On" &&
            f == m->findField("dc_lag") ) {
+        index++;
+        continue;
+      }
+      if ((string)inp.GetValue("Error Estimation Option") == "True" &&
+           f == m->findField("errorH1") ) {
         index++;
         continue;
       }
@@ -144,6 +153,64 @@ namespace pc {
       convertField(m, "dc_lag_sim", "dc_lag");
   }
 
+  void setupSimImprover(pVolumeMeshImprover vmi, pPList sim_fld_lst) {
+    VolumeMeshImprover_setModifyBL(vmi, 1);
+    VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3);
+
+    /* set fields to be mapped */
+    if (PList_size(sim_fld_lst))
+      VolumeMeshImprover_setMapFields(vmi, sim_fld_lst);
+  }
+
+  void setupSimAdapter(pMSAdapt adapter, apf::Mesh2*& m, pPList sim_fld_lst, ph::Input& inp) {
+    MSA_setAdaptBL(adapter, 1);
+    MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
+    MSA_setBLSnapping(adapter, 0); // currently needed for parametric model
+    MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
+    MSA_setSizeGradation(adapter, 1, 0.66667); // set mesh gradation
+
+// create a field to store mesh size
+    apf::Field* sizes = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
+// switch between VMS error mesh size and initial mesh size
+    if((string)inp.GetValue("Error Estimation Option") == "True") {
+      pc::attachVMSSizeField(m, inp);
+    }
+    else {
+      if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
+      if(m->findField("frames")) apf::destroyField(m->findField("frames"));
+      apf::Field* frames = apf::createSIMFieldOn(m, "frames", apf::MATRIX);
+      ph::attachSIMSizeField(m, sizes, frames);
+    }
+
+// prescribe mesh size field for the projectile case
+// this is hardcoded, please comment out this call for other usage
+//      pc::prescribe_proj_mesh_size(model, pm, m, sizes, in.rbParamData[0]);
+
+// add mesh smooth/gradation function here
+//      pc::addSmootherInMover(m, in.gradingFactor);
+
+    /* use current size field */
+    if(!PCU_Comm_Self())
+      printf("Start mesh adapt of setting size field\n");
+
+    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      apf::getVector(sizes,v,0,v_mag);
+      pVertex meshVertex = reinterpret_cast<pVertex>(v);
+      MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
+    }
+    m->end(vit);
+
+    /* set fields to be mapped */
+    if (PList_size(sim_fld_lst))
+      MSA_setMapFields(adapter, sim_fld_lst);
+    
+    // destroy mesh size field
+    apf::destroyField(m->findField("sizes"));
+  }
+
   void runMeshAdapter(ph::Input& in, apf::Mesh2*& m, apf::Field*& orgSF, int step) {
     /* use the size field of the mesh before mesh motion */
     apf::Field* szFld = orgSF;
@@ -174,43 +241,7 @@ namespace pc {
       if(!PCU_Comm_Self())
         printf("Start mesh adapt\n");
       pMSAdapt adapter = MSA_new(sim_pm, 1);
-      MSA_setAdaptBL(adapter, 1);
-      MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
-      MSA_setBLSnapping(adapter, 0); // currently needed for parametric model
-      MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
-      MSA_setSizeGradation(adapter, 1, 0.5); // set mesh gradation
-
-// create a field to store mesh size
-      if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
-      if(m->findField("frames")) apf::destroyField(m->findField("frames"));
-      apf::Field* sizes  = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
-      apf::Field* frames = apf::createSIMFieldOn(m, "frames", apf::MATRIX);
-      ph::attachSIMSizeField(m, sizes, frames);
-
-// prescribe mesh size field for the projectile case
-// this is hardcoded, please comment out this call for other usage
-//      pc::prescribe_proj_mesh_size(model, pm, m, sizes, in.rbParamData[0]);
-
-// add mesh smooth/gradation function here
-//      pc::addSmootherInMover(m, in.gradingFactor);
-
-      /* use current size field */
-      if(!PCU_Comm_Self())
-        printf("Start mesh adapt of setting size field\n");
-
-      apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
-      apf::MeshEntity* v;
-      apf::MeshIterator* vit = m->begin(0);
-      while ((v = m->iterate(vit))) {
-        apf::getVector(sizes,v,0,v_mag);
-        pVertex meshVertex = reinterpret_cast<pVertex>(v);
-        MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
-      }
-      m->end(vit);
-
-      /* set fields to be mapped */
-      if (in.solutionMigration)
-        MSA_setMapFields(adapter, sim_fld_lst);
+      setupSimAdapter(adapter, m, sim_fld_lst, inp);
 
       /* run the adapter */
       if(!PCU_Comm_Self())
@@ -220,12 +251,7 @@ namespace pc {
 
       /* create Simmetrix improver */ 
       pVolumeMeshImprover vmi = VolumeMeshImprover_new(sim_pm);
-      VolumeMeshImprover_setModifyBL(vmi, 1);
-      VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3);
-
-      /* set fields to be mapped */
-      if (in.solutionMigration)
-        VolumeMeshImprover_setMapFields(vmi, sim_fld_lst);
+      setupSimImprover(vmi, sim_fld_lst);
 
       /* run the improver */
       VolumeMeshImprover_execute(vmi, progress);

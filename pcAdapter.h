@@ -20,6 +20,10 @@ namespace pc {
 
   void transferSimFields(apf::Mesh2*& m);
 
+  void setupSimImprover(pVolumeMeshImprover vmi, pPList sim_fld_lst);
+
+  void setupSimAdapter(pMSAdapt adapter, apf::Mesh2*& m, pPList sim_fld_lst);
+
   void runMeshAdapter(ph::Input& in, apf::Mesh2*& m, apf::Field*& orgSF, int step);
 }
 

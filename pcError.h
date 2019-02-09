@@ -10,6 +10,7 @@
 #include <phasta.h>
 
 namespace pc {
+  void attachVMSSizeField(apf::Mesh2*& m, ph::Input& inp);
 }
 
 #endif
