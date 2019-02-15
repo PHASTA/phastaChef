@@ -6,25 +6,26 @@
 #include "SimMeshTools.h"
 #include "apfSIM.h"
 #include "gmi_sim.h"
+#include "apfShape.h"
 #include <PCU.h>
 #include <cassert>
 #include <phastaChef.h>
 
 namespace pc {
-  void attachVMSSizeFieldH1(apf::Mesh2*& m, ph::Input& inp) {
+  void attachVMSSizeFieldH1(apf::Mesh2*& m, ph::Input& in) {
     //read phasta cell-based field errorH1
     apf::Field* err = m->findField("errorH1");
     //get nodal-based mesh size field
     apf::Field* sizes = m->findField("sizes");
     //create a field to store cell-based mesh size
     int nsd = m->getDimension();
-    apf::Field* cell_size = apf::createField(m, "cell_size", apf::SCALAR, apf::getConstant(nsd)); 
+    apf::Field* cell_size = apf::createField(m, "cell_size", apf::SCALAR, apf::getConstant(nsd));
 
     //get desired error
     double desr_err[3];
-    desr_err[0] = inp.GetValue("Error Threshold for Mass Equation");
-    desr_err[1] = inp.GetValue("Error Threshold for Momentum Equation");
-    desr_err[2] = inp.GetValue("Error Threshold for Energy Equation");
+    desr_err[0] = in.simAdaptDesiredErrorMass;
+    desr_err[1] = in.simAdaptDesiredErrorMomt;
+    desr_err[2] = in.simAdaptDesiredErrorEnrg;
 
     //loop over elements
     apf::NewArray<double> curr_err(apf::countComponents(err));
@@ -37,14 +38,19 @@ namespace pc {
       me = apf::createMeshElement(m, elm);
       //get shortest height of this element
       if (nsd == 2)
-        r_old = sqrt(apf::measure(me) * 4 / sqrt(3));
+        h_old = sqrt(apf::measure(me) * 4 / sqrt(3));
       else
         h_old = apf::computeShortestHeightInTet(m,elm);
       //get error
       apf::getComponents(err, elm, 0, &curr_err[0]);
       //get new size
       //currently, we only focus on the momemtum error // debugging
-      h_new = h_old * pow((desr_err[1] / curr_err[1]),2.0/(2.0*(1.0)+nsd));
+      double factor = 0.0;
+      if (desr_err[1] / curr_err[1] > 100.0)
+        factor = 100.0;
+      else
+        factor = desr_err[1] / curr_err[1];
+      h_new = h_old * pow(factor, 2.0/(2.0*(1.0)+nsd));
       //set new size
       apf::setScalar(cell_size, elm, 0, h_new);
       apf::destroyMeshElement(me);
@@ -63,8 +69,10 @@ namespace pc {
       for (std::size_t i = 0; i < adj_elm.getSize(); ++i) {
         //get weighted size and weight
         apf::getComponents(err, adj_elm[i], 0, &curr_err[0]);
+        double curr_size = apf::getScalar(cell_size, adj_elm[i], 0);
         //currently, we only focus on the momemtum error // debugging
-        weightedSize += apf::getScalar(cell_size,adj_elm[i],0)*curr_err[1];
+//        weightedSize += apf::getScalar(cell_size,adj_elm[i],0)*curr_err[1];
+        weightedSize += curr_size*curr_err[1];
         totalError += curr_err[1];
       }
       //get size of this vertex
@@ -83,7 +91,7 @@ namespace pc {
     apf::destroyField(cell_size);
   }
 
-  void attachVMSSizeField(apf::Mesh2*& m, ph::Input& inp) {
-    attachVMSSizeFieldH1(m, inp);
+  void attachVMSSizeField(apf::Mesh2*& m, ph::Input& in) {
+    attachVMSSizeFieldH1(m, in);
   }
 }

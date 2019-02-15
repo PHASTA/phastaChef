@@ -1,6 +1,7 @@
 #ifndef PC_ERROR_H
 #define PC_ERROR_H
 
+#include "pcWriteFiles.h"
 #include <SimField.h>
 #include <apf.h>
 #include <apfMesh2.h>

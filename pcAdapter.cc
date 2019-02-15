@@ -1,8 +1,8 @@
 #include "pcAdapter.h"
+#include "pcError.h"
 #include "pcUpdateMesh.h"
 #include "pcSmooth.h"
 #include "pcWriteFiles.h"
-#include <MeshSimAdapt.h>
 #include <SimUtil.h>
 #include <SimPartitionedMesh.h>
 #include <SimDiscrete.h>
@@ -50,9 +50,12 @@ namespace pc {
        and mehs velocity */
     int numOfMappedFields = 7;
     /* if we have DC lag field, then we need to add one more field */
-    if((string)inp.GetValue("Discontinuity Capturing Lag") == "On") {
-      numOfMappedFields += 1;
+    try {
+      if((string)inp.GetValue("Discontinuity Capturing Lag") == "On") {
+        numOfMappedFields += 1;
+      }
     }
+    catch(...){}
     return numOfMappedFields;
   }
 
@@ -62,12 +65,18 @@ namespace pc {
   void removeOtherFields(apf::Mesh2*& m, phSolver::Input& inp) {
     int index = 0;
     int numOfPackFields = 3;
+    try {
     if((string)inp.GetValue("Discontinuity Capturing Lag") == "On") {
       numOfPackFields += 1;
     }
+    }
+    catch(...){}
+    try {
     if ((string)inp.GetValue("Error Estimation Option") == "True") {
       numOfPackFields += 1;
     }
+    }
+    catch(...){}
     while (m->countFields() > numOfPackFields) {
       apf::Field* f = m->getField(index);
       if ( f == m->findField("solution") ||
@@ -76,16 +85,22 @@ namespace pc {
         index++;
         continue;
       }
+    try {
       if ((string)inp.GetValue("Discontinuity Capturing Lag") == "On" &&
            f == m->findField("dc_lag") ) {
         index++;
         continue;
       }
+    }
+    catch(...){}
+    try {
       if ((string)inp.GetValue("Error Estimation Option") == "True" &&
            f == m->findField("errorH1") ) {
         index++;
         continue;
       }
+    }
+    catch(...){}
       m->removeField(f);
       apf::destroyField(f);
     }
@@ -116,11 +131,14 @@ namespace pc {
       apf::destroyField(m->findField("mesh_vel"));
     }
 
+    try {
     if ((string)inp.GetValue("Discontinuity Capturing Lag") == "On" && m->findField("dc_lag")) {
       num_flds += 1;
       sim_flds[7] = apf::getSIMField(chef::extractField(m,"dc_lag","dc_lag_sim",1,apf::SCALAR,simFlag));
       apf::destroyField(m->findField("dc_lag"));
     }
+    }
+    catch(...){}
     return num_flds;
   }
 
@@ -162,7 +180,7 @@ namespace pc {
       VolumeMeshImprover_setMapFields(vmi, sim_fld_lst);
   }
 
-  void setupSimAdapter(pMSAdapt adapter, apf::Mesh2*& m, pPList sim_fld_lst, ph::Input& inp) {
+  void setupSimAdapter(pMSAdapt adapter, ph::Input& in, apf::Mesh2*& m, pPList sim_fld_lst) {
     MSA_setAdaptBL(adapter, 1);
     MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
     MSA_setBLSnapping(adapter, 0); // currently needed for parametric model
@@ -170,13 +188,13 @@ namespace pc {
     MSA_setSizeGradation(adapter, 1, 0.66667); // set mesh gradation
 
 // create a field to store mesh size
+    if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
     apf::Field* sizes = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
 // switch between VMS error mesh size and initial mesh size
-    if((string)inp.GetValue("Error Estimation Option") == "True") {
-      pc::attachVMSSizeField(m, inp);
+    if(m->findField("errorH1")) {
+      pc::attachVMSSizeField(m, in);
     }
     else {
-      if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
       if(m->findField("frames")) apf::destroyField(m->findField("frames"));
       apf::Field* frames = apf::createSIMFieldOn(m, "frames", apf::MATRIX);
       ph::attachSIMSizeField(m, sizes, frames);
@@ -206,7 +224,7 @@ namespace pc {
     /* set fields to be mapped */
     if (PList_size(sim_fld_lst))
       MSA_setMapFields(adapter, sim_fld_lst);
-    
+
     // destroy mesh size field
     apf::destroyField(m->findField("sizes"));
   }
@@ -241,7 +259,7 @@ namespace pc {
       if(!PCU_Comm_Self())
         printf("Start mesh adapt\n");
       pMSAdapt adapter = MSA_new(sim_pm, 1);
-      setupSimAdapter(adapter, m, sim_fld_lst, inp);
+      setupSimAdapter(adapter, in, m, sim_fld_lst);
 
       /* run the adapter */
       if(!PCU_Comm_Self())

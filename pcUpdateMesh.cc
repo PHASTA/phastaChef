@@ -52,12 +52,12 @@ namespace pc {
     pc::setupSimImprover(vmi, sim_fld_lst);
   }
 
-  void addAdapterInMover(pMeshMover& mmover,  pPList sim_fld_lst, apf::Mesh2*& m) {
+  void addAdapterInMover(pMeshMover& mmover,  pPList sim_fld_lst, ph::Input& in, apf::Mesh2*& m) {
     // mesh adapter
     if(!PCU_Comm_Self())
       printf("Add mesh adapter attributes\n");
     pMSAdapt msa = MeshMover_createAdapter(mmover);
-    pc::setupSimAdapter(msa, m, sim_fld_lst);
+    pc::setupSimAdapter(msa, in, m, sim_fld_lst);
   }
 
   void balanceEqualWeights(pParMesh pmesh, pProgress progress) {
@@ -597,7 +597,7 @@ if (pm) {
       if (in.solutionMigration)
         sim_fld_lst = getSimFieldList(in, m);
       addImproverInMover(mmover, sim_fld_lst);
-      addAdapterInMover(mmover, sim_fld_lst, m);
+      addAdapterInMover(mmover, sim_fld_lst, in, m);
     }
     PList_clear(sim_fld_lst);
     PList_delete(sim_fld_lst);
