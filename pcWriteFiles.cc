@@ -6,6 +6,8 @@
 #include <sstream>
 #include <cstdio>
 #include <cassert>
+#include <algorithm>
+#include <math.h>
 #include <SimPartitionedMesh.h>
 #include "SimModel.h"
 #include "SimUtil.h"
@@ -36,12 +38,16 @@ namespace pc {
 
   void writePHTfiles (int old_step, int step, phSolver::Input& inp) {
     int nfields = 7;
-    int ntout = (int)inp.GetValue("Number of Timesteps between Restarts");
+    int ntout = min((int)inp.GetValue("Number of Timesteps between Restarts"),
+                    (int)inp.GetValue("Number of Timesteps"));
     double dt = (double)inp.GetValue("Time Step Size");
     if((string)inp.GetValue("Write non-linear residual to restart") == "Yes")
       nfields = nfields + 3;
+    if((string)inp.GetValue("Error Estimation Option") == "True")
+      nfields = nfields + 3;
     int nproc = PCU_Comm_Peers();
-    int nstep = (step - old_step) / ntout;
+    int nstep = max((step - old_step) / ntout, 1);
+    int start_step = ceil((double)old_step / (double)ntout) * ntout;
     std::ostringstream oss;
     oss << "solution_" << old_step << ".pht";
     const std::string tp = oss.str();
@@ -60,9 +66,9 @@ namespace pc {
     fprintf (sFile, "                        has_time_entry=\"1\"/>\n");
     fprintf (sFile, "  <TimeSteps number_of_steps=\"%d\"\n", nstep);
     fprintf (sFile, "             auto_generate_indices=\"1\"\n");
-    fprintf (sFile, "             start_index=\"%d\"\n", old_step+ntout);
+    fprintf (sFile, "             start_index=\"%d\"\n", start_step+ntout);
     fprintf (sFile, "             increment_index_by=\"%d\"\n",ntout);
-    fprintf (sFile, "             start_value=\"%12.16e\"\n",(double)((old_step+ntout)*dt));
+    fprintf (sFile, "             start_value=\"%12.16e\"\n",(double)((start_step+ntout)*dt));
     fprintf (sFile, "             increment_value_by=\"%12.16e\">\n",dt);
     fprintf (sFile, "  </TimeSteps>\n");
     fprintf (sFile, "  <Fields number_of_fields=\"%d\">\n",nfields);
@@ -103,24 +109,44 @@ namespace pc {
     fprintf (sFile, "           number_of_components=\"1\"\n");
     fprintf (sFile, "           data_dependency=\"1\"/>\n");
     if((string)inp.GetValue("Write non-linear residual to restart") == "Yes") {
-     fprintf (sFile, "    <Field paraview_field_tag=\"residual_mass\"\n");
-     fprintf (sFile, "           phasta_field_tag=\"residual\"\n");
-     fprintf (sFile, "           start_index_in_phasta_array=\"0\"\n");
-     fprintf (sFile, "           number_of_components=\"1\"\n");
-     fprintf (sFile, "           data_dependency=\"0\"\n");
-     fprintf (sFile, "           data_type=\"double\"/>\n");
-     fprintf (sFile, "    <Field paraview_field_tag=\"residual_momentum\"\n");
-     fprintf (sFile, "           phasta_field_tag=\"residual\"\n");
-     fprintf (sFile, "           start_index_in_phasta_array=\"1\"\n");
-     fprintf (sFile, "           number_of_components=\"3\"\n");
-     fprintf (sFile, "           data_dependency=\"0\"\n");
-     fprintf (sFile, "           data_type=\"double\"/>\n");
-     fprintf (sFile, "    <Field paraview_field_tag=\"residual_energy\"\n");
-     fprintf (sFile, "           phasta_field_tag=\"residual\"\n");
-     fprintf (sFile, "           start_index_in_phasta_array=\"4\"\n");
-     fprintf (sFile, "           number_of_components=\"1\"\n");
-     fprintf (sFile, "           data_dependency=\"0\"\n");
-     fprintf (sFile, "           data_type=\"double\"/>\n");
+      fprintf (sFile, "    <Field paraview_field_tag=\"residual_mass\"\n");
+      fprintf (sFile, "           phasta_field_tag=\"residual\"\n");
+      fprintf (sFile, "           start_index_in_phasta_array=\"0\"\n");
+      fprintf (sFile, "           number_of_components=\"1\"\n");
+      fprintf (sFile, "           data_dependency=\"0\"\n");
+      fprintf (sFile, "           data_type=\"double\"/>\n");
+      fprintf (sFile, "    <Field paraview_field_tag=\"residual_momentum\"\n");
+      fprintf (sFile, "           phasta_field_tag=\"residual\"\n");
+      fprintf (sFile, "           start_index_in_phasta_array=\"1\"\n");
+      fprintf (sFile, "           number_of_components=\"3\"\n");
+      fprintf (sFile, "           data_dependency=\"0\"\n");
+      fprintf (sFile, "           data_type=\"double\"/>\n");
+      fprintf (sFile, "    <Field paraview_field_tag=\"residual_energy\"\n");
+      fprintf (sFile, "           phasta_field_tag=\"residual\"\n");
+      fprintf (sFile, "           start_index_in_phasta_array=\"4\"\n");
+      fprintf (sFile, "           number_of_components=\"1\"\n");
+      fprintf (sFile, "           data_dependency=\"0\"\n");
+      fprintf (sFile, "           data_type=\"double\"/>\n");
+    }
+    if((string)inp.GetValue("Error Estimation Option") == "True") {
+      fprintf (sFile, "    <Field paraview_field_tag=\"error_mass\"\n");
+      fprintf (sFile, "           phasta_field_tag=\"errorH1\"\n");
+      fprintf (sFile, "           start_index_in_phasta_array=\"0\"\n");
+      fprintf (sFile, "           number_of_components=\"1\"\n");
+      fprintf (sFile, "           data_dependency=\"1\"\n");
+      fprintf (sFile, "           data_type=\"double\"/>\n");
+      fprintf (sFile, "    <Field paraview_field_tag=\"error_momt\"\n");
+      fprintf (sFile, "           phasta_field_tag=\"errorH1\"\n");
+      fprintf (sFile, "           start_index_in_phasta_array=\"1\"\n");
+      fprintf (sFile, "           number_of_components=\"1\"\n");
+      fprintf (sFile, "           data_dependency=\"1\"\n");
+      fprintf (sFile, "           data_type=\"double\"/>\n");
+      fprintf (sFile, "    <Field paraview_field_tag=\"error_engy\"\n");
+      fprintf (sFile, "           phasta_field_tag=\"errorH1\"\n");
+      fprintf (sFile, "           start_index_in_phasta_array=\"2\"\n");
+      fprintf (sFile, "           number_of_components=\"1\"\n");
+      fprintf (sFile, "           data_dependency=\"1\"\n");
+      fprintf (sFile, "           data_type=\"double\"/>\n");
     }
     fprintf (sFile, "  </Fields>\n");
     fprintf (sFile, "</PhastaMetaFile>\n");
