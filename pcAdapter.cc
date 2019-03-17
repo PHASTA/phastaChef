@@ -49,32 +49,19 @@ namespace pc {
        time der of pressure, time der of velocity, time der of temperature,
        and mehs velocity */
     int numOfMappedFields = 7;
-    /* if we have DC lag field, then we need to add one more field */
-    try {
-      if((string)inp.GetValue("Discontinuity Capturing Lag") == "On") {
-        numOfMappedFields += 1;
-      }
-    }
-    catch(...){}
     return numOfMappedFields;
   }
 
   /* remove all fields except for solution, time
-     derivative of solution, mesh velocity and keep 
+     derivative of solution, mesh velocity and keep
      certain field if corresponding option is on */
   void removeOtherFields(apf::Mesh2*& m, phSolver::Input& inp) {
     int index = 0;
     int numOfPackFields = 3;
     try {
-    if((string)inp.GetValue("Discontinuity Capturing Lag") == "On") {
-      numOfPackFields += 1;
-    }
-    }
-    catch(...){}
-    try {
-    if ((string)inp.GetValue("Error Estimation Option") == "True") {
-      numOfPackFields += 1;
-    }
+      if ((string)inp.GetValue("Error Estimation Option") == "True") {
+        numOfPackFields += 1;
+      }
     }
     catch(...){}
     while (m->countFields() > numOfPackFields) {
@@ -85,22 +72,14 @@ namespace pc {
         index++;
         continue;
       }
-    try {
-      if ((string)inp.GetValue("Discontinuity Capturing Lag") == "On" &&
-           f == m->findField("dc_lag") ) {
-        index++;
-        continue;
+      try {
+        if ((string)inp.GetValue("Error Estimation Option") == "True" &&
+             f == m->findField("errorH1") ) {
+          index++;
+          continue;
+        }
       }
-    }
-    catch(...){}
-    try {
-      if ((string)inp.GetValue("Error Estimation Option") == "True" &&
-           f == m->findField("errorH1") ) {
-        index++;
-        continue;
-      }
-    }
-    catch(...){}
+      catch(...){}
       m->removeField(f);
       apf::destroyField(f);
     }
@@ -131,14 +110,6 @@ namespace pc {
       apf::destroyField(m->findField("mesh_vel"));
     }
 
-    try {
-    if ((string)inp.GetValue("Discontinuity Capturing Lag") == "On" && m->findField("dc_lag")) {
-      num_flds += 1;
-      sim_flds[7] = apf::getSIMField(chef::extractField(m,"dc_lag","dc_lag_sim",1,apf::SCALAR,simFlag));
-      apf::destroyField(m->findField("dc_lag"));
-    }
-    }
-    catch(...){}
     return num_flds;
   }
 
@@ -167,8 +138,6 @@ namespace pc {
       chef::combineField(m,"time derivative of solution","der_pressure","der_velocity","der_temperature");
     if (m->findField("mesh_vel_sim"))
       convertField(m, "mesh_vel_sim", "mesh_vel");
-    if (m->findField("dc_lag_sim"))
-      convertField(m, "dc_lag_sim", "dc_lag");
   }
 
   void setupSimImprover(pVolumeMeshImprover vmi, pPList sim_fld_lst) {
@@ -267,7 +236,7 @@ namespace pc {
       MSA_adapt(adapter, progress);
       MSA_delete(adapter);
 
-      /* create Simmetrix improver */ 
+      /* create Simmetrix improver */
       pVolumeMeshImprover vmi = VolumeMeshImprover_new(sim_pm);
       setupSimImprover(vmi, sim_fld_lst);
 
