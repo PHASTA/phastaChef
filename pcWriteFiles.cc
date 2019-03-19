@@ -43,7 +43,7 @@ namespace pc {
     double dt = (double)inp.GetValue("Time Step Size");
     if((string)inp.GetValue("Write non-linear residual to restart") == "Yes")
       nfields = nfields + 3;
-    if((string)inp.GetValue("Error Estimation Option") == "True")
+    if((string)inp.GetValue("Error Estimation Option") != "False")
       nfields = nfields + 3;
     int nproc = PCU_Comm_Peers();
     int nstep = max((step - old_step) / ntout, 1);
@@ -128,21 +128,21 @@ namespace pc {
       fprintf (sFile, "           data_dependency=\"0\"\n");
       fprintf (sFile, "           data_type=\"double\"/>\n");
     }
-    if((string)inp.GetValue("Error Estimation Option") == "True") {
+    if((string)inp.GetValue("Error Estimation Option") != "False") {
       fprintf (sFile, "    <Field paraview_field_tag=\"error_mass\"\n");
-      fprintf (sFile, "           phasta_field_tag=\"errorH1\"\n");
+      fprintf (sFile, "           phasta_field_tag=\"VMS_error\"\n");
       fprintf (sFile, "           start_index_in_phasta_array=\"0\"\n");
       fprintf (sFile, "           number_of_components=\"1\"\n");
       fprintf (sFile, "           data_dependency=\"1\"\n");
       fprintf (sFile, "           data_type=\"double\"/>\n");
       fprintf (sFile, "    <Field paraview_field_tag=\"error_momt\"\n");
-      fprintf (sFile, "           phasta_field_tag=\"errorH1\"\n");
+      fprintf (sFile, "           phasta_field_tag=\"VMS_error\"\n");
       fprintf (sFile, "           start_index_in_phasta_array=\"1\"\n");
       fprintf (sFile, "           number_of_components=\"1\"\n");
       fprintf (sFile, "           data_dependency=\"1\"\n");
       fprintf (sFile, "           data_type=\"double\"/>\n");
       fprintf (sFile, "    <Field paraview_field_tag=\"error_engy\"\n");
-      fprintf (sFile, "           phasta_field_tag=\"errorH1\"\n");
+      fprintf (sFile, "           phasta_field_tag=\"VMS_error\"\n");
       fprintf (sFile, "           start_index_in_phasta_array=\"2\"\n");
       fprintf (sFile, "           number_of_components=\"1\"\n");
       fprintf (sFile, "           data_dependency=\"1\"\n");

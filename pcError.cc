@@ -13,8 +13,8 @@
 
 namespace pc {
   void attachVMSSizeFieldH1(apf::Mesh2*& m, ph::Input& in) {
-    //read phasta element-based field errorH1
-    apf::Field* err = m->findField("errorH1");
+    //read phasta element-based field VMS_error
+    apf::Field* err = m->findField("VMS_error");
     //get nodal-based mesh size field
     apf::Field* sizes = m->findField("sizes");
     //create a field to store element-based mesh size

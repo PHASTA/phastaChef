@@ -59,7 +59,7 @@ namespace pc {
     int index = 0;
     int numOfPackFields = 3;
     try {
-      if ((string)inp.GetValue("Error Estimation Option") == "True") {
+      if ((string)inp.GetValue("Error Estimation Option") != "False") {
         numOfPackFields += 1;
       }
     }
@@ -73,8 +73,8 @@ namespace pc {
         continue;
       }
       try {
-        if ((string)inp.GetValue("Error Estimation Option") == "True" &&
-             f == m->findField("errorH1") ) {
+        if ((string)inp.GetValue("Error Estimation Option") != "False" &&
+             f == m->findField("VMS_error") ) {
           index++;
           continue;
         }
@@ -160,7 +160,7 @@ namespace pc {
     if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
     apf::Field* sizes = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
 // switch between VMS error mesh size and initial mesh size
-    if(m->findField("errorH1")) {
+    if(m->findField("VMS_error")) {
       pc::attachVMSSizeField(m, in);
     }
     else {
