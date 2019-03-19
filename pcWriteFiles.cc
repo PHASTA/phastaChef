@@ -43,8 +43,11 @@ namespace pc {
     double dt = (double)inp.GetValue("Time Step Size");
     if((string)inp.GetValue("Write non-linear residual to restart") == "Yes")
       nfields = nfields + 3;
-    if((string)inp.GetValue("Error Estimation Option") != "False")
-      nfields = nfields + 3;
+    try {
+      if((string)inp.GetValue("Error Estimation Option") != "False")
+        nfields = nfields + 3;
+    }
+    catch(...){}
     int nproc = PCU_Comm_Peers();
     int nstep = max((step - old_step) / ntout, 1);
     int start_step = ceil((double)old_step / (double)ntout) * ntout;
@@ -128,7 +131,8 @@ namespace pc {
       fprintf (sFile, "           data_dependency=\"0\"\n");
       fprintf (sFile, "           data_type=\"double\"/>\n");
     }
-    if((string)inp.GetValue("Error Estimation Option") != "False") {
+    try {
+     if((string)inp.GetValue("Error Estimation Option") != "False") {
       fprintf (sFile, "    <Field paraview_field_tag=\"error_mass\"\n");
       fprintf (sFile, "           phasta_field_tag=\"VMS_error\"\n");
       fprintf (sFile, "           start_index_in_phasta_array=\"0\"\n");
@@ -147,7 +151,9 @@ namespace pc {
       fprintf (sFile, "           number_of_components=\"1\"\n");
       fprintf (sFile, "           data_dependency=\"1\"\n");
       fprintf (sFile, "           data_type=\"double\"/>\n");
+     }
     }
+    catch(...){}
     fprintf (sFile, "  </Fields>\n");
     fprintf (sFile, "</PhastaMetaFile>\n");
     fclose (sFile);
