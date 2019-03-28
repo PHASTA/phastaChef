@@ -142,12 +142,12 @@ namespace pc {
       fprintf (sFile, "    <Field paraview_field_tag=\"error_momt\"\n");
       fprintf (sFile, "           phasta_field_tag=\"VMS_error\"\n");
       fprintf (sFile, "           start_index_in_phasta_array=\"1\"\n");
-      fprintf (sFile, "           number_of_components=\"1\"\n");
+      fprintf (sFile, "           number_of_components=\"3\"\n");
       fprintf (sFile, "           data_dependency=\"1\"\n");
       fprintf (sFile, "           data_type=\"double\"/>\n");
       fprintf (sFile, "    <Field paraview_field_tag=\"error_engy\"\n");
       fprintf (sFile, "           phasta_field_tag=\"VMS_error\"\n");
-      fprintf (sFile, "           start_index_in_phasta_array=\"2\"\n");
+      fprintf (sFile, "           start_index_in_phasta_array=\"4\"\n");
       fprintf (sFile, "           number_of_components=\"1\"\n");
       fprintf (sFile, "           data_dependency=\"1\"\n");
       fprintf (sFile, "           data_type=\"double\"/>\n");

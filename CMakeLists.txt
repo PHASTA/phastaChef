@@ -81,6 +81,7 @@ setup_exe(chefPhastaLoop_sam_stream_adapt chef_phasta_sam_adaptLoop.cc ${phastaI
 setup_exe(loopChefPhasta loopChefPhasta.cc ${phastaIC_FOUND})
 setup_exe(transferAndAdapter transferAndAdapter.cc ${phastaIC_FOUND})
 setup_exe(solutionProjection solutionProjection.cc ${phastaIC_FOUND})
+setup_exe(calcEfficiency calcEfficiency.cc ${phastaIC_FOUND})
 setup_exe(meshGrading meshGrading.cc ${phastaIC_FOUND})
 
 add_subdirectory(test)

@@ -49,7 +49,9 @@ namespace pc {
       if (desr_err[1] / curr_err[1] > 100.0)
         factor = 100.0;
       else
-        factor = desr_err[1] / curr_err[1];
+        factor = desr_err[1] / sqrt(curr_err[1]*curr_err[1]
+                                   +curr_err[2]*curr_err[2]
+                                   +curr_err[3]*curr_err[3]);
       h_new = h_old * pow(factor, 2.0/(2.0*(1.0)+nsd));
       //set new size
       apf::setScalar(elm_size, elm, 0, h_new);
@@ -72,8 +74,12 @@ namespace pc {
         double curr_size = apf::getScalar(elm_size, adj_elm[i], 0);
         //currently, we only focus on the momemtum error // debugging
 //        weightedSize += apf::getScalar(elm_size,adj_elm[i],0)*curr_err[1];
-        weightedSize += curr_size*curr_err[1];
-        totalError += curr_err[1];
+        weightedSize += curr_size*sqrt(curr_err[1]*curr_err[1]
+                                      +curr_err[2]*curr_err[2]
+                                      +curr_err[3]*curr_err[3]);
+        totalError += sqrt(curr_err[1]*curr_err[1]
+                          +curr_err[2]*curr_err[2]
+                          +curr_err[3]*curr_err[3]);
       }
       //get size of this vertex
       weightedSize = weightedSize / totalError;
