@@ -356,7 +356,6 @@ int main(int argc, char** argv) {
   const char* referRestartDir = argv[2];
   integrationOrder = atoi(argv[3]);
 
-  chefPhasta::initModelers();
   rstream rs = makeRStream();
   rstream ref_rs = makeRStream();
   grstream grs = makeGRStream();
@@ -365,6 +364,7 @@ int main(int argc, char** argv) {
   ph::Input ref_ctrl;
   ctrl.load("adapt.inp");
   ref_ctrl.load("adapt.inp");
+  chefPhasta::initModelers(ctrl.writeSimLog);
   ref_ctrl.meshFileName = referMeshFile;
   ref_ctrl.restartFileName = referRestartDir;
   int step = ctrl.timeStepNumber;
@@ -398,7 +398,7 @@ int main(int argc, char** argv) {
   destroyRStream(ref_rs);
   freeMesh(m);
   freeMesh(ref_m);
-  chefPhasta::finalizeModelers();
+  chefPhasta::finalizeModelers(ctrl.writeSimLog);
   PCU_Comm_Free();
   MPI_Finalize();
 }

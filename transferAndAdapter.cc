@@ -183,11 +183,11 @@ int main(int argc, char** argv) {
     exit(EXIT_FAILURE);
   }
   int modeId  = atoi(argv[1]);
-  chefPhasta::initModelers();
   rstream rs = makeRStream();
   grstream grs = makeGRStream();
   ph::Input ctrl;
   ctrl.load("adapt.inp");
+  chefPhasta::initModelers(ctrl.writeSimLog);
 
   /* load the model and mesh */
   gmi_model* g = 0;
@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
   destroyGRStream(grs);
   destroyRStream(rs);
   freeMesh(m);
-  chefPhasta::finalizeModelers();
+  chefPhasta::finalizeModelers(ctrl.writeSimLog);
   PCU_Comm_Free();
   MPI_Finalize();
 }

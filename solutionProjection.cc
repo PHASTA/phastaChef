@@ -298,7 +298,6 @@ int main(int argc, char** argv) {
   const char* attribFilename = argv[1];
   const char* meshFilename = argv[2];
 
-  chefPhasta::initModelers();
   rstream rs = makeRStream();
   rstream dst_rs = makeRStream();
   grstream grs = makeGRStream();
@@ -307,6 +306,7 @@ int main(int argc, char** argv) {
   ph::Input dst_ctrl;
   ctrl.load("adapt.inp");
   dst_ctrl.load("adapt.inp");
+  chefPhasta::initModelers(ctrl.writeSimLog);
   dst_ctrl.attributeFileName = attribFilename;
   dst_ctrl.meshFileName = meshFilename;
   dst_ctrl.solutionMigration = 0;
@@ -352,7 +352,7 @@ int main(int argc, char** argv) {
   destroyRStream(rs);
   destroyRStream(dst_rs);
   freeMesh(m);
-  chefPhasta::finalizeModelers();
+  chefPhasta::finalizeModelers(ctrl.writeSimLog);
   PCU_Comm_Free();
   MPI_Finalize();
 }

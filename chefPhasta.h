@@ -15,8 +15,9 @@
 #include <MeshSim.h>
 #include <MeshSimAdapt.h>
 namespace chefPhasta {
-  void initModelers() {
-    Sim_logOn("phastaChef.log");
+  void initModelers(int simLog = 0) {
+    if (simLog)
+      Sim_logOn("phastaChef.log");
     MS_init();
     SimModel_start();
     Sim_readLicenseFile(0);
@@ -32,7 +33,7 @@ namespace chefPhasta {
     if(!PCU_Comm_Self())
       printf("SimModSuite Version: %s\n",Sim_buildID());
   }
-  void finalizeModelers() {
+  void finalizeModelers(int simLog = 0) {
     SimDiscrete_stop(0);
     SimMeshTools_stop();
     SimAdvMeshing_stop();
@@ -43,15 +44,18 @@ namespace chefPhasta {
     Sim_unregisterAllKeys();
     SimModel_stop();
     MS_exit();
-    Sim_logOff();
+    if (simLog)
+      Sim_logOff();
   }
 }
 #else
 namespace chefPhasta {
-  void initModelers() {
+  void initModelers(int simLog = 0) {
+    (void) simLog;
     gmi_register_mesh();
   }
-  void finalizeModelers() {
+  void finalizeModelers(int simLog = 0) {
+    (void) simLog;
   }
 }
 #endif

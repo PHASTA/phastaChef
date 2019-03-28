@@ -203,7 +203,8 @@ namespace pc {
     apf::Field* szFld = orgSF;
 
     if(in.simmetrixMesh == 1) {
-      Sim_logOn("sim_mesh_adaptation.log");
+      if (in.writeSimLog)
+        Sim_logOn("sim_mesh_adaptation.log");
       pProgress progress = Progress_new();
       Progress_setDefaultCallback(progress);
 

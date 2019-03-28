@@ -89,8 +89,6 @@ namespace pc {
 // temporarily used to write serial moved mesh and model
 // it also writes coordinates to file
   bool updateAndWriteSIMDiscreteCoord(apf::Mesh2* m) {
-    Sim_logOn("updateAndWriteSIMDiscreteModel.log");
-
     pProgress progress = Progress_new();
     Progress_setDefaultCallback(progress);
 
@@ -215,8 +213,6 @@ if (pm) {
 
 // temporarily used to write displacement field
   bool updateAndWriteSIMDiscreteField(apf::Mesh2* m) {
-    Sim_logOn("updateAndWriteSIMDiscreteField.log");
-
     pProgress progress = Progress_new();
     Progress_setDefaultCallback(progress);
 
@@ -435,7 +431,8 @@ if (pm) {
 
 // auto detect non-rigid body model entities
   bool updateSIMCoordAuto(ph::Input& in, apf::Mesh2* m, int cooperation) {
-    Sim_logOn("updateSIMCoord.log");
+    if (in.writeSimLog)
+      Sim_logOn("updateSIMCoord.log");
 
     pProgress progress = Progress_new();
     Progress_setDefaultCallback(progress);
