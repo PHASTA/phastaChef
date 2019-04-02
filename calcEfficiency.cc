@@ -288,20 +288,19 @@ namespace {
         apf::Vector3 v_eff_elm = apf::Vector3(vms_elm[1]/sqrt(v_err_elm[0]),
                                               vms_elm[2]/sqrt(v_err_elm[1]),
                                               vms_elm[3]/sqrt(v_err_elm[2]));
+        apf::setVector(v_eff_fld,dst_r,0,v_eff_elm);
         apf::setScalar(t_eff_fld,dst_r,0,vms_elm[4]/sqrt(t_err_elm));
     // record global variables
-        if (xyz[1] <= -0.44) { // hardcoding!!!!! only for plane layer BL case
-          p_err_total    += sqrt(p_err_elm);
-          p_vms_total    += vms_elm[0];
-          v_err_total[0] += sqrt(v_err_elm[0]);
-          v_vms_total[0] += vms_elm[1];
-          v_err_total[1] += sqrt(v_err_elm[1]);
-          v_vms_total[1] += vms_elm[2];
-          v_err_total[2] += sqrt(v_err_elm[2]);
-          v_vms_total[2] += vms_elm[3];
-          t_err_total    += sqrt(t_err_elm);
-          t_vms_total    += vms_elm[4];
-        }
+        p_err_total    += sqrt(p_err_elm);
+        p_vms_total    += vms_elm[0];
+        v_err_total[0] += sqrt(v_err_elm[0]);
+        v_vms_total[0] += vms_elm[1];
+        v_err_total[1] += sqrt(v_err_elm[1]);
+        v_vms_total[1] += vms_elm[2];
+        v_err_total[2] += sqrt(v_err_elm[2]);
+        v_vms_total[2] += vms_elm[3];
+        t_err_total    += sqrt(t_err_elm);
+        t_vms_total    += vms_elm[4];
       } // end loop over mesh regions
       RIter_delete(rIter);
       MeshRegionFinder_delete(mrf);
