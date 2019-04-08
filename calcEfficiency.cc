@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-int integrationOrder = 1;
+int integrationOrder = 2;
 
 namespace {
   void freeMesh(apf::Mesh* m) {
@@ -239,7 +239,7 @@ namespace {
           if(foundMR && (dist[0] < tol)) {
     // get value from destination mesh
             apf::DynamicVector dst_sol(apf::countComponents(dst_sol_fld));
-            apf::getComponents(dst_sol_fd_elm,qpt,&dst_sol[0]);
+            apf::getComponents(dst_sol_fd_elm,qpt,&(dst_sol[0]));
     // get value from source mesh
             double* src_sol_scl = new double[1];
             double* src_sol_vec = new double[3];
@@ -283,7 +283,7 @@ namespace {
         } // end loop over quadrature points
     // calculate local efficiency and store in a field
         apf::NewArray<double> vms_elm(apf::countComponents(dst_vms_fld));
-        apf::getComponents(dst_vms_fld,dst_r,0,&vms_elm[0]);
+        apf::getComponents(dst_vms_fld,dst_r,0,&(vms_elm[0]));
         apf::setScalar(p_eff_fld,dst_r,0,vms_elm[0]/sqrt(p_err_elm));
         apf::Vector3 v_eff_elm = apf::Vector3(vms_elm[1]/sqrt(v_err_elm[0]),
                                               vms_elm[2]/sqrt(v_err_elm[1]),
