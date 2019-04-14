@@ -291,16 +291,16 @@ namespace {
         apf::setVector(v_eff_fld,dst_r,0,v_eff_elm);
         apf::setScalar(t_eff_fld,dst_r,0,vms_elm[4]/sqrt(t_err_elm));
     // record global variables
-        p_err_total    += sqrt(p_err_elm);
-        p_vms_total    += vms_elm[0];
-        v_err_total[0] += sqrt(v_err_elm[0]);
-        v_vms_total[0] += vms_elm[1];
-        v_err_total[1] += sqrt(v_err_elm[1]);
-        v_vms_total[1] += vms_elm[2];
-        v_err_total[2] += sqrt(v_err_elm[2]);
-        v_vms_total[2] += vms_elm[3];
-        t_err_total    += sqrt(t_err_elm);
-        t_vms_total    += vms_elm[4];
+        p_err_total    += p_err_elm;
+        p_vms_total    += vms_elm[0]*vms_elm[0];
+        v_err_total[0] += v_err_elm[0];
+        v_vms_total[0] += vms_elm[1]*vms_elm[1];
+        v_err_total[1] += v_err_elm[1];
+        v_vms_total[1] += vms_elm[2]*vms_elm[2];
+        v_err_total[2] += v_err_elm[2];
+        v_vms_total[2] += vms_elm[3]*vms_elm[3];
+        t_err_total    += t_err_elm;
+        t_vms_total    += vms_elm[4]*vms_elm[4];
       } // end loop over mesh regions
       RIter_delete(rIter);
       MeshRegionFinder_delete(mrf);
@@ -320,11 +320,11 @@ namespace {
     // print global efficiency
     if (!PCU_Comm_Self()) {
       printf("global efficiency (p,u,v,w,t): %f, %f, %f, %f, %f\n",
-                               p_vms_total/p_err_total,
-                               v_vms_total[0]/v_err_total[0],
-                               v_vms_total[1]/v_err_total[1],
-                               v_vms_total[2]/v_err_total[2],
-                               t_vms_total/t_err_total);
+                            sqrt(p_vms_total)/sqrt(p_err_total),
+                            sqrt(v_vms_total[0])/sqrt(v_err_total[0]),
+                            sqrt(v_vms_total[1])/sqrt(v_err_total[1]),
+                            sqrt(v_vms_total[2])/sqrt(v_err_total[2]),
+                            sqrt(t_vms_total)/sqrt(t_err_total));
     }
 
     // partition the dst mesh
