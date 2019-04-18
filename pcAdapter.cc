@@ -154,7 +154,7 @@ namespace pc {
     MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
     MSA_setBLSnapping(adapter, 0); // currently needed for parametric model
     MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
-    MSA_setSizeGradation(adapter, 1, 0.66667); // set mesh gradation
+//    MSA_setSizeGradation(adapter, 1, 0.66667); // set mesh gradation
 
 // create a field to store mesh size
     if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));

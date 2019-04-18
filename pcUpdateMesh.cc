@@ -629,6 +629,8 @@ if (pm) {
     writeSIMModel(model, in.timeStepNumber, "sim_model_");
     if (cooperation)
       writeSIMMesh(ppm, in.timeStepNumber, "sim_mesh_");
+    else
+      writeSIMMesh(ppm, in.timeStepNumber, "sim_moved_mesh_");
 
     Progress_delete(progress);
     return true;
