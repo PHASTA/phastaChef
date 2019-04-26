@@ -24,6 +24,7 @@
 #include <MeshSimAdapt.h>
 
 #include "pcAdapter.h"
+#include "pcError.h"
 
 #include <cstring>
 #include <cassert>
@@ -196,27 +197,11 @@ namespace {
     // loop over destination mesh regions
       RIter rIter = M_classifiedRegionIter(dst_mesh, dst_modelRegion);
       while((dst_meshRegion = RIter_next(rIter))){
-    // calculate shortest edge in this element
-        int useFirFlag = 1;
-        double min = 0.0;
-        deList = R_edges(dst_meshRegion, 1);
-        void *eiter = 0;
-        while((dst_meshEdge = (pEdge)PList_next(deList, &eiter))){
-          double el = E_length(dst_meshEdge);
-          if (useFirFlag) {
-            min = el;
-            useFirFlag = 0;
-          }
-          else {
-            if (el < min)
-              min = el;
-          }
-        }
-        PList_clear(deList);
-        double tol = searchFactor * min;
-
-    // loop over quadrature points
         dst_r = reinterpret_cast<apf::MeshEntity*>(dst_meshRegion);
+    // calculate shortest edge in this element
+        double min = pc::getShortestEdgeLength(dst_m,dst_r);
+        double tol = searchFactor * min;
+    // loop over quadrature points
         dst_elm = apf::createMeshElement(dst_m,dst_r);
         int numqpt = apf::countIntPoints(dst_elm,integrationOrder);
         double p_err_elm = 0.0;

@@ -12,11 +12,31 @@
 #include <phastaChef.h>
 
 namespace pc {
+  double getShortestEdgeLength(apf::Mesh* m, apf::MeshEntity* elm) {
+    int useFirFlag = 1;
+    double min = 0.0;
+    apf::Downward edges;
+    int nd = m->getDownward(elm, 1, edges);
+    for (int i=0; i < nd; ++i) {
+      double el = apf::measure(m,edges[i]);
+      if (useFirFlag) {
+        min = el;
+        useFirFlag = 0;
+      }
+      else {
+        if (el < min) min = el;
+      }
+    }
+    return min;
+  }
+
   void attachVMSSizeFieldH1(apf::Mesh2*& m, ph::Input& in) {
     //read phasta element-based field VMS_error
     apf::Field* err = m->findField("VMS_error");
+    assert(err);
     //get nodal-based mesh size field
     apf::Field* sizes = m->findField("sizes");
+    assert(sizes);
     //create a field to store element-based mesh size
     int nsd = m->getDimension();
     apf::Field* elm_size = apf::createField(m, "elm_size", apf::SCALAR, apf::getConstant(nsd));
@@ -39,8 +59,12 @@ namespace pc {
       //get shortest height of this element
       if (nsd == 2)
         h_old = sqrt(apf::measure(me) * 4 / sqrt(3));
-      else
-        h_old = apf::computeShortestHeightInTet(m,elm);
+      else {
+        if (m->getType(elm) == apf::Mesh::TET)
+          h_old = apf::computeShortestHeightInTet(m,elm);
+        else
+          h_old = pc::getShortestEdgeLength(m,elm);
+      }
       //get error
       apf::getComponents(err, elm, 0, &curr_err[0]);
       //get new size

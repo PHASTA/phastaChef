@@ -10,7 +10,7 @@
 
 namespace pc {
 
-  void addSmootherInMover(apf::Mesh2* m, double gradingFactor);
+  void addSmoother(apf::Mesh2* m, double gradingFactor);
 
   void meshGradation(apf::Mesh2* m, double gradingFactor);
 
