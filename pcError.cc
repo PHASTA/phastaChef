@@ -33,10 +33,8 @@ namespace pc {
   void attachVMSSizeFieldH1(apf::Mesh2*& m, ph::Input& in) {
     //read phasta element-based field VMS_error
     apf::Field* err = m->findField("VMS_error");
-    assert(err);
     //get nodal-based mesh size field
     apf::Field* sizes = m->findField("sizes");
-    assert(sizes);
     //create a field to store element-based mesh size
     int nsd = m->getDimension();
     apf::Field* elm_size = apf::createField(m, "elm_size", apf::SCALAR, apf::getConstant(nsd));
@@ -121,7 +119,23 @@ namespace pc {
     apf::destroyField(elm_size);
   }
 
-  void attachVMSSizeField(apf::Mesh2*& m, ph::Input& in) {
+  void attachVMSSizeField(apf::Mesh2*& m, ph::Input& in, phSolver::Input& inp) {
+    // make sure we have VMS error field and newly-created size field
+    assert(m->findField("VMS_error"));
+    assert(m->findField("sizes"));
+    // make sure that the desired error is less than the triggered error
+    // Otherwise, it will keep triggering mesh adaptation
+    if((string)inp.GetValue("Error Trigger Equation Option") != "Mass")
+      assert( in.simAdaptDesiredErrorMass < (double)inp.GetValue("Error Threshold for Mass Equation"));
+    else if ((string)inp.GetValue("Error Trigger Equation Option") != "Mass")
+      assert( in.simAdaptDesiredErrorMomt < (double)inp.GetValue("Error Threshold for Momentum Equation"));
+    else if ((string)inp.GetValue("Error Trigger Equation Option") != "Mass")
+      assert( in.simAdaptDesiredErrorEnrg < (double)inp.GetValue("Error Threshold for Energy Equation"));
+    else if ((string)inp.GetValue("Error Trigger Equation Option") != "Mass") {
+      assert( in.simAdaptDesiredErrorMass < (double)inp.GetValue("Error Threshold for Mass Equation"));
+      assert( in.simAdaptDesiredErrorMomt < (double)inp.GetValue("Error Threshold for Momentum Equation"));
+      assert( in.simAdaptDesiredErrorEnrg < (double)inp.GetValue("Error Threshold for Energy Equation"));
+    }
     attachVMSSizeFieldH1(m, in);
   }
 }

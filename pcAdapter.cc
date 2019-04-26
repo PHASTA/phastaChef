@@ -158,9 +158,10 @@ namespace pc {
 // create a field to store mesh size
     if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
     apf::Field* sizes = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
+    phSolver::Input inp("solver.inp", "input.config");
 // switch between VMS error mesh size and initial mesh size
-    if(m->findField("VMS_error")) {
-      pc::attachVMSSizeField(m, in);
+    if((string)inp.GetValue("Error Estimation Option") != "False") {
+      pc::attachVMSSizeField(m, in, inp);
     }
     else {
       if(m->findField("frames")) apf::destroyField(m->findField("frames"));

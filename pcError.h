@@ -13,7 +13,7 @@
 namespace pc {
   double getShortestEdgeLength(apf::Mesh* m, apf::MeshEntity* elm);
 
-  void attachVMSSizeField(apf::Mesh2*& m, ph::Input& inp);
+  void attachVMSSizeField(apf::Mesh2*& m, ph::Input& in, phSolver::Input& inp);
 }
 
 #endif
