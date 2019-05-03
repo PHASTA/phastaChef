@@ -324,9 +324,8 @@ if (pm) {
 
 // hardcoding {
   void prescribe_proj_mesh_size(
-    pGModel model, pMesh pm, apf::Mesh2* m,
-    apf::Field* sizes, double proj_disp
-  ) {
+    apf::Mesh2* m, apf::Field* sizes, double proj_disp)
+  {
     // hardcoded parameters
 //    int tailFace = 110; // 2mm case
 //    int headFace = 145; // 2mm case
@@ -348,6 +347,14 @@ if (pm) {
     apf::Vector3 fine_size = apf::Vector3(0.0005,0.0005,0.0005);
     apf::Vector3 mode_size = apf::Vector3(0.004,0.004,0.004);
     apf::Vector3 cors_size = apf::Vector3(0.008,0.008,0.008);
+
+    // load model and mesh
+    apf::MeshSIM* apf_msim = dynamic_cast<apf::MeshSIM*>(m);
+    pParMesh ppm = apf_msim->getMesh();
+    pMesh pm = PM_mesh(ppm,0);
+
+    gmi_model* gmiModel = apf_msim->getModel();
+    pGModel model = gmi_export_sim(gmiModel);
 
     // find the range of the refinement zone around the projectile
     pGFace p_left = (pGFace)GM_entityByTag(model, 2, tailFace); // tail face
