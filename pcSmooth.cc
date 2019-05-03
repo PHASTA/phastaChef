@@ -74,8 +74,10 @@ int gradeSizeModify(apf::Mesh* m, double gradingFactor,
         m->getIntTag(vertAdjEdg[i],isMarked,&marker[2]);
         //if edge is not already marked
         if(!marker[2]){
-          m->setIntTag(vertAdjEdg[i],isMarked,&marker[1]);
-          markedEdges.push(vertAdjEdg[i]);
+//          if (isInCylinder(vertAdjEdg[i])) { // for projectile case only
+            m->setIntTag(vertAdjEdg[i],isMarked,&marker[1]);
+            markedEdges.push(vertAdjEdg[i]);
+//          }
         }
       }
     } //end isOwned
@@ -109,6 +111,9 @@ void markEdgesInitial(apf::Mesh* m, std::queue<apf::MeshEntity*> &markedEdges,do
   while((edge=m->iterate(it))){
     m->getAdjacent(edge, 0, edgAdjVert);
 
+    // for projectile case only
+//    if (isInCylinder(edge)) {
+
     for (std::size_t i=0; i < edgAdjVert.getSize(); ++i){
       apf::getVector(sizes,edgAdjVert[i],0,v_mag);
       size[i] = v_mag[0];
@@ -119,6 +124,8 @@ void markEdgesInitial(apf::Mesh* m, std::queue<apf::MeshEntity*> &markedEdges,do
       //tag edge to indicate that it is part of queue
       m->setIntTag(edge,isMarked,&marker[1]);
     }
+
+//    } // end isInCylinder
     else{
       m->setIntTag(edge,isMarked,&marker[0]);
     }
@@ -227,10 +234,13 @@ void meshGradation(apf::Mesh2* m, double gradingFactor)
       {
         edge = vertAdjEdg[i];
         m->getIntTag(vertAdjEdg[i],isMarked,&marker[2]);
-        if(!marker[2]) {
-          markedEdges.push(edge);
-          //tag edge to indicate that it is part of queue
-          m->setIntTag(edge,isMarked,&marker[1]);
+        if(!marker[2])
+        {
+//          if (isInCylinder(edge)) { // for projectile case only
+            markedEdges.push(edge);
+            //tag edge to indicate that it is part of queue
+            m->setIntTag(edge,isMarked,&marker[1]);
+//          }
         }
       }
       updateRemoteVertices.push(ent);
@@ -270,10 +280,13 @@ void meshGradation(apf::Mesh2* m, double gradingFactor)
       {
         edge = vertAdjEdg[i];
         m->getIntTag(vertAdjEdg[i],isMarked,&marker[2]);
-        if(!marker[2]) {
-          markedEdges.push(edge);
-          //tag edge to indicate that it is part of queue
-          m->setIntTag(edge,isMarked,&marker[1]);
+        if(!marker[2])
+        {
+//          if (isInCylinder(edge)) { // for projectile case only
+            markedEdges.push(edge);
+            //tag edge to indicate that it is part of queue
+            m->setIntTag(edge,isMarked,&marker[1]);
+//          }
         }
       }
     }
