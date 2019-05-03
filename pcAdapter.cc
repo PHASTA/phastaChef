@@ -459,8 +459,9 @@ namespace pc {
     /* initial ctcn field */
     pc::initializeCtCn(m);
 
-    /* apply upper bound */
-    pc::applyMaxSizeBound(m, sizes, in);
+// prescribe mesh size field for the projectile case
+// this is hardcoded, please comment out this call for other usage
+    pc::prescribe_proj_mesh_size(model, pm, m, sizes, in.rbParamData[0]);
 
     /* apply max number of element */
     double cn = pc::applyMaxNumberElement(m, sizes, in);
