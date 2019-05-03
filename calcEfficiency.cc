@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+int normOptInt = 0;
 int integrationOrder = 2;
 
 namespace {
@@ -94,10 +95,10 @@ namespace {
     Progress_setDefaultCallback(progress);
 
     // load fields from the source/reference mesh
+    int num_flds = 3;
     chef::readAndAttachFields(src_ctrl,src_m);
     PCU_ALWAYS_ASSERT(src_m->findField("solution"));
     removeFieldsExceptSol(src_m);
-    int num_flds = 3;
     pField* src_sol_fld = new pField[num_flds];
     src_sol_fld[0] = apf::getSIMField(chef::extractField(src_m,"solution","pressure",1,apf::SCALAR,1));
     src_sol_fld[1] = apf::getSIMField(chef::extractField(src_m,"solution","velocity",2,apf::VECTOR,1));
@@ -106,9 +107,13 @@ namespace {
 
     // load fields from the destination mesh
     chef::readAndAttachFields(dst_ctrl,dst_m);
-    apf::Field* dst_sol_fld = dst_m->findField("solution");
+    PCU_ALWAYS_ASSERT(dst_m->findField("solution"));
+    apf::Field* dst_sol_fld = new apf::Field[num_flds];
+    dst_sol_fld[0] = chef::extractField(dst_m,"solution","pressure",1,apf::SCALAR,0);
+    dst_sol_fld[1] = chef::extractField(dst_m,"solution","velocity",2,apf::VECTOR,0);
+    dst_sol_fld[2] = chef::extractField(dst_m,"solution","temperature",5,apf::SCALAR,0);
+    apf::destroyField(dst_m->findField("solution"));
     apf::Field* dst_vms_fld = dst_m->findField("VMS_error");
-    PCU_ALWAYS_ASSERT(dst_sol_fld);
     PCU_ALWAYS_ASSERT(dst_vms_fld);
     PCU_ALWAYS_ASSERT(apf::countComponents(dst_vms_fld) == 5);
 
@@ -207,7 +212,9 @@ namespace {
         double p_err_elm = 0.0;
         apf::Vector3 v_err_elm = apf::Vector3(0.0, 0.0, 0.0);
         double t_err_elm = 0.0;
-        apf::Element* dst_sol_fd_elm = apf::createElement(dst_sol_fld,dst_elm);
+        apf::Element* dst_sol_fd_elm0 = apf::createElement(dst_sol_fld[0],dst_elm);
+        apf::Element* dst_sol_fd_elm1 = apf::createElement(dst_sol_fld[1],dst_elm);
+        apf::Element* dst_sol_fd_elm2 = apf::createElement(dst_sol_fld[2],dst_elm);
         for(int i=0;i<numqpt;i++){
           apf::getIntPoint(dst_elm,integrationOrder,i,qpt);
           weight = apf::getIntWeight(dst_elm,integrationOrder,i);
@@ -222,39 +229,59 @@ namespace {
           double dist[1] = {0.0};
           pRegion foundMR = MeshRegionFinder_find(mrf, loc, params, dist);
           if(foundMR && (dist[0] < tol)) {
-    // get value from destination mesh
-            apf::DynamicVector dst_sol(apf::countComponents(dst_sol_fld));
-            apf::getComponents(dst_sol_fd_elm,qpt,&(dst_sol[0]));
-    // get value from source mesh
-            double* src_sol_scl = new double[1];
-            double* src_sol_vec = new double[3];
+    // declare interpolation element for source mesh
             pInterp intp0 = Field_entInterp(src_sol_fld[0], foundMR);
             pInterp intp1 = Field_entInterp(src_sol_fld[1], foundMR);
             pInterp intp2 = Field_entInterp(src_sol_fld[2], foundMR);
-    // calculate pressure true error
-            Interp_deriv0(intp0, params, 0, src_sol_scl);
-            p_err_elm += (dst_sol[0] - src_sol_scl[0])*(dst_sol[0] - src_sol_scl[0])*weight*Jdet;
-    // calculate velocity true error
-            Interp_deriv0(intp1, params, 0, src_sol_vec);
-            v_err_elm[0] += (dst_sol[1] - src_sol_vec[0])*(dst_sol[1] - src_sol_vec[0])*weight*Jdet;
-            v_err_elm[1] += (dst_sol[2] - src_sol_vec[1])*(dst_sol[2] - src_sol_vec[1])*weight*Jdet;
-            v_err_elm[2] += (dst_sol[3] - src_sol_vec[2])*(dst_sol[3] - src_sol_vec[2])*weight*Jdet;
-    // calculate temperature true error
-            Interp_deriv0(intp2, params, 0, src_sol_scl);
-            t_err_elm += (dst_sol[4] - src_sol_scl[0])*(dst_sol[4] - src_sol_scl[0])*weight*Jdet;
-/*
-            apf::Matrix3x3 velGrad;
-            apf::Matrix3x3 velRefGrad;
-            apf::getVectorGrad(velElem,qpt,velGrad);
-            apf::getVectorGrad(velRefElem,qpt,velRefGrad);
 
-            apf::Matrix3x3 errGrad = velGrad-velRefGrad;
-            for(int j=0; j< 3; j++){
-              for(int k=0;k<3; k++){
-                tempH1semi+=errGrad[j][k]*errGrad[j][k]*weight*Jdet;
+            if (normOptInt == 2) {
+    // get value from destination mesh
+              double dst_sol_p = apf::getScalar(dst_sol_fd_elm0,qpt);
+              apf::Vector3 dst_sol_v = {0.0, 0.0, 0.0};
+              apf::getVector(dst_sol_fd_elm1,qpt,dst_sol_v);
+              double dst_sol_t = apf::getScalar(dst_sol_fd_elm2,qpt);
+    // get value from source mesh
+              double* src_sol_p = new double[1];
+              double* src_sol_v = new double[3];
+              double* src_sol_t = new double[1];
+              Interp_deriv0(intp0, params, 0, src_sol_p);
+              Interp_deriv0(intp1, params, 0, src_sol_v);
+              Interp_deriv0(intp2, params, 0, src_sol_t);
+    // calculate pressure true error
+              p_err_elm += (dst_sol_p - src_sol_p[0])*(dst_sol_p - src_sol_p[0])*weight*Jdet;
+    // calculate velocity true error
+              v_err_elm[0] += (dst_sol_v[0] - src_sol_v[0])*(dst_sol_v[0] - src_sol_v[0])*weight*Jdet;
+              v_err_elm[1] += (dst_sol_v[1] - src_sol_v[1])*(dst_sol_v[1] - src_sol_v[1])*weight*Jdet;
+              v_err_elm[2] += (dst_sol_v[2] - src_sol_v[2])*(dst_sol_v[2] - src_sol_v[2])*weight*Jdet;
+    // calculate temperature true error
+              t_err_elm += (dst_sol_t - src_sol_t[0])*(dst_sol_t - src_sol_t[0])*weight*Jdet;
+            }
+            else if (normOptInt == 1) {
+    // get gradient value from destination mesh
+              apf::Vector3 dst_sol_dp = {0.0, 0.0, 0.0};
+              apf::getGrad(dst_sol_fd_elm0,qpt,dst_sol_dp);
+              apf::Matrix3x3 dst_sol_dv;
+              apf::getVectorGrad(dst_sol_fd_elm1,qpt,dst_sol_dv);
+              apf::Vector3 dst_sol_dt = {0.0, 0.0, 0.0};
+              apf::getGrad(dst_sol_fd_elm2,qpt,dst_sol_dt);
+    // get gradient value from source mesh
+              double* src_sol_dp = new double[3];
+              double* src_sol_dv = new double[9];
+              double* src_sol_dt = new double[3];
+              Interp_deriv1(intp0, params, 0, src_sol_dp);
+              Interp_deriv1(intp1, params, 0, src_sol_dv);
+              Interp_deriv1(intp2, params, 0, src_sol_dt);
+              for(int j=0; j< 3; j++){ // derivative index
+    // calculate pressure true error
+                p_err_elm += (dst_sol_dp[j]-src_sol_dp[j])*(dst_sol_dp[j]-src_sol_dp[j])*weight*Jdet;
+    // calculate velocity true error
+                for(int k=0; k<3; k++){ // vector index
+                  v_err_elm[k]+=(dst_sol_dv[j][k]-src_sol_dv[k*3+j])*(dst_sol_dv[j][k]-src_sol_dv[k*3+j])*weight*Jdet;
+                }
+    // calculate temperature true error
+                t_err_elm += (dst_sol_dt[j]-src_sol_dt[j])*(dst_sol_dt[j]-src_sol_dt[j])*weight*Jdet;
               }
             }
-*/
             Interp_delete(intp0);
             Interp_delete(intp1);
             Interp_delete(intp2);
@@ -331,14 +358,22 @@ int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   PCU_Comm_Init();
   PCU_Protect();
-  if( argc != 4 ) {
+  if( argc != 5 ) {
     if(!PCU_Comm_Self())
-      fprintf(stderr, "Usage: %s <refer_mesh.sms> <refer_restart_dir> <p_order>\n",argv[0]);
+      fprintf(stderr, "Usage: %s <refer_mesh.sms> <refer_restart_dir> <norm(H1/L2)> <p_order>\n",argv[0]);
     exit(EXIT_FAILURE);
   }
   const char* referMeshFile   = argv[1];
   const char* referRestartDir = argv[2];
-  integrationOrder = atoi(argv[3]);
+  const char* normType = argv[3];
+  integrationOrder = atoi(argv[4]);
+  if(normType == "H1") normOptInt = 1;
+  else if (normType == "L2") normOptInt = 2;
+  else {
+    if(!PCU_Comm_Self())
+      fprintf(stderr, "Usage: %s <refer_mesh.sms> <refer_restart_dir> <norm(H1/L2)> <p_order>\n",argv[0]);
+    exit(EXIT_FAILURE);
+  }
 
   rstream rs = makeRStream();
   rstream ref_rs = makeRStream();
