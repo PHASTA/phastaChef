@@ -108,10 +108,9 @@ namespace {
     // load fields from the destination mesh
     chef::readAndAttachFields(dst_ctrl,dst_m);
     PCU_ALWAYS_ASSERT(dst_m->findField("solution"));
-    apf::Field* dst_sol_fld = new apf::Field[num_flds];
-    dst_sol_fld[0] = chef::extractField(dst_m,"solution","pressure",1,apf::SCALAR,0);
-    dst_sol_fld[1] = chef::extractField(dst_m,"solution","velocity",2,apf::VECTOR,0);
-    dst_sol_fld[2] = chef::extractField(dst_m,"solution","temperature",5,apf::SCALAR,0);
+    apf::Field* dst_sol_fld0 = chef::extractField(dst_m,"solution","pressure",1,apf::SCALAR,0);
+    apf::Field* dst_sol_fld1 = chef::extractField(dst_m,"solution","velocity",2,apf::VECTOR,0);
+    apf::Field* dst_sol_fld2 = chef::extractField(dst_m,"solution","temperature",5,apf::SCALAR,0);
     apf::destroyField(dst_m->findField("solution"));
     apf::Field* dst_vms_fld = dst_m->findField("VMS_error");
     PCU_ALWAYS_ASSERT(dst_vms_fld);
@@ -212,9 +211,9 @@ namespace {
         double p_err_elm = 0.0;
         apf::Vector3 v_err_elm = apf::Vector3(0.0, 0.0, 0.0);
         double t_err_elm = 0.0;
-        apf::Element* dst_sol_fd_elm0 = apf::createElement(dst_sol_fld[0],dst_elm);
-        apf::Element* dst_sol_fd_elm1 = apf::createElement(dst_sol_fld[1],dst_elm);
-        apf::Element* dst_sol_fd_elm2 = apf::createElement(dst_sol_fld[2],dst_elm);
+        apf::Element* dst_sol_fd_elm0 = apf::createElement(dst_sol_fld0,dst_elm);
+        apf::Element* dst_sol_fd_elm1 = apf::createElement(dst_sol_fld1,dst_elm);
+        apf::Element* dst_sol_fd_elm2 = apf::createElement(dst_sol_fld2,dst_elm);
         for(int i=0;i<numqpt;i++){
           apf::getIntPoint(dst_elm,integrationOrder,i,qpt);
           weight = apf::getIntWeight(dst_elm,integrationOrder,i);
