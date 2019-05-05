@@ -359,18 +359,16 @@ int main(int argc, char** argv) {
   PCU_Protect();
   if( argc != 5 ) {
     if(!PCU_Comm_Self())
-      fprintf(stderr, "Usage: %s <refer_mesh.sms> <refer_restart_dir> <norm(H1/L2)> <p_order>\n",argv[0]);
+      fprintf(stderr, "Usage: %s <refer_mesh.sms> <refer_restart_dir> <norm(1:H1/2:L2)> <p_order>\n",argv[0]);
     exit(EXIT_FAILURE);
   }
   const char* referMeshFile   = argv[1];
   const char* referRestartDir = argv[2];
-  const char* normType = argv[3];
+  normOptInt = atoi(argv[3]);
   integrationOrder = atoi(argv[4]);
-  if(normType == "H1") normOptInt = 1;
-  else if (normType == "L2") normOptInt = 2;
-  else {
+  if (normOptInt < 1 || normOptInt > 2) {
     if(!PCU_Comm_Self())
-      fprintf(stderr, "Usage: %s <refer_mesh.sms> <refer_restart_dir> <norm(H1/L2)> <p_order>\n",argv[0]);
+      fprintf(stderr, "Usage: integer argument <norm(H1/L2)> should be 1 (H1) or 2 (L2)\n",argv[0]);
     exit(EXIT_FAILURE);
   }
 
