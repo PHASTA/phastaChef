@@ -76,10 +76,13 @@ namespace pc {
       //get new size
       //currently, we only focus on the momemtum error // debugging
       double factor = 0.0;
-      factor = desr_err[1] / sqrt(curr_err[1]*curr_err[1]
-                                 +curr_err[2]*curr_err[2]
-                                 +curr_err[3]*curr_err[3]);
-      h_new = h_old/sqrt(3) * pow(factor, 2.0/(2.0*(1.0+1.0-exp_m)+(double)nsd));
+//      if (desr_err[1] / curr_err[1] > 100.0)
+//        factor = 100.0;
+//      else
+        factor = desr_err[1] / sqrt(curr_err[1]*curr_err[1]
+                                   +curr_err[2]*curr_err[2]
+                                   +curr_err[3]*curr_err[3]);
+      h_new = h_old * pow(factor, 2.0/(2.0*(1.0)+nsd));
       //set new size
       apf::setScalar(elm_size, elm, 0, h_new);
     }
@@ -122,6 +125,9 @@ namespace pc {
     //delete element-based error and mesh size
     apf::destroyField(cur_size);
     apf::destroyField(elm_size);
+
+    // additional writing to see mesh size before adaptation
+    pc::writeSequence(m, in.timeStepNumber, "error_mesh_size_");
   }
 
   void attachVMSSizeField(apf::Mesh2*& m, ph::Input& in, phSolver::Input& inp) {

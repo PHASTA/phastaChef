@@ -22,6 +22,19 @@ extern void MSA_setBLSnapping(pMSAdapt, int onoff);
 
 namespace pc {
 
+  bool vertexIsInCylinder(apf::MeshEntity* v) {
+    double x_min = 0.0;
+    double x_max = 2.0;
+    double r_max = 0.065;
+
+    apf::Vector3 xyz = apf::Vector3(0.0,0.0,0.0);
+    m->getPoint(v,0,xyz);
+    double xyz_r = sqrt(xyz[1]*xyz[1] + xyz[2]*xyz[2]);
+    if (xyz[0] > x_min && xyz[0] < x_max && xyz_r < r_max)
+      return true;
+    return false;
+  }
+
   apf::Field* convertField(apf::Mesh* m,
     const char* inFieldname,
     const char* outFieldname) {
@@ -486,6 +499,7 @@ namespace pc {
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
     while ((v = m->iterate(vit))) {
+      if(!vertexIsInCylinder(v)) continue;
       apf::getVector(sizes,v,0,v_mag);
       pVertex meshVertex = reinterpret_cast<pVertex>(v);
       MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
