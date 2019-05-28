@@ -501,8 +501,6 @@ namespace pc {
     while ((v = m->iterate(vit))) {
       if(!vertexIsInCylinder(v)) continue;
       apf::getVector(sizes,v,0,v_mag);
-      if(v_mag[0] > 0.008)  v_mag[0] = 0.008;
-      if(v_mag[0] < 0.0005) v_mag[0] = 0.0005;
       pVertex meshVertex = reinterpret_cast<pVertex>(v);
       MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
     }
