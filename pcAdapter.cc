@@ -13,6 +13,8 @@
 #include <PCU.h>
 #include <cassert>
 #include <phastaChef.h>
+#include <maStats.h>
+#include <apfShape.h>
 
 extern void MSA_setBLSnapping(pMSAdapt, int onoff);
 
@@ -44,11 +46,29 @@ namespace pc {
     return outf;
   }
 
+  void attachMeshSizeField(apf::Mesh2*& m, ph::Input& in) {
+    /* create a field to store mesh size */
+    if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
+    apf::Field* sizes = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
+    phSolver::Input inp("solver.inp", "input.config");
+    /* switch between VMS error mesh size and initial mesh size */
+    if((string)inp.GetValue("Error Estimation Option") != "False") {
+      pc::attachVMSSizeField(m, in, inp);
+    }
+    else {
+      if(m->findField("frames")) apf::destroyField(m->findField("frames"));
+      apf::Field* frames = apf::createSIMFieldOn(m, "frames", apf::MATRIX);
+      ph::attachSIMSizeField(m, sizes, frames);
+    }
+    /* add mesh smooth/gradation function here */
+    pc::addSmoother(m, in.gradingFactor);
+  }
+
   int getNumOfMappedFields(phSolver::Input& inp) {
     /* initially, we have 7 fields: pressure, velocity, temperature,
        time der of pressure, time der of velocity, time der of temperature,
-       and mehs velocity */
-    int numOfMappedFields = 7;
+       ,mesh velocity and mesh size field */
+    int numOfMappedFields = 8;
     return numOfMappedFields;
   }
 
@@ -57,7 +77,7 @@ namespace pc {
      certain field if corresponding option is on */
   void removeOtherFields(apf::Mesh2*& m, phSolver::Input& inp) {
     int index = 0;
-    int numOfPackFields = 3;
+    int numOfPackFields = 4;
     try {
       if ((string)inp.GetValue("Error Estimation Option") != "False") {
         numOfPackFields += 1;
@@ -68,7 +88,8 @@ namespace pc {
       apf::Field* f = m->getField(index);
       if ( f == m->findField("solution") ||
            f == m->findField("time derivative of solution") ||
-           f == m->findField("mesh_vel") ) {
+           f == m->findField("mesh_vel") ||
+           f == m->findField("sizes") ) {
         index++;
         continue;
       }
@@ -110,6 +131,11 @@ namespace pc {
       apf::destroyField(m->findField("mesh_vel"));
     }
 
+    if (m->findField("sizes")) {
+      num_flds += 1;
+      sim_flds[7] = apf::getSIMField(m->findField("sizes"));
+    }
+
     return num_flds;
   }
 
@@ -131,6 +157,67 @@ namespace pc {
     return sim_fld_lst;
   }
 
+  void measureIsoMeshAndWrite(apf::Mesh2*& m, ph::Input& in) {
+    apf::Field* sizes = m->findField("sizes");
+    assert(sizes);
+    apf::Field* isoSize = apf::createFieldOn(m, "iso_size", apf::SCALAR);
+    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      apf::getVector(sizes,v,0,v_mag);
+      apf::setScalar(isoSize,v,0,v_mag[0]);
+    }
+    m->end(vit);
+
+    if (PCU_Comm_Self() == 0)
+      printf("\n evaluating the statistics! \n");
+    // get the stats
+    ma::SizeField* sf = ma::makeSizeField(m, isoSize);
+    std::vector<double> el, lq;
+    ma::stats(m, sf, el, lq, true);
+
+    // create field for visualizaition
+    apf::Field* f_lq = apf::createField(m, "linear_quality", apf::SCALAR, apf::getConstant(m->getDimension()));
+
+    // attach cell-based mesh quality
+    int n;
+    apf::MeshEntity* r;
+    if (m->getDimension() == 3)
+      n = apf::countEntitiesOfType(m, apf::Mesh::TET);
+    else
+      n = apf::countEntitiesOfType(m, apf::Mesh::TRIANGLE);
+    size_t i = 0;
+    apf::MeshIterator* rit = m->begin(m->getDimension());
+    while ((r = m->iterate(rit))) {
+      if (! apf::isSimplex(m->getType(r))) {// ignore non-simplex elements
+        apf::setScalar(f_lq, r, 0, 100.0); // set as 100
+      }
+      else {
+        apf::setScalar(f_lq, r, 0, lq[i]);
+        ++i;
+      }
+    }
+    m->end(rit);
+    PCU_ALWAYS_ASSERT(i == (size_t) n);
+
+    // attach current mesh size
+    if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
+    if(m->findField("frames")) apf::destroyField(m->findField("frames"));
+    sizes  = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
+    apf::Field* frames = apf::createSIMFieldOn(m, "frames", apf::MATRIX);
+    ph::attachSIMSizeField(m, sizes, frames);
+
+    // write out mesh
+    pc::writeSequence(m,in.timeStepNumber,"mesh_stats_");
+
+    // delete fields
+    apf::destroyField(sizes);
+    apf::destroyField(frames);
+    apf::destroyField(isoSize);
+    apf::destroyField(f_lq);
+  }
+
   void transferSimFields(apf::Mesh2*& m) {
     if (m->findField("pressure")) // assume we had solution before
       chef::combineField(m,"solution","pressure","velocity","temperature");
@@ -138,6 +225,9 @@ namespace pc {
       chef::combineField(m,"time derivative of solution","der_pressure","der_velocity","der_temperature");
     if (m->findField("mesh_vel_sim"))
       convertField(m, "mesh_vel_sim", "mesh_vel");
+    // destroy mesh size field
+    if(m->findField("sizes"))  apf::destroyField(m->findField("sizes"));
+    if(m->findField("frames")) apf::destroyField(m->findField("frames"));
   }
 
   void setupSimImprover(pVolumeMeshImprover vmi, pPList sim_fld_lst) {
@@ -155,31 +245,12 @@ namespace pc {
     MSA_setBLSnapping(adapter, 0); // currently needed for parametric model
     MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
 
-// create a field to store mesh size
-    if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
-    apf::Field* sizes = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
-    phSolver::Input inp("solver.inp", "input.config");
-// switch between VMS error mesh size and initial mesh size
-    if((string)inp.GetValue("Error Estimation Option") != "False") {
-      pc::attachVMSSizeField(m, in, inp);
-    }
-    else {
-      if(m->findField("frames")) apf::destroyField(m->findField("frames"));
-      apf::Field* frames = apf::createSIMFieldOn(m, "frames", apf::MATRIX);
-      ph::attachSIMSizeField(m, sizes, frames);
-    }
-
-// prescribe mesh size field for the projectile case
-// this is hardcoded, please comment out this call for other usage
-//      pc::prescribe_proj_mesh_size(model, pm, m, sizes, in.rbParamData[0]);
-
-// add mesh smooth/gradation function here
-    pc::addSmoother(m, in.gradingFactor);
-
     /* use current size field */
     if(!PCU_Comm_Self())
       printf("Start mesh adapt of setting size field\n");
 
+    apf::Field* sizes = m->findField("sizes");
+    assert(sizes);
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
@@ -193,9 +264,6 @@ namespace pc {
     /* set fields to be mapped */
     if (PList_size(sim_fld_lst))
       MSA_setMapFields(adapter, sim_fld_lst);
-
-    // destroy mesh size field
-    apf::destroyField(m->findField("sizes"));
   }
 
   void runMeshAdapter(ph::Input& in, apf::Mesh2*& m, apf::Field*& orgSF, int step) {
@@ -218,6 +286,9 @@ namespace pc {
       // declaration
       VIter vIter;
       pVertex meshVertex;
+
+      /* attach mesh size field */
+      attachMeshSizeField(m, in);
 
       /* set fields to be mapped */
       pPList sim_fld_lst = PList_new();
@@ -250,6 +321,9 @@ namespace pc {
 
       /* load balance */
       pc::balanceEqualWeights(sim_pm, progress);
+
+      /* write out mesh quality statistic info */
+      measureIsoMeshAndWrite(m, in);
 
       /* write mesh */
       if(!PCU_Comm_Self())

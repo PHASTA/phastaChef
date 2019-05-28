@@ -12,6 +12,9 @@
 #include <MeshSimAdapt.h>
 
 namespace pc {
+
+  void attachMeshSizeField(apf::Mesh2*& m, ph::Input& in);
+
   int getNumOfMappedFields(phSolver::Input& inp);
 
   void removeOtherFields(apf::Mesh2*& m, phSolver::Input& inp);
@@ -19,6 +22,8 @@ namespace pc {
   int getSimFields(apf::Mesh2*& m, int simFlag, pField* sim_flds, phSolver::Input& inp);
 
   pPList getSimFieldList(ph::Input& in, apf::Mesh2*& m);
+
+  void measureIsoMeshAndWrite(apf::Mesh2*& m, ph::Input& in);
 
   void transferSimFields(apf::Mesh2*& m);
 
