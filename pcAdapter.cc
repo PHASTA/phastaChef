@@ -96,12 +96,6 @@ namespace pc {
   void removeOtherFields(apf::Mesh2*& m, phSolver::Input& inp) {
     int index = 0;
     int numOfPackFields = 4;
-    try {
-      if ((string)inp.GetValue("Error Estimation Option") != "False") {
-        numOfPackFields += 1;
-      }
-    }
-    catch(...){}
     while (m->countFields() > numOfPackFields) {
       apf::Field* f = m->getField(index);
       if ( f == m->findField("solution") ||
@@ -111,14 +105,6 @@ namespace pc {
         index++;
         continue;
       }
-      try {
-        if ((string)inp.GetValue("Error Estimation Option") != "False" &&
-             f == m->findField("VMS_error") ) {
-          index++;
-          continue;
-        }
-      }
-      catch(...){}
       m->removeField(f);
       apf::destroyField(f);
     }
@@ -151,7 +137,8 @@ namespace pc {
 
     if (m->findField("sizes")) {
       num_flds += 1;
-      sim_flds[7] = apf::getSIMField(m->findField("sizes"));
+      sim_flds[7] = apf::getSIMField(chef::extractField(m,"sizes","sizes_sim",1,apf::VECTOR,simFlag));
+      apf::destroyField(m->findField("sizes"));
     }
 
     return num_flds;
@@ -176,7 +163,7 @@ namespace pc {
   }
 
   void measureIsoMeshAndWrite(apf::Mesh2*& m, ph::Input& in) {
-    apf::Field* sizes = m->findField("sizes");
+    apf::Field* sizes = m->findField("sizes_sim");
     assert(sizes);
     apf::Field* isoSize = apf::createFieldOn(m, "iso_size", apf::SCALAR);
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
@@ -222,16 +209,17 @@ namespace pc {
     // attach current mesh size
     if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
     if(m->findField("frames")) apf::destroyField(m->findField("frames"));
-    sizes  = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
-    apf::Field* frames = apf::createSIMFieldOn(m, "frames", apf::MATRIX);
-    ph::attachSIMSizeField(m, sizes, frames);
+    apf::Field* aniSizes  = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
+    apf::Field* aniFrames = apf::createSIMFieldOn(m, "frames", apf::MATRIX);
+    ph::attachSIMSizeField(m, aniSizes, aniFrames);
 
     // write out mesh
     pc::writeSequence(m,in.timeStepNumber,"mesh_stats_");
 
     // delete fields
     apf::destroyField(sizes);
-    apf::destroyField(frames);
+    apf::destroyField(aniSizes);
+    apf::destroyField(aniFrames);
     apf::destroyField(isoSize);
     apf::destroyField(f_lq);
   }
@@ -267,7 +255,7 @@ namespace pc {
     if(!PCU_Comm_Self())
       printf("Start mesh adapt of setting size field\n");
 
-    apf::Field* sizes = m->findField("sizes");
+    apf::Field* sizes = m->findField("sizes_sim");
     assert(sizes);
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::MeshEntity* v;
