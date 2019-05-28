@@ -46,6 +46,22 @@ namespace pc {
     return outf;
   }
 
+  void meshSizeClamp(apf::Mesh2*& m, ph::Input& in, apf::Field* sizes) {
+    assert(sizes);
+    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      apf::getVector(sizes,v,0,v_mag);
+      for (int i = 0; i < 3; i++) {
+        if(v_mag[i] < in.simSizeLowerBound) v_mag[i] = in.simSizeLowerBound;
+        if(v_mag[i] > in.simSizeUpperBound) v_mag[i] = in.simSizeUpperBound;
+      }
+      apf::setVector(sizes,v,0,v_mag);
+    }
+    m->end(vit);
+  }
+
   void attachMeshSizeField(apf::Mesh2*& m, ph::Input& in) {
     /* create a field to store mesh size */
     if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
@@ -62,6 +78,8 @@ namespace pc {
     }
     /* add mesh smooth/gradation function here */
     pc::addSmoother(m, in.gradingFactor);
+    /* limit mesh size in a range */
+    pc::meshSizeClamp(m, in, sizes);
   }
 
   int getNumOfMappedFields(phSolver::Input& inp) {
@@ -323,7 +341,8 @@ namespace pc {
       pc::balanceEqualWeights(sim_pm, progress);
 
       /* write out mesh quality statistic info */
-      measureIsoMeshAndWrite(m, in);
+      if (in.measureAdaptedMesh)
+        measureIsoMeshAndWrite(m, in);
 
       /* write mesh */
       if(!PCU_Comm_Self())

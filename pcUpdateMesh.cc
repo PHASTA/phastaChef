@@ -614,7 +614,8 @@ if (pm) {
       balanceEqualWeights(ppm, progress);
 
       // write out mesh quality statistic info
-      pc::measureIsoMeshAndWrite(m, in);
+      if (in.measureAdaptedMesh)
+        pc::measureIsoMeshAndWrite(m, in);
 
       // transfer sim fields to apf fields
       if (in.solutionMigration)

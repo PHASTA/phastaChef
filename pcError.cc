@@ -30,7 +30,7 @@ namespace pc {
     return min;
   }
 
-  void attachVMSSizeFieldH1(apf::Mesh2*& m, ph::Input& in) {
+  void calAndAttachVMSSizeField(apf::Mesh2*& m, ph::Input& in) {
     //read phasta element-based field VMS_error
     apf::Field* err = m->findField("VMS_error");
     //get nodal-based mesh size field
@@ -68,12 +68,9 @@ namespace pc {
       //get new size
       //currently, we only focus on the momemtum error // debugging
       double factor = 0.0;
-      if (desr_err[1] / curr_err[1] > 100.0)
-        factor = 100.0;
-      else
-        factor = desr_err[1] / sqrt(curr_err[1]*curr_err[1]
-                                   +curr_err[2]*curr_err[2]
-                                   +curr_err[3]*curr_err[3]);
+      factor = desr_err[1] / sqrt(curr_err[1]*curr_err[1]
+                                 +curr_err[2]*curr_err[2]
+                                 +curr_err[3]*curr_err[3]);
       h_new = h_old * pow(factor, 2.0/(2.0*(1.0)+nsd));
       //set new size
       apf::setScalar(elm_size, elm, 0, h_new);
@@ -136,6 +133,6 @@ namespace pc {
       assert( in.simAdaptDesiredErrorMomt < (double)inp.GetValue("Error Threshold for Momentum Equation"));
       assert( in.simAdaptDesiredErrorEnrg < (double)inp.GetValue("Error Threshold for Energy Equation"));
     }
-    attachVMSSizeFieldH1(m, in);
+    calAndAttachVMSSizeField(m, in);
   }
 }
