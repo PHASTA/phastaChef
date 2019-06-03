@@ -143,6 +143,7 @@ namespace pc {
   void setupSimImprover(pVolumeMeshImprover vmi, pPList sim_fld_lst) {
     VolumeMeshImprover_setModifyBL(vmi, 1);
     VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3);
+    VolumeMeshImprover_setSmoothType(vmi, 1); // 0:Laplacian-based; 1:Gradient-based
 
     /* set fields to be mapped */
     if (PList_size(sim_fld_lst))
