@@ -236,6 +236,22 @@ namespace pc {
     if(m->findField("frames")) apf::destroyField(m->findField("frames"));
   }
 
+  void scaleDownNumberElements(pMSAdapt adapter, ph::Input& in, apf::Mesh2*& m) {
+    int N_est = MSA_estimate(adapter);
+    double f = (double)N_est / (double)in.simMaxAdaptMeshElements;
+    if (f > 1.0) {
+      apf::Field* sizes = m->findField("sizes_sim");
+      assert(sizes);
+      apf::MeshEntity* v;
+      apf::MeshIterator* vit = m->begin(0);
+      while ((v = m->iterate(vit))) {
+        pVertex meshVertex = reinterpret_cast<pVertex>(v);
+        MSA_scaleVertexSize(adapter, meshVertex, f*f*f);
+      }
+      m->end(vit);
+    }
+  }
+
   void setupSimImprover(pVolumeMeshImprover vmi, pPList sim_fld_lst) {
     VolumeMeshImprover_setModifyBL(vmi, 1);
     VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3);
@@ -267,6 +283,9 @@ namespace pc {
       MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
     }
     m->end(vit);
+
+    /* scale mesh if number of elements exceeds threshold */
+    scaleDownNumberElements(adapter, in, m);
 
     /* set fields to be mapped */
     if (PList_size(sim_fld_lst))
