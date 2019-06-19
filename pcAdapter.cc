@@ -8,6 +8,7 @@
 #include <SimDiscrete.h>
 #include "SimMeshMove.h"
 #include "SimMeshTools.h"
+#include <SimAdvMeshing.h>
 #include "apfSIM.h"
 #include "gmi_sim.h"
 #include <PCU.h>
