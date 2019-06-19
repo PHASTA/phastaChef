@@ -219,8 +219,31 @@ namespace pc {
     if(m->findField("frames")) apf::destroyField(m->findField("frames"));
   }
 
+  int estimateAdaptedMeshElements(apf::Mesh2*& m, apf::Field* sizes) {
+    double estElm = 0.0;
+    int num_dims = m->getDimension();
+    assert(num_dims == 3); // only work for 3D mesh
+    apf::Vector3 xi = apf::Vector3(0.25, 0.25, 0);
+    apf::MeshEntity* en;
+    apf::MeshIterator* eit = m->begin(num_dims);
+    while ((en = m->iterate(eit))) {
+      apf::MeshElement* elm = apf::createMeshElement(m,en);
+      apf::Element* fd_elm = apf::createElement(sizes,elm);
+      double h_new = apf::getScalar(fd_elm,xi);
+      double h_old = apf::computeShortestHeightInTet(m,en);
+      if(EN_isBLEntity(reinterpret_cast<pEntity>(en))) {
+        estElm = estElm + (h_old/h_new)*(h_old/h_new);
+      }
+      else {
+        estElm = estElm + (h_old/h_new)*(h_old/h_new)*(h_old/h_new);
+      }
+    }
+    m->end(eit);
+    return (int)estElm;
+  }
+
   void scaleDownNumberElements(ph::Input& in, apf::Mesh2*& m, apf::Field* sizes) {
-    int N_est = MSA_estimate(adapter);
+    int N_est = estimateAdaptedMeshElements(m, sizes);
     if(!PCU_Comm_Self())
       printf("Estimated No. of Elm: %d\n", N_est);
     double f = (double)N_est / (double)in.simMaxAdaptMeshElements;
