@@ -15,6 +15,7 @@
 #include <phastaChef.h>
 #include <maStats.h>
 #include <apfShape.h>
+#include <math.h>
 
 extern void MSA_setBLSnapping(pMSAdapt, int onoff);
 
@@ -238,6 +239,8 @@ namespace pc {
 
   void scaleDownNumberElements(pMSAdapt adapter, ph::Input& in, apf::Mesh2*& m) {
     int N_est = MSA_estimate(adapter);
+    if(!PCU_Comm_Self())
+      printf("Estimated No. of Elm: %d\n", N_est);
     double f = (double)N_est / (double)in.simMaxAdaptMeshElements;
     if (f > 1.0) {
       apf::Field* sizes = m->findField("sizes_sim");
@@ -246,7 +249,7 @@ namespace pc {
       apf::MeshIterator* vit = m->begin(0);
       while ((v = m->iterate(vit))) {
         pVertex meshVertex = reinterpret_cast<pVertex>(v);
-        MSA_scaleVertexSize(adapter, meshVertex, f*f*f);
+        MSA_scaleVertexSize(adapter, meshVertex, cbrt(f));
       }
       m->end(vit);
     }

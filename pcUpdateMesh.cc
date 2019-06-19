@@ -83,6 +83,12 @@ namespace pc {
     PartitionOpts_setProcWtEqual(pOpts);
     PM_partition(pmesh, pOpts, progress);     // Do the partitioning
     PartitionOpts_delete(pOpts);              // Done with options
+    // print out elements of each part
+    pMesh mesh = PM_mesh(pmesh,0);
+    int numElmOnPart = M_numRegions(mesh);
+    long numTolElm = PCU_Add_Long(numElmOnPart);
+    if(!PCU_Comm_Self())
+      printf("Total No. of Elm: %d\n", numTolElm);
   }
 
 
