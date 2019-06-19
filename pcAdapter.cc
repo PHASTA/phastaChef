@@ -47,22 +47,6 @@ namespace pc {
     return outf;
   }
 
-  void meshSizeClamp(apf::Mesh2*& m, ph::Input& in, apf::Field* sizes) {
-    assert(sizes);
-    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
-    apf::MeshEntity* v;
-    apf::MeshIterator* vit = m->begin(0);
-    while ((v = m->iterate(vit))) {
-      apf::getVector(sizes,v,0,v_mag);
-      for (int i = 0; i < 3; i++) {
-        if(v_mag[i] < in.simSizeLowerBound) v_mag[i] = in.simSizeLowerBound;
-        if(v_mag[i] > in.simSizeUpperBound) v_mag[i] = in.simSizeUpperBound;
-      }
-      apf::setVector(sizes,v,0,v_mag);
-    }
-    m->end(vit);
-  }
-
   void attachMeshSizeField(apf::Mesh2*& m, ph::Input& in) {
     /* create a field to store mesh size */
     if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
@@ -79,8 +63,6 @@ namespace pc {
     }
     /* add mesh smooth/gradation function here */
     pc::addSmoother(m, in.gradingFactor);
-    /* limit mesh size in a range */
-    pc::meshSizeClamp(m, in, sizes);
   }
 
   int getNumOfMappedFields(phSolver::Input& inp) {
@@ -237,22 +219,37 @@ namespace pc {
     if(m->findField("frames")) apf::destroyField(m->findField("frames"));
   }
 
-  void scaleDownNumberElements(pMSAdapt adapter, ph::Input& in, apf::Mesh2*& m) {
+  void scaleDownNumberElements(ph::Input& in, apf::Mesh2*& m, apf::Field* sizes) {
     int N_est = MSA_estimate(adapter);
     if(!PCU_Comm_Self())
       printf("Estimated No. of Elm: %d\n", N_est);
     double f = (double)N_est / (double)in.simMaxAdaptMeshElements;
     if (f > 1.0) {
-      apf::Field* sizes = m->findField("sizes_sim");
-      assert(sizes);
+      apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
       apf::MeshEntity* v;
       apf::MeshIterator* vit = m->begin(0);
       while ((v = m->iterate(vit))) {
-        pVertex meshVertex = reinterpret_cast<pVertex>(v);
-        MSA_scaleVertexSize(adapter, meshVertex, cbrt(f));
+        apf::getVector(sizes,v,0,v_mag);
+        for (int i = 0; i < 3; i++) v_mag[i] = v_mag[i] * cbrt(f);
+        apf::setVector(sizes,v,0,v_mag);
       }
       m->end(vit);
     }
+  }
+
+  void meshSizeClamp(ph::Input& in, apf::Mesh2*& m, apf::Field* sizes) {
+    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      apf::getVector(sizes,v,0,v_mag);
+      for (int i = 0; i < 3; i++) {
+        if(v_mag[i] < in.simSizeLowerBound) v_mag[i] = in.simSizeLowerBound;
+        if(v_mag[i] > in.simSizeUpperBound) v_mag[i] = in.simSizeUpperBound;
+      }
+      apf::setVector(sizes,v,0,v_mag);
+    }
+    m->end(vit);
   }
 
   void setupSimImprover(pVolumeMeshImprover vmi, pPList sim_fld_lst) {
@@ -271,12 +268,18 @@ namespace pc {
     MSA_setBLSnapping(adapter, 0); // currently needed for parametric model
     MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
 
+    apf::Field* sizes = m->findField("sizes_sim");
+    assert(sizes);
+    /* scale mesh if number of elements exceeds threshold */
+    pc::scaleDownNumberElements(in, m, sizes);
+
+    /* limit mesh size in a range */
+    pc::meshSizeClamp(in, m, sizes);
+
     /* use current size field */
     if(!PCU_Comm_Self())
       printf("Start mesh adapt of setting size field\n");
 
-    apf::Field* sizes = m->findField("sizes_sim");
-    assert(sizes);
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
@@ -286,9 +289,6 @@ namespace pc {
       MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
     }
     m->end(vit);
-
-    /* scale mesh if number of elements exceeds threshold */
-    scaleDownNumberElements(adapter, in, m);
 
     /* set fields to be mapped */
     if (PList_size(sim_fld_lst))
