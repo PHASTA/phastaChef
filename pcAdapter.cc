@@ -222,6 +222,7 @@ namespace pc {
 
   int estimateAdaptedMeshElements(apf::Mesh2*& m, apf::Field* sizes) {
     double estElm = 0.0;
+    apf::Vector3 v_mag = apf::Vector3(0.0, 0.0, 0.0);;
     int num_dims = m->getDimension();
     assert(num_dims == 3); // only work for 3D mesh
     apf::Vector3 xi = apf::Vector3(0.25, 0.25, 0);
@@ -230,13 +231,13 @@ namespace pc {
     while ((en = m->iterate(eit))) {
       apf::MeshElement* elm = apf::createMeshElement(m,en);
       apf::Element* fd_elm = apf::createElement(sizes,elm);
-      double h_new = apf::getScalar(fd_elm,xi);
+      apf::getVector(fd_elm,xi,v_mag);
       double h_old = apf::computeShortestHeightInTet(m,en);
       if(EN_isBLEntity(reinterpret_cast<pEntity>(en))) {
-        estElm = estElm + (h_old/h_new)*(h_old/h_new);
+        estElm = estElm + (h_old/v_mag[0])*(h_old/v_mag[0]);
       }
       else {
-        estElm = estElm + (h_old/h_new)*(h_old/h_new)*(h_old/h_new);
+        estElm = estElm + (h_old/v_mag[0])*(h_old/v_mag[0])*(h_old/v_mag[0]);
       }
     }
     m->end(eit);
