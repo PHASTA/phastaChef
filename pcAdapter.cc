@@ -272,7 +272,8 @@ namespace pc {
 
     apf::destroyField(cur_size);
 
-    return (int)estElm;
+    int estTolElm = PCU_Add_Int((int)estElm);
+    return estTolElm;
   }
 
   void scaleDownNumberElements(ph::Input& in, apf::Mesh2*& m, apf::Field* sizes) {
