@@ -220,9 +220,35 @@ namespace pc {
     if(m->findField("frames")) apf::destroyField(m->findField("frames"));
   }
 
+  void attachCurrentSizeField(apf::Mesh2*& m) {
+    if(m->findField("cur_size")) apf::destroyField(m->findField("cur_size"));
+    apf::Field* cur_size = apf::createSIMFieldOn(m, "cur_size", apf::VECTOR);
+    apf::Vector3 cs_mag = apf::Vector3(0.0, 0.0, 0.0);
+    double isoSize[1];
+    double anisoSize[3][3];
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      pVertex meshVertex = reinterpret_cast<pVertex>(v);
+      // only iso size is implemented
+      int flag = V_estimateSize(meshVertex, 1, isoSize, anisoSize);
+      assert(flag);
+      cs_mag[0] = isoSize[0];
+      cs_mag[1] = isoSize[0];
+      cs_mag[2] = isoSize[0];
+      apf::setVector(cur_size, v, 0, cs_mag);
+    }
+    m->end(vit);
+  }
+
   int estimateAdaptedMeshElements(apf::Mesh2*& m, apf::Field* sizes) {
+    attachCurrentSizeField(m);
+    apf::Field* cur_size = m->findField("cur_size");
+    assert(cur_size);
+
     double estElm = 0.0;
-    apf::Vector3 v_mag = apf::Vector3(0.0, 0.0, 0.0);;
+    apf::Vector3 v_mag  = apf::Vector3(0.0, 0.0, 0.0);
+    apf::Vector3 cs_mag = apf::Vector3(0.0, 0.0, 0.0);
     int num_dims = m->getDimension();
     assert(num_dims == 3); // only work for 3D mesh
     apf::Vector3 xi = apf::Vector3(0.25, 0.25, 0);
@@ -231,16 +257,21 @@ namespace pc {
     while ((en = m->iterate(eit))) {
       apf::MeshElement* elm = apf::createMeshElement(m,en);
       apf::Element* fd_elm = apf::createElement(sizes,elm);
+      apf::Element* cs_elm = apf::createElement(cur_size,elm);
       apf::getVector(fd_elm,xi,v_mag);
-      double h_old = apf::computeShortestHeightInTet(m,en);
+      apf::getVector(cs_elm,xi,cs_mag);
+      printf("h_old = %f; h_new = %f\n", cs_mag[0], v_mag[0]);
       if(EN_isBLEntity(reinterpret_cast<pEntity>(en))) {
-        estElm = estElm + (h_old/v_mag[0])*(h_old/v_mag[0]);
+        estElm = estElm + (cs_mag[0]/v_mag[0])*(cs_mag[0]/v_mag[0]);
       }
       else {
-        estElm = estElm + (h_old/v_mag[0])*(h_old/v_mag[0])*(h_old/v_mag[0]);
+        estElm = estElm + (cs_mag[0]/v_mag[0])*(cs_mag[0]/v_mag[0])*(cs_mag[0]/v_mag[0]);
       }
     }
     m->end(eit);
+
+    apf::destroyField(cur_size);
+
     return (int)estElm;
   }
 

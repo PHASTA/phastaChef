@@ -10,6 +10,7 @@
 #include <PCU.h>
 #include <cassert>
 #include <phastaChef.h>
+#include "pcAdapter.h"
 
 namespace pc {
   double getShortestEdgeLength(apf::Mesh* m, apf::MeshEntity* elm) {
@@ -45,7 +46,14 @@ namespace pc {
     desr_err[1] = in.simAdaptDesiredErrorMomt;
     desr_err[2] = in.simAdaptDesiredErrorEnrg;
 
+    //get current size field
+    pc::attachCurrentSizeField(m);
+    apf::Field* cur_size = m->findField("cur_size");
+    assert(cur_size);
+
     //loop over elements
+    apf::Vector3 xi = apf::Vector3(0.25, 0.25, 0);
+    apf::Vector3 cs_mag = apf::Vector3(0.0, 0.0, 0.0);
     apf::NewArray<double> curr_err(apf::countComponents(err));
     apf::MeshElement *me;
     apf::MeshEntity* elm;
@@ -54,15 +62,10 @@ namespace pc {
       double h_old = 0.0;
       double h_new = 0.0;
       me = apf::createMeshElement(m, elm);
-      //get shortest height of this element
-      if (nsd == 2)
-        h_old = sqrt(apf::measure(me) * 4 / sqrt(3));
-      else {
-        if (m->getType(elm) == apf::Mesh::TET)
-          h_old = apf::computeShortestHeightInTet(m,elm);
-        else
-          h_old = pc::getShortestEdgeLength(m,elm);
-      }
+      //get old size
+      apf::Element* cs_elm = apf::createElement(cur_size,me);
+      apf::getVector(cs_elm,xi,cs_mag);
+      h_old = cs_mag[0];
       //get error
       apf::getComponents(err, elm, 0, &curr_err[0]);
       //get new size
