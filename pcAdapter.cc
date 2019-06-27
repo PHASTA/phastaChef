@@ -221,24 +221,92 @@ namespace pc {
   }
 
   void attachCurrentSizeField(apf::Mesh2*& m) {
+    int  nsd = m->getDimension();
     if(m->findField("cur_size")) apf::destroyField(m->findField("cur_size"));
-    apf::Field* cur_size = apf::createSIMFieldOn(m, "cur_size", apf::VECTOR);
-    apf::Vector3 cs_mag = apf::Vector3(0.0, 0.0, 0.0);
-    double isoSize[1];
-    double anisoSize[3][3];
-    apf::MeshEntity* v;
-    apf::MeshIterator* vit = m->begin(0);
-    while ((v = m->iterate(vit))) {
-      pVertex meshVertex = reinterpret_cast<pVertex>(v);
-      // only iso size is implemented
-      int flag = V_estimateSize(meshVertex, 1, isoSize, anisoSize);
-      assert(flag);
-      cs_mag[0] = isoSize[0];
-      cs_mag[1] = isoSize[0];
-      cs_mag[2] = isoSize[0];
-      apf::setVector(cur_size, v, 0, cs_mag);
+    apf::Field* cur_size = apf::createField(m, "cur_size", apf::SCALAR, apf::getConstant(nsd));
+    // loop over non-BL elements
+    apf::MeshEntity* e;
+    apf::MeshIterator* eit = m->begin(nsd);
+    while ((e = m->iterate(eit))) {
+      pRegion meshRegion = reinterpret_cast<pRegion>(e);
+      if (EN_isBLEntity(meshRegion)) continue;
+      // set mesh size field
+      double h = 0.0;
+      if (m->getType(e) == apf::Mesh::TET)
+        h = apf::computeShortestHeightInTet(m,e) * sqrt(3.0);
+      else
+        h = pc::getShortestEdgeLength(m,e);
+      apf::setScalar(cur_size, e, 0, h);
     }
-    m->end(vit);
+
+    // get sim model
+    apf::MeshSIM* sim_m = dynamic_cast<apf::MeshSIM*>(m);
+    pParMesh sim_pm = sim_m->getMesh();
+    pMesh pm = PM_mesh(sim_pm,0);
+
+    gmi_model* gmiModel = sim_m->getModel();
+    pGModel model = gmi_export_sim(gmiModel);
+
+    // loop over model faces
+    pGFace modelFace;
+    pFace meshFace;
+    pFace blFace;
+    pRegion blRegion;
+    FIter fIter;
+    pEntity seed;
+    pPList growthRegions = PList_new();
+    pPList growthFaces = PList_new();
+    GFIter gfIter = GM_faceIter(model);
+    while((modelFace=GFIter_next(gfIter))){
+      // loop over mesh faces on model face
+      fIter = M_classifiedFaceIter(pm, modelFace, 1);
+      while((meshFace = FIter_next(fIter))){
+        apf::MeshEntity* apf_f = reinterpret_cast<apf::MeshEntity*>(meshFace);
+        // check if BL base
+        if (BL_isBaseEntity(meshFace, modelFace)) {
+          // loop over BL regions and layers
+          for(int faceSide = 0; faceSide < 2; faceSide++){
+            int hasSeed = BL_stackSeedEntity(meshFace, modelFace, faceSide, NULL, &seed);
+            if (hasSeed) {
+              BL_growthRegionsAndLayerFaces((pRegion)seed, growthRegions, growthFaces, Layer_Entity);
+              if (PList_size(growthRegions) >= (PList_size(growthFaces)-1)*3) { // tet
+                for(int i = 0; i < PList_size(growthFaces); i++) {
+                  blFace = (pFace)PList_item(growthFaces,i);
+                  apf::MeshEntity* apf_f = reinterpret_cast<apf::MeshEntity*>(blFace);
+                  double h = apf::computeShortestHeightInTri(m,apf_f) * sqrt(2.0);
+                  for(int j = 0; j < 3; j++) {
+                    if (i*3+j == PList_size(growthRegions)) break;
+                    blRegion = (pRegion)PList_item(growthRegions,i*3+j);
+                    // set mesh size field
+                    apf::MeshEntity* apf_r = reinterpret_cast<apf::MeshEntity*>(blRegion);
+                    apf::setScalar(cur_size, apf_r, 0, h);
+                  }
+                }
+              }
+              else if (PList_size(growthRegions) >= (PList_size(growthFaces)-1)) { // wedge
+                for(int i = 0; i < PList_size(growthFaces); i++) {
+                  if (i == PList_size(growthRegions)) break;
+                  blFace = (pFace)PList_item(growthFaces,i);
+                  apf::MeshEntity* apf_f = reinterpret_cast<apf::MeshEntity*>(blFace);
+                  double h = apf::computeShortestHeightInTri(m,apf_f) * sqrt(2.0);
+                  blRegion = (pRegion)PList_item(growthRegions,i);
+                  // set mesh size field
+                  apf::MeshEntity* apf_r = reinterpret_cast<apf::MeshEntity*>(blRegion);
+                  apf::setScalar(cur_size, apf_r, 0, h);
+                }
+              }
+            }
+            else if (hasSeed < 0) {
+              printf("not support blending BL mesh or miss some info!\n");
+              exit(0);
+            }
+          }
+        }
+      }
+      FIter_delete(fIter);
+
+    }
+    GFIter_delete(gfIter);
   }
 
   int estimateAdaptedMeshElements(apf::Mesh2*& m, apf::Field* sizes) {
@@ -248,7 +316,6 @@ namespace pc {
 
     double estElm = 0.0;
     apf::Vector3 v_mag  = apf::Vector3(0.0, 0.0, 0.0);
-    apf::Vector3 cs_mag = apf::Vector3(0.0, 0.0, 0.0);
     int num_dims = m->getDimension();
     assert(num_dims == 3); // only work for 3D mesh
     apf::Vector3 xi = apf::Vector3(0.25, 0.25, 0);
@@ -257,15 +324,14 @@ namespace pc {
     while ((en = m->iterate(eit))) {
       apf::MeshElement* elm = apf::createMeshElement(m,en);
       apf::Element* fd_elm = apf::createElement(sizes,elm);
-      apf::Element* cs_elm = apf::createElement(cur_size,elm);
       apf::getVector(fd_elm,xi,v_mag);
-      apf::getVector(cs_elm,xi,cs_mag);
-      printf("h_old = %f; h_new = %f\n", cs_mag[0], v_mag[0]);
+      double h_old = apf::getScalar(cur_size,en,0);
+      printf("h_old = %f; h_new = %f\n", h_old, v_mag[0]);
       if(EN_isBLEntity(reinterpret_cast<pEntity>(en))) {
-        estElm = estElm + (cs_mag[0]/v_mag[0])*(cs_mag[0]/v_mag[0]);
+        estElm = estElm + (h_old/v_mag[0])*(h_old/v_mag[0]);
       }
       else {
-        estElm = estElm + (cs_mag[0]/v_mag[0])*(cs_mag[0]/v_mag[0])*(cs_mag[0]/v_mag[0]);
+        estElm = estElm + (h_old/v_mag[0])*(h_old/v_mag[0])*(h_old/v_mag[0]);
       }
     }
     m->end(eit);
@@ -282,6 +348,7 @@ namespace pc {
       printf("Estimated No. of Elm: %d\n", N_est);
     double f = (double)N_est / (double)in.simMaxAdaptMeshElements;
     if (f > 1.0) {
+      core_driver_set_err_param(f);
       apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
       apf::MeshEntity* v;
       apf::MeshIterator* vit = m->begin(0);
@@ -291,6 +358,9 @@ namespace pc {
         apf::setVector(sizes,v,0,v_mag);
       }
       m->end(vit);
+    }
+    else {
+      core_driver_set_err_param(1.0);
     }
   }
 
