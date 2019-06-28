@@ -47,7 +47,7 @@ namespace pc {
 
     //get desired error
     //currently, we only focus on the momemtum error // debugging
-    assert((string)inp.GetValue("Error Trigger Equation Option") != "Momentum");
+    assert((string)inp.GetValue("Error Trigger Equation Option") == "Momentum");
     double desr_err[3];
     desr_err[0] = (double)inp.GetValue("Target Error for Mass Equation")*
                   (double)inp.GetValue("Error Trigger Buffer Factor");

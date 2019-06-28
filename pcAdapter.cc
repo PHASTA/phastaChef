@@ -326,7 +326,6 @@ namespace pc {
       apf::Element* fd_elm = apf::createElement(sizes,elm);
       apf::getVector(fd_elm,xi,v_mag);
       double h_old = apf::getScalar(cur_size,en,0);
-      printf("h_old = %f; h_new = %f\n", h_old, v_mag[0]);
       if(EN_isBLEntity(reinterpret_cast<pEntity>(en))) {
         estElm = estElm + (h_old/v_mag[0])*(h_old/v_mag[0]);
       }
@@ -364,15 +363,15 @@ namespace pc {
     }
   }
 
-  void meshSizeClamp(ph::Input& in, apf::Mesh2*& m, apf::Field* sizes) {
+  void meshSizeClamp(apf::Mesh2*& m, apf::Field* sizes, double low, double up) {
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
     while ((v = m->iterate(vit))) {
       apf::getVector(sizes,v,0,v_mag);
       for (int i = 0; i < 3; i++) {
-        if(v_mag[i] < in.simSizeLowerBound) v_mag[i] = in.simSizeLowerBound;
-        if(v_mag[i] > in.simSizeUpperBound) v_mag[i] = in.simSizeUpperBound;
+        if(v_mag[i] < low) v_mag[i] = low;
+        if(v_mag[i] > up)  v_mag[i] = up;
       }
       apf::setVector(sizes,v,0,v_mag);
     }
@@ -397,11 +396,15 @@ namespace pc {
 
     apf::Field* sizes = m->findField("sizes_sim");
     assert(sizes);
+
+    /* apply upper bound */
+    pc::meshSizeClamp(m, sizes, 0.0, in.simSizeUpperBound);
+
     /* scale mesh if number of elements exceeds threshold */
     pc::scaleDownNumberElements(in, m, sizes);
 
     /* limit mesh size in a range */
-    pc::meshSizeClamp(in, m, sizes);
+    pc::meshSizeClamp(m, sizes, in.simSizeLowerBound, in.simSizeUpperBound);
 
     /* use current size field */
     if(!PCU_Comm_Self())
