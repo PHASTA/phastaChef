@@ -309,7 +309,7 @@ namespace pc {
     GFIter_delete(gfIter);
   }
 
-  int estimateAdaptedMeshElements(apf::Mesh2*& m, apf::Field* sizes) {
+  double estimateAdaptedMeshElements(apf::Mesh2*& m, apf::Field* sizes) {
     attachCurrentSizeField(m);
     apf::Field* cur_size = m->findField("cur_size");
     assert(cur_size);
@@ -337,15 +337,15 @@ namespace pc {
 
     apf::destroyField(cur_size);
 
-    int estTolElm = PCU_Add_Int((int)estElm);
-    return estTolElm;
+    long estTolElm = PCU_Add_Long((long)estElm);
+    return (double)estTolElm;
   }
 
   void scaleDownNumberElements(ph::Input& in, apf::Mesh2*& m, apf::Field* sizes) {
-    int N_est = estimateAdaptedMeshElements(m, sizes);
+    double N_est = estimateAdaptedMeshElements(m, sizes);
     if(!PCU_Comm_Self())
       printf("Estimated No. of Elm: %d\n", N_est);
-    double f = (double)N_est / (double)in.simMaxAdaptMeshElements;
+    double f = N_est / (double)in.simMaxAdaptMeshElements;
     if (f > 1.0) {
       core_driver_set_err_param(f);
       apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
