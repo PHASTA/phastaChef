@@ -56,6 +56,15 @@ namespace pc {
     desr_err[2] = (double)inp.GetValue("Target Error for Energy Equation")*
                   (double)inp.GetValue("Error Trigger Buffer Factor");
 
+    //get parameter
+    double exp_m = 0.0;
+    if((string)inp.GetValue("Error Estimation Option") == "H1norm") {
+      exp_m = 1.0;
+    }
+    else if ((string)inp.GetValue("Error Estimation Option") == "L2norm") {
+      exp_m = 0.0;
+    }
+
     //loop over elements
     apf::NewArray<double> curr_err(apf::countComponents(err));
     apf::MeshElement *me;
@@ -75,7 +84,7 @@ namespace pc {
       factor = desr_err[1] / sqrt(curr_err[1]*curr_err[1]
                                  +curr_err[2]*curr_err[2]
                                  +curr_err[3]*curr_err[3]);
-      h_new = h_old * pow(factor, 2.0/(2.0*(1.0)+nsd));
+      h_new = h_old * pow(factor, 2.0/(2.0*(1.0+1.0-exp_m)+nsd));
       //set new size
       apf::setScalar(elm_size, elm, 0, h_new);
       apf::destroyMeshElement(me);
