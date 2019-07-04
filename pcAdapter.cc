@@ -213,6 +213,7 @@ namespace pc {
     if(m->findField("hmin_flag")) apf::destroyField(m->findField("hmin_flag"));
     apf::Field* rf = apf::createFieldOn(m, "hmin_flag", apf::SCALAR);
     // loop over vertices
+    long counter = 0;
     double size[1];
     double anisosize[3][3];
     apf::MeshEntity* v;
@@ -222,12 +223,19 @@ namespace pc {
       // request the size on it
       V_size(meshVertex, size, anisosize);
       // compare with the lower bound
-      if (size[0] <= in.simSizeLowerBound)
+      if (size[0] <= in.simSizeLowerBound) {
         apf::setScalar(rf,v,0,1.0);
-      else
+        counter++;
+      }
+      else {
         apf::setScalar(rf,v,0,0.0);
+      }
     }
     m->end(vit);
+
+    // Sum counter over processors
+    long hminTolElm = PCU_Add_Long(counter);
+    if(!PCU_Comm_Self()) printf("total number of hmin elm: %ld\n",hminTolElm);
   }
 
   void transferSimFields(apf::Mesh2*& m) {
