@@ -388,12 +388,7 @@ namespace pc {
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
     while ((v = m->iterate(vit))) {
-      apf::getComponents(sol, v, 0, &s[0]);
-      double u = sqrt(s[1]*s[1]+s[2]*s[2]+s[3]*s[3]);
-      double c = sqrt(1.4*8.3145*s[4]/0.029); // ideal air assumed here
-      double t = inp.GetValue("Time Step Size");
-      double h_min = (u+c)*t/in.simCFLUpperBound;
-      if (h_min < in.simSizeLowerBound) h_min = in.simSizeLowerBound;
+      if(!vertexIsInCylinder(v)) continue;
       apf::getVector(sizes,v,0,v_mag);
       double f = apf::getScalar(ctcn,v,0);
       for (int i = 0; i < 3; i++) {
