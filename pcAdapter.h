@@ -25,6 +25,8 @@ namespace pc {
 
   void measureIsoMeshAndWrite(apf::Mesh2*& m, ph::Input& in);
 
+  void attachMinSizeFlagField(apf::Mesh2*& m, ph::Input& in);
+
   void transferSimFields(apf::Mesh2*& m);
 
   void attachCurrentSizeField(apf::Mesh2*& m);

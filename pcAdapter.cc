@@ -208,6 +208,28 @@ namespace pc {
     apf::destroyField(f_lq);
   }
 
+  void attachMinSizeFlagField(apf::Mesh2*& m, ph::Input& in) {
+    // create field
+    if(m->findField("hmin_flag")) apf::destroyField(m->findField("hmin_flag"));
+    apf::Field* rf = apf::createFieldOn(m, "hmin_flag", apf::SCALAR);
+    // loop over vertices
+    double size[1];
+    double anisosize[3][3];
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      pVertex meshVertex = reinterpret_cast<pVertex>(v);
+      // request the size on it
+      V_size(meshVertex, size, anisosize);
+      // compare with the lower bound
+      if (size[0] <= in.simSizeLowerBound)
+        apf::setScalar(rf,v,0,1.0);
+      else
+        apf::setScalar(rf,v,0,0.0);
+    }
+    m->end(vit);
+  }
+
   void transferSimFields(apf::Mesh2*& m) {
     if (m->findField("pressure")) // assume we had solution before
       chef::combineField(m,"solution","pressure","velocity","temperature");
@@ -238,6 +260,7 @@ namespace pc {
         h = pc::getShortestEdgeLength(m,e);
       apf::setScalar(cur_size, e, 0, h);
     }
+    m->end(eit);
 
     // get sim model
     apf::MeshSIM* sim_m = dynamic_cast<apf::MeshSIM*>(m);
@@ -304,7 +327,6 @@ namespace pc {
         }
       }
       FIter_delete(fIter);
-
     }
     GFIter_delete(gfIter);
   }
@@ -490,6 +512,10 @@ namespace pc {
         printf("write mesh after mesh adaptation\n");
       writeSIMMesh(sim_pm, in.timeStepNumber, "sim_mesh_");
       Progress_delete(progress);
+
+      /* attach flag indicating reach minimum mesh size */
+      if (in.simSizeLowerBound > 0.0)
+        pc::attachMinSizeFlagField(m, in);
 
       /* transfer data back to apf */
       if (in.solutionMigration)
