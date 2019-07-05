@@ -374,7 +374,7 @@ namespace pc {
   void scaleDownNumberElements(ph::Input& in, apf::Mesh2*& m, apf::Field* sizes) {
     double N_est = estimateAdaptedMeshElements(m, sizes);
     if(!PCU_Comm_Self())
-      printf("Estimated No. of Elm: %d\n", N_est);
+      printf("Estimated No. of Elm: %f\n", N_est);
     double f = N_est / (double)in.simMaxAdaptMeshElements;
     if (f > 1.0) {
       core_driver_set_err_param(f);
