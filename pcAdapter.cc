@@ -367,8 +367,8 @@ namespace pc {
 
     apf::destroyField(cur_size);
 
-    long estTolElm = PCU_Add_Long((long)estElm);
-    return (double)estTolElm;
+    double estTolElm = PCU_Add_Double(estElm);
+    return estTolElm;
   }
 
   void scaleDownNumberElements(ph::Input& in, apf::Mesh2*& m, apf::Field* sizes) {
