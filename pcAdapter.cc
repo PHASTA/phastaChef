@@ -586,7 +586,6 @@ namespace pc {
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
     while ((v = m->iterate(vit))) {
-      if(!vertexIsInCylinder(v)) continue;
       apf::getVector(sizes,v,0,v_mag);
       pVertex meshVertex = reinterpret_cast<pVertex>(v);
       MSA_setVertexSize(adapter, meshVertex, v_mag[0]);

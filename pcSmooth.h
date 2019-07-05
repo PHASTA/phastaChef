@@ -10,6 +10,8 @@
 
 namespace pc {
 
+  bool isInCylinder(apf::MeshEntity* en);
+
   void addSmoother(apf::Mesh2* m, double gradingFactor);
 
   void meshGradation(apf::Mesh2* m, double gradingFactor);

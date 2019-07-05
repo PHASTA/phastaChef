@@ -19,17 +19,17 @@ using namespace std;
 
 namespace pc {
 
-bool isInCylinder(apf::MeshEntity* edge) {
+bool isInCylinder(apf::MeshEntity* en) {
   double x_min = 0.0;
   double x_max = 2.0;
   double r_max = 0.065;
 
-  apf::Adjacent edgAdjVert;
-  m->getAdjacent(edge, 0, edgAdjVert);
+  apf::Adjacent enAdjVert;
+  m->getAdjacent(en, 0, enAdjVert);
   apf::Vector3 xyz = apf::Vector3(0.0,0.0,0.0);
 
-  for (size_t i=0; i < edgAdjVert.getSize(); ++i) {
-    m->getPoint(edgAdjVert[i],0,xyz);
+  for (size_t i=0; i < enAdjVert.getSize(); ++i) {
+    m->getPoint(enAdjVert[i],0,xyz);
     double xyz_r = sqrt(xyz[1]*xyz[1] + xyz[2]*xyz[2]);
     if (xyz[0] > x_min && xyz[0] < x_max && xyz_r < r_max)
       return true;
