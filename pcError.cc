@@ -92,6 +92,7 @@ namespace pc {
     apf::MeshEntity* vtx;
     it = m->begin(0);
     while ((vtx = m->iterate(it))) {
+      if(!pc::vertexIsInCylinder(vtx)) continue;
       apf::Adjacent adj_elm;
       m->getAdjacent(vtx, m->getDimension(), adj_elm);
       double weightedSize = 0.0;
