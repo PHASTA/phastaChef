@@ -404,7 +404,10 @@ namespace pc {
         estElm = estElm + (h_old/v_mag[0])*(h_old/v_mag[0]);
       }
       else {
-        estElm = estElm + (h_old/v_mag[0])*(h_old/v_mag[0])*(h_old/v_mag[0]);
+        if (pc::isInCylinder(en))
+          estElm = estElm + (h_old/v_mag[0])*(h_old/v_mag[0])*(h_old/v_mag[0]);
+        else
+          estElm = estElm + 1.0;
       }
     }
     m->end(eit);
@@ -586,6 +589,7 @@ namespace pc {
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
     while ((v = m->iterate(vit))) {
+      if(!vertexIsInCylinder(v)) continue;
       apf::getVector(sizes,v,0,v_mag);
       pVertex meshVertex = reinterpret_cast<pVertex>(v);
       MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
