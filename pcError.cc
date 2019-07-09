@@ -49,12 +49,9 @@ namespace pc {
     //currently, we only focus on the momemtum error // debugging
     assert((string)inp.GetValue("Error Trigger Equation Option") == "Momentum");
     double desr_err[3];
-    desr_err[0] = (double)inp.GetValue("Target Error for Mass Equation")*
-                  (double)inp.GetValue("Error Trigger Buffer Factor");
-    desr_err[1] = (double)inp.GetValue("Target Error for Momentum Equation")*
-                  (double)inp.GetValue("Error Trigger Buffer Factor");
-    desr_err[2] = (double)inp.GetValue("Target Error for Energy Equation")*
-                  (double)inp.GetValue("Error Trigger Buffer Factor");
+    desr_err[0] = (double)inp.GetValue("Target Error for Mass Equation");
+    desr_err[1] = (double)inp.GetValue("Target Error for Momentum Equation");
+    desr_err[2] = (double)inp.GetValue("Target Error for Energy Equation");
 
     //get parameter
     double exp_m = 0.0;
@@ -84,7 +81,7 @@ namespace pc {
       factor = desr_err[1] / sqrt(curr_err[1]*curr_err[1]
                                  +curr_err[2]*curr_err[2]
                                  +curr_err[3]*curr_err[3]);
-      h_new = h_old * pow(factor, 2.0/(2.0*(1.0+1.0-exp_m)+(double)nsd)) / sqrt(3.0);
+      h_new = h_old * pow(factor, 2.0/(2.0*(1.0+1.0-exp_m)+(double)nsd));
       //set new size
       apf::setScalar(elm_size, elm, 0, h_new);
       apf::destroyMeshElement(me);
