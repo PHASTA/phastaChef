@@ -619,10 +619,6 @@ if (pm) {
       // load balance
       balanceEqualWeights(ppm, progress);
 
-      // write out mesh quality statistic info
-      if (in.measureAdaptedMesh)
-        pc::measureIsoMeshAndWrite(m, in);
-
       // attach flag indicating reach minimum mesh size
       if (in.simSizeLowerBound > 0.0)
         pc::attachMinSizeFlagField(m, in);

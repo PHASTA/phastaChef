@@ -69,8 +69,8 @@ namespace pc {
   int getNumOfMappedFields(phSolver::Input& inp) {
     /* initially, we have 7 fields: pressure, velocity, temperature,
        time der of pressure, time der of velocity, time der of temperature,
-       ,mesh velocity and mesh size field */
-    int numOfMappedFields = 8;
+       ,mesh velocity field */
+    int numOfMappedFields = 7;
     return numOfMappedFields;
   }
 
@@ -79,13 +79,12 @@ namespace pc {
      certain field if corresponding option is on */
   void removeOtherFields(apf::Mesh2*& m, phSolver::Input& inp) {
     int index = 0;
-    int numOfPackFields = 4;
+    int numOfPackFields = 3;
     while (m->countFields() > numOfPackFields) {
       apf::Field* f = m->getField(index);
       if ( f == m->findField("solution") ||
            f == m->findField("time derivative of solution") ||
-           f == m->findField("mesh_vel") ||
-           f == m->findField("sizes") ) {
+           f == m->findField("mesh_vel") ) {
         index++;
         continue;
       }
@@ -119,12 +118,6 @@ namespace pc {
       apf::destroyField(m->findField("mesh_vel"));
     }
 
-    if (m->findField("sizes")) {
-      num_flds += 1;
-      sim_flds[7] = apf::getSIMField(chef::extractField(m,"sizes","sizes_sim",1,apf::VECTOR,simFlag));
-      apf::destroyField(m->findField("sizes"));
-    }
-
     return num_flds;
   }
 
@@ -144,68 +137,6 @@ namespace pc {
     assert(num_flds == PList_size(sim_fld_lst));
     delete [] sim_flds;
     return sim_fld_lst;
-  }
-
-  void measureIsoMeshAndWrite(apf::Mesh2*& m, ph::Input& in) {
-    apf::Field* sizes = m->findField("sizes_sim");
-    assert(sizes);
-    apf::Field* isoSize = apf::createFieldOn(m, "iso_size", apf::SCALAR);
-    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
-    apf::MeshEntity* v;
-    apf::MeshIterator* vit = m->begin(0);
-    while ((v = m->iterate(vit))) {
-      apf::getVector(sizes,v,0,v_mag);
-      apf::setScalar(isoSize,v,0,v_mag[0]);
-    }
-    m->end(vit);
-
-    if (PCU_Comm_Self() == 0)
-      printf("\n evaluating the statistics! \n");
-    // get the stats
-    ma::SizeField* sf = ma::makeSizeField(m, isoSize);
-    std::vector<double> el, lq;
-    ma::stats(m, sf, el, lq, true);
-
-    // create field for visualizaition
-    apf::Field* f_lq = apf::createField(m, "linear_quality", apf::SCALAR, apf::getConstant(m->getDimension()));
-
-    // attach cell-based mesh quality
-    int n;
-    apf::MeshEntity* r;
-    if (m->getDimension() == 3)
-      n = apf::countEntitiesOfType(m, apf::Mesh::TET);
-    else
-      n = apf::countEntitiesOfType(m, apf::Mesh::TRIANGLE);
-    size_t i = 0;
-    apf::MeshIterator* rit = m->begin(m->getDimension());
-    while ((r = m->iterate(rit))) {
-      if (! apf::isSimplex(m->getType(r))) {// ignore non-simplex elements
-        apf::setScalar(f_lq, r, 0, 100.0); // set as 100
-      }
-      else {
-        apf::setScalar(f_lq, r, 0, lq[i]);
-        ++i;
-      }
-    }
-    m->end(rit);
-    PCU_ALWAYS_ASSERT(i == (size_t) n);
-
-    // attach current mesh size
-    if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
-    if(m->findField("frames")) apf::destroyField(m->findField("frames"));
-    apf::Field* aniSizes  = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
-    apf::Field* aniFrames = apf::createSIMFieldOn(m, "frames", apf::MATRIX);
-    ph::attachSIMSizeField(m, aniSizes, aniFrames);
-
-    // write out mesh
-    pc::writeSequence(m,in.timeStepNumber,"mesh_stats_");
-
-    // delete fields
-    apf::destroyField(sizes);
-    apf::destroyField(aniSizes);
-    apf::destroyField(aniFrames);
-    apf::destroyField(isoSize);
-    apf::destroyField(f_lq);
   }
 
   void attachMinSizeFlagField(apf::Mesh2*& m, ph::Input& in) {
@@ -510,10 +441,6 @@ namespace pc {
 
       /* load balance */
       pc::balanceEqualWeights(sim_pm, progress);
-
-      /* write out mesh quality statistic info */
-      if (in.measureAdaptedMesh)
-        measureIsoMeshAndWrite(m, in);
 
       /* write mesh */
       if(!PCU_Comm_Self())

@@ -23,8 +23,6 @@ namespace pc {
 
   pPList getSimFieldList(ph::Input& in, apf::Mesh2*& m);
 
-  void measureIsoMeshAndWrite(apf::Mesh2*& m, ph::Input& in);
-
   void attachMinSizeFlagField(apf::Mesh2*& m, ph::Input& in);
 
   void transferSimFields(apf::Mesh2*& m);
