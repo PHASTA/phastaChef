@@ -349,13 +349,15 @@ namespace pc {
       VolumeMeshImprover_setMapFields(vmi, sim_fld_lst);
   }
 
-  void setupSimAdapter(pMSAdapt adapter, ph::Input& in, apf::Mesh2*& m, pPList sim_fld_lst) {
+  void setupSimAdapter(pMSAdapt adapter, ph::Input& in, apf::Mesh2*& m, pPList& sim_fld_lst) {
     MSA_setAdaptBL(adapter, 1);
     MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
     MSA_setBLSnapping(adapter, 0); // currently needed for parametric model
     MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
 
-    apf::Field* sizes = m->findField("sizes_sim");
+    /* attach mesh size field */
+    attachMeshSizeField(m, in);
+    apf::Field* sizes = m->findField("sizes");
     assert(sizes);
 
     /* apply upper bound */
@@ -382,8 +384,11 @@ namespace pc {
     m->end(vit);
 
     /* set fields to be mapped */
-    if (PList_size(sim_fld_lst))
+    PList_clear(sim_fld_lst);
+    if (in.solutionMigration) {
+      sim_fld_lst = getSimFieldList(in, m);
       MSA_setMapFields(adapter, sim_fld_lst);
+    }
   }
 
   void runMeshAdapter(ph::Input& in, apf::Mesh2*& m, apf::Field*& orgSF, int step) {
@@ -407,19 +412,11 @@ namespace pc {
       VIter vIter;
       pVertex meshVertex;
 
-      /* attach mesh size field */
-      attachMeshSizeField(m, in);
-
-      /* set fields to be mapped */
-      pPList sim_fld_lst = PList_new();
-      PList_clear(sim_fld_lst);
-      if (in.solutionMigration)
-        sim_fld_lst = getSimFieldList(in, m);
-
       /* create the Simmetrix adapter */
       if(!PCU_Comm_Self())
         printf("Start mesh adapt\n");
       pMSAdapt adapter = MSA_new(sim_pm, 1);
+      pPList sim_fld_lst = PList_new();
       setupSimAdapter(adapter, in, m, sim_fld_lst);
 
       /* run the adapter */

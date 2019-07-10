@@ -31,7 +31,7 @@ namespace pc {
 
   void setupSimImprover(pVolumeMeshImprover vmi, pPList sim_fld_lst);
 
-  void setupSimAdapter(pMSAdapt adapter, ph::Input& in, apf::Mesh2*& m, pPList sim_fld_lst);
+  void setupSimAdapter(pMSAdapt adapter, ph::Input& in, apf::Mesh2*& m, pPList& sim_fld_lst);
 
   void runMeshAdapter(ph::Input& in, apf::Mesh2*& m, apf::Field*& orgSF, int step);
 }
