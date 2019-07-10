@@ -64,13 +64,11 @@ namespace pc {
 
     //loop over elements
     apf::NewArray<double> curr_err(apf::countComponents(err));
-    apf::MeshElement *me;
     apf::MeshEntity* elm;
     apf::MeshIterator* it = m->begin(nsd);
     while ((elm = m->iterate(it))) {
       double h_old = 0.0;
       double h_new = 0.0;
-      me = apf::createMeshElement(m, elm);
       //get old size
       h_old = apf::getScalar(cur_size, elm, 0);
       //get error
@@ -84,7 +82,6 @@ namespace pc {
       h_new = h_old * pow(factor, 2.0/(2.0*(1.0+1.0-exp_m)+(double)nsd));
       //set new size
       apf::setScalar(elm_size, elm, 0, h_new);
-      apf::destroyMeshElement(me);
     }
     m->end(it);
 
