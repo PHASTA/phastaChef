@@ -48,11 +48,10 @@ namespace pc {
     return outf;
   }
 
-  void attachMeshSizeField(apf::Mesh2*& m, ph::Input& in) {
+  void attachMeshSizeField(apf::Mesh2*& m, ph::Input& in, phSolver::Input& inp) {
     /* create a field to store mesh size */
     if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
     apf::Field* sizes = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
-    phSolver::Input inp("solver.inp", "input.config");
     /* switch between VMS error mesh size and initial mesh size */
     if((string)inp.GetValue("Error Estimation Option") != "False") {
       pc::attachVMSSizeField(m, in, inp);
@@ -137,36 +136,6 @@ namespace pc {
     assert(num_flds == PList_size(sim_fld_lst));
     delete [] sim_flds;
     return sim_fld_lst;
-  }
-
-  void attachMinSizeFlagField(apf::Mesh2*& m, ph::Input& in) {
-    // create field
-    if(m->findField("hmin_flag")) apf::destroyField(m->findField("hmin_flag"));
-    apf::Field* rf = apf::createFieldOn(m, "hmin_flag", apf::SCALAR);
-    // loop over vertices
-    long counter = 0;
-    double size[1];
-    double anisosize[3][3];
-    apf::MeshEntity* v;
-    apf::MeshIterator* vit = m->begin(0);
-    while ((v = m->iterate(vit))) {
-      pVertex meshVertex = reinterpret_cast<pVertex>(v);
-      // request the size on it
-      V_size(meshVertex, size, anisosize);
-      // compare with the lower bound
-      if (size[0] <= in.simSizeLowerBound) {
-        apf::setScalar(rf,v,0,1.0);
-        counter++;
-      }
-      else {
-        apf::setScalar(rf,v,0,0.0);
-      }
-    }
-    m->end(vit);
-
-    // Sum counter over processors
-    long hminTolElm = PCU_Add_Long(counter);
-    if(!PCU_Comm_Self()) printf("total number of hmin elm: %ld\n",hminTolElm);
   }
 
   void transferSimFields(apf::Mesh2*& m) {
@@ -302,7 +271,7 @@ namespace pc {
     return estTolElm;
   }
 
-  void scaleDownNumberElements(ph::Input& in, apf::Mesh2*& m, apf::Field* sizes) {
+  void applyMaxElmBound(apf::Mesh2*& m, apf::Field* sizes, ph::Input& in) {
     double N_est = estimateAdaptedMeshElements(m, sizes);
     if(!PCU_Comm_Self())
       printf("Estimated No. of Elm: %f\n", N_est);
@@ -324,16 +293,37 @@ namespace pc {
     }
   }
 
-  void meshSizeClamp(apf::Mesh2*& m, apf::Field* sizes, double low, double up) {
+  void applyMaxSizeBound(apf::Mesh2*& m, apf::Field* sizes, ph::Input& in) {
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
     while ((v = m->iterate(vit))) {
       apf::getVector(sizes,v,0,v_mag);
-      for (int i = 0; i < 3; i++) {
-        if(v_mag[i] < low) v_mag[i] = low;
-        if(v_mag[i] > up)  v_mag[i] = up;
-      }
+      for (int i = 0; i < 3; i++)
+        if(v_mag[i] > in.simSizeUpperBound)
+          v_mag[i] = in.simSizeUpperBound;
+      apf::setVector(sizes,v,0,v_mag);
+    }
+    m->end(vit);
+  }
+
+  void applyMaxTimeResource(apf::Mesh2*& m, apf::Field* sizes,
+                            ph::Input& in, phSolver::Input& inp) {
+    apf::Field* sol = m->findField("solution");
+    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
+    apf::NewArray<double> s(in.ensa_dof);
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      apf::getComponents(sol, v, 0, &s[0]);
+      double u = sqrt(s[1]*s[1]+s[2]*s[2]+s[3]*s[3]);
+      double c = sqrt(1.4*8.3145*s[4]/0.029);
+      double t = inp.GetValue("Time Step Size");
+      double h_min = (u+c)*t/in.simCFLUpperBound;
+ printf("h_min = %f\n", h_min);
+      apf::getVector(sizes,v,0,v_mag);
+      for (int i = 0; i < 3; i++)
+        if(v_mag[i] < h_min) v_mag[i] = h_min;
       apf::setVector(sizes,v,0,v_mag);
     }
     m->end(vit);
@@ -356,18 +346,19 @@ namespace pc {
     MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
 
     /* attach mesh size field */
-    attachMeshSizeField(m, in);
+    phSolver::Input inp("solver.inp", "input.config");
+    attachMeshSizeField(m, in, inp);
     apf::Field* sizes = m->findField("sizes");
     assert(sizes);
 
     /* apply upper bound */
-    pc::meshSizeClamp(m, sizes, 0.0, in.simSizeUpperBound);
+    pc::applyMaxSizeBound(m, sizes, in);
 
     /* scale mesh if number of elements exceeds threshold */
-    pc::scaleDownNumberElements(in, m, sizes);
+    pc::applyMaxElmBound(m, sizes, in);
 
-    /* limit mesh size in a range */
-    pc::meshSizeClamp(m, sizes, in.simSizeLowerBound, in.simSizeUpperBound);
+    /* scale mesh if reach time resource bound */
+    pc::applyMaxTimeResource(m, sizes, in, inp);
 
     /* use current size field */
     if(!PCU_Comm_Self())
@@ -444,10 +435,6 @@ namespace pc {
         printf("write mesh after mesh adaptation\n");
       writeSIMMesh(sim_pm, in.timeStepNumber, "sim_mesh_");
       Progress_delete(progress);
-
-      /* attach flag indicating reach minimum mesh size */
-      if (in.simSizeLowerBound > 0.0)
-        pc::attachMinSizeFlagField(m, in);
 
       /* transfer data back to apf */
       if (in.solutionMigration)

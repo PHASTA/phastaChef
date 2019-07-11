@@ -615,10 +615,6 @@ if (pm) {
       // load balance
       balanceEqualWeights(ppm, progress);
 
-      // attach flag indicating reach minimum mesh size
-      if (in.simSizeLowerBound > 0.0)
-        pc::attachMinSizeFlagField(m, in);
-
       // transfer sim fields to apf fields
       if (in.solutionMigration)
         pc::transferSimFields(m);
