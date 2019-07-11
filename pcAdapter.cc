@@ -479,7 +479,6 @@ namespace pc {
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::NewArray<double> s(in.ensa_dof);
     double maxCt = 1.0;
-    double minCtH = 1.0e16;
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
     while ((v = m->iterate(vit))) {
@@ -488,9 +487,8 @@ namespace pc {
       double f = apf::getScalar(ctcn,v,0);
       for (int i = 0; i < 3; i++) {
         if(v_mag[i] < h_min) {
-          if(h_min/(v_mag[i]) > maxCt) maxCt = h_min/(v_mag[i]);
-          apf::setScalar(ctcn,v,0,h_min/v_mag[i]*f);
-          if(h_min < minCtH) minCtH = h_min;
+          if(h_min/v_mag[i] > maxCt) maxCt = h_min/v_mag[i];
+          apf::setScalar(ct,v,0,h_min/v_mag[i]);
           v_mag[i] = h_min;
         }
       }
@@ -498,42 +496,9 @@ namespace pc {
     }
     m->end(vit);
 
-    double maxCtAll  = PCU_Max_Double(maxCt);
-    double minCtHAll = PCU_Min_Double(minCtH);
+    double maxCtAll = PCU_Max_Double(maxCt);
     if (!PCU_Comm_Self())
-      printf("max time resource bound factor and min reached size: %f and %f\n",maxCtAll,minCtHAll);
-  }
-
-  void syncMeshSize(apf::Mesh2*& m, apf::Field* sizes) {
-    PCU_Comm_Begin();
-    apf::Copies remotes;
-    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
-    apf::MeshEntity* v;
-    apf::MeshIterator* vit = m->begin(0);
-    while ((v = m->iterate(vit))) {
-      apf::getVector(sizes,v,0,v_mag);
-      if(m->isShared(v)) {
-        m->getRemotes(v, remotes);
-        APF_ITERATE(apf::Copies, remotes, rit) {
-          PCU_COMM_PACK(rit->first, rit->second);
-          PCU_Comm_Pack(rit->first, &(v_mag[0]), sizeof(double));
-        }
-      }
-    }
-    m->end(vit);
-
-    PCU_Comm_Send();
-    while (PCU_Comm_Receive()) {
-      apf::MeshEntity* rv;
-      PCU_COMM_UNPACK(rv);
-      double rv_mag;
-      PCU_Comm_Unpack(&(rv_mag), sizeof(double));
-      apf::getVector(sizes,v,0,v_mag);
-      if(rv_mag < v_mag[0]) { // smaller wins
-        v_mag = apf::Vector3(rv_mag,rv_mag,rv_mag);
-        apf::setVector(sizes,rv,0,v_mag);
-      }
-    }
+      printf("max time resource bound factor: %f\n",maxCtAll);
   }
 
   void setupSimImprover(pVolumeMeshImprover vmi, pPList sim_fld_lst) {
