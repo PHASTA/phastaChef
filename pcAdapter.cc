@@ -66,10 +66,10 @@ namespace pc {
   }
 
   int getNumOfMappedFields(phSolver::Input& inp) {
-    /* initially, we have 7 fields: pressure, velocity, temperature,
+    /* initially, we have 8 fields: pressure, velocity, temperature,
        time der of pressure, time der of velocity, time der of temperature,
-       ,mesh velocity field */
-    int numOfMappedFields = 7;
+       ,mesh velocity and time resource bound factor field */
+    int numOfMappedFields = 8;
     return numOfMappedFields;
   }
 
@@ -78,12 +78,13 @@ namespace pc {
      certain field if corresponding option is on */
   void removeOtherFields(apf::Mesh2*& m, phSolver::Input& inp) {
     int index = 0;
-    int numOfPackFields = 3;
+    int numOfPackFields = 4;
     while (m->countFields() > numOfPackFields) {
       apf::Field* f = m->getField(index);
       if ( f == m->findField("solution") ||
            f == m->findField("time derivative of solution") ||
-           f == m->findField("mesh_vel") ) {
+           f == m->findField("mesh_vel") ||
+           f == m->findField("tb_factor") ) {
         index++;
         continue;
       }
@@ -117,6 +118,12 @@ namespace pc {
       apf::destroyField(m->findField("mesh_vel"));
     }
 
+    if (m->findField("tb_factor")) {
+      num_flds += 1;
+      sim_flds[7] = apf::getSIMField(chef::extractField(m,"tb_factor","tb_factor_sim",1,apf::SCALAR,simFlag));
+      apf::destroyField(m->findField("tb_factor"));
+    }
+
     return num_flds;
   }
 
@@ -145,6 +152,8 @@ namespace pc {
       chef::combineField(m,"time derivative of solution","der_pressure","der_velocity","der_temperature");
     if (m->findField("mesh_vel_sim"))
       convertField(m, "mesh_vel_sim", "mesh_vel");
+    if (m->findField("tb_factor_sim"))
+      convertField(m, "tb_factor_sim", "tb_factor");
     // destroy mesh size field
     if(m->findField("sizes"))  apf::destroyField(m->findField("sizes"));
     if(m->findField("frames")) apf::destroyField(m->findField("frames"));
@@ -310,6 +319,8 @@ namespace pc {
   void applyMaxTimeResource(apf::Mesh2*& m, apf::Field* sizes,
                             ph::Input& in, phSolver::Input& inp) {
     apf::Field* sol = m->findField("solution");
+    assert(sol);
+    apf::Field* ct = apf::createSIMFieldOn(m, "tb_factor", apf::SCALAR);
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::NewArray<double> s(in.ensa_dof);
     apf::MeshEntity* v;
@@ -320,10 +331,14 @@ namespace pc {
       double c = sqrt(1.4*8.3145*s[4]/0.029);
       double t = inp.GetValue("Time Step Size");
       double h_min = (u+c)*t/in.simCFLUpperBound;
- printf("h_min = %f\n", h_min);
       apf::getVector(sizes,v,0,v_mag);
-      for (int i = 0; i < 3; i++)
-        if(v_mag[i] < h_min) v_mag[i] = h_min;
+      apf::setScalar(ct,v,0,1.0);
+      for (int i = 0; i < 3; i++) {
+        if(v_mag[i] < h_min) {
+          apf::setScalar(ct,v,0,h_min/v_mag[i]);
+          v_mag[i] = h_min;
+        }
+      }
       apf::setVector(sizes,v,0,v_mag);
     }
     m->end(vit);
