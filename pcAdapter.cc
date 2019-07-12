@@ -347,9 +347,10 @@ namespace pc {
     }
     m->end(vit);
 
+    double maxCtAll  = PCU_Max_Double(maxCt);
+    double minCtHAll = PCU_Min_Double(minCtH);
     if (!PCU_Comm_Self())
-      printf("max time resource bound factor and min reached size: %f and %f\n",
-             PCU_Max_Double(maxCt),PCU_Min_Double(minCtH));
+      printf("max time resource bound factor and min reached size: %f and %f\n",maxCtAll,minCtHAll);
   }
 
   void setupSimImprover(pVolumeMeshImprover vmi, pPList sim_fld_lst) {
