@@ -138,7 +138,7 @@ namespace {
 
     // load fields
     phSolver::Input inp("solver.inp", "input.config");
-    int num_flds = pc::getNumOfMappedFields(inp);
+    int num_flds = pc::getNumOfMappedFields(src_m);
     pField* src_flds = new pField[num_flds];
     pc::removeOtherFields(src_m, inp);
     int num_chck = pc::getSimFields(src_m, 1, src_flds, inp);

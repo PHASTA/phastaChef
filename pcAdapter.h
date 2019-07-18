@@ -15,7 +15,7 @@ namespace pc {
 
   void attachMeshSizeField(apf::Mesh2*& m, ph::Input& in, phSolver::Input& inp);
 
-  int getNumOfMappedFields(phSolver::Input& inp);
+  int getNumOfMappedFields(apf::Mesh2*& m);
 
   void removeOtherFields(apf::Mesh2*& m, phSolver::Input& inp);
 
