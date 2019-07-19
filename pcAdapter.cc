@@ -61,8 +61,6 @@ namespace pc {
       apf::Field* frames = apf::createSIMFieldOn(m, "frames", apf::MATRIX);
       ph::attachSIMSizeField(m, sizes, frames);
     }
-    /* add mesh smooth/gradation function here */
-    pc::addSmoother(m, in.gradingFactor);
   }
 
   int getNumOfMappedFields(apf::Mesh2*& m) {
@@ -385,6 +383,9 @@ namespace pc {
 
     /* scale mesh if reach time resource bound */
     pc::applyMaxTimeResource(m, sizes, in, inp);
+
+    /* add mesh smooth/gradation function here */
+    pc::addSmoother(m, in.gradingFactor);
 
     /* use current size field */
     if(!PCU_Comm_Self())
