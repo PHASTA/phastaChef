@@ -561,7 +561,7 @@ namespace pc {
     }
     m->end(vit);
 
-    /* write error and mesh size */
+    // additional writing to see mesh size before adaptation
     pc::writeSequence(m, in.timeStepNumber, "error_mesh_size_");
 
     /* set fields to be mapped */

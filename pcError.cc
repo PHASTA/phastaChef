@@ -122,9 +122,6 @@ namespace pc {
     //delete element-based error and mesh size
     apf::destroyField(cur_size);
     apf::destroyField(elm_size);
-
-    // additional writing to see mesh size before adaptation
-    pc::writeSequence(m, in.timeStepNumber, "error_mesh_size_");
   }
 
   void attachVMSSizeField(apf::Mesh2*& m, ph::Input& in, phSolver::Input& inp) {
