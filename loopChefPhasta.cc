@@ -104,6 +104,7 @@ int main(int argc, char** argv) {
     /* take the initial mesh as size field */
     apf::Field* szFld = samSz::isoSize(m);
     step = phasta(inp,grs,rs);
+    double t0 = PCU_Time();
     pc::writePHTfiles(old_step, step, inp); old_step = step;
     ctrl.rs = rs;
     clearGRStream(grs);
@@ -117,6 +118,9 @@ int main(int argc, char** argv) {
     pc::updateMesh(ctrl,m,szFld,step,ctrl.simCooperation);
     chef::preprocess(m,ctrl,grs);
     clearRStream(rs);
+    double t1 = PCU_Time();
+    if(!PCU_Comm_Self())
+      printf("data transfer+model update+mesh modification in %f seconds\n",t1 - t0);
   } while( step < maxStep );
   destroyGRStream(grs);
   destroyRStream(rs);
