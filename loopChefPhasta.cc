@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
+#include "lionPrint.h"
 
 #include <apfSIM.h>
 #include <gmi_sim.h>
@@ -73,6 +74,7 @@ namespace {
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   PCU_Comm_Init();
+  lion_set_verbosity(1);
   PCU_Protect();
   if( argc != 2 ) {
     if(!PCU_Comm_Self())
