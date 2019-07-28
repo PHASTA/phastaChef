@@ -16,6 +16,7 @@
 #include <apfMDS.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "lionPrint.h"
 
 #include <apfSIM.h>
 #include <gmi_sim.h>
@@ -177,6 +178,7 @@ int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   PCU_Comm_Init();
   PCU_Protect();
+  lion_set_verbosity(1);
   if( argc != 2 ) {
     if(!PCU_Comm_Self())
       fprintf(stderr, "Usage: %s <mode id>\n",argv[0]);

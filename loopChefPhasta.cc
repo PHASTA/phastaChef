@@ -74,8 +74,8 @@ namespace {
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   PCU_Comm_Init();
-  lion_set_verbosity(1);
   PCU_Protect();
+  lion_set_verbosity(1);
   if( argc != 2 ) {
     if(!PCU_Comm_Self())
       fprintf(stderr, "Usage: %s <maxTimeStep> \n",argv[0]);
