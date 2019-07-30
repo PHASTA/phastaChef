@@ -24,7 +24,7 @@ namespace pc {
 
   bool vertexIsInCylinder(apf::MeshEntity* v) {
     double x_min = 0.0;
-    double x_max = 2.0;
+    double x_max = 2.3;
     double r_max = 0.065;
 
     apf::Vector3 xyz = apf::Vector3(0.0,0.0,0.0);

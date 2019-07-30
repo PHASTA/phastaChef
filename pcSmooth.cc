@@ -21,7 +21,7 @@ namespace pc {
 
 bool isInCylinder(apf::MeshEntity* en) {
   double x_min = 0.0;
-  double x_max = 2.0;
+  double x_max = 2.3;
   double r_max = 0.065;
 
   apf::Adjacent enAdjVert;
