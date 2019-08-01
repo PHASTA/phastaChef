@@ -323,28 +323,56 @@ if (pm) {
   }
 
 // hardcoding {
+  bool isInCircularSector(double y, double z) {
+    double PI = 3.14159265;
+    double degree = atan2 (z,y) * 180.0 / PI;
+    if ( (degree >= -3.3       && degree <= 3.3)
+      || (degree >= -3.3+45.0  && degree <= 3.3+45.0)
+      || (degree >= -3.3+90.0  && degree <= 3.3+90.0)
+      || (degree >= -3.3+135.0 && degree <= 3.3+135.0)
+      || (degree >= -3.3+180.0 && degree <= 3.3+180.0)
+      || (degree >= -3.3+225.0 && degree <= 3.3+225.0)
+      || (degree >= -3.3+270.0 && degree <= 3.3+270.0)
+      || (degree >= -3.3+315.0 && degree <= 3.3+315.0) ) {
+      return true;
+    }
+    return false;
+  }
+
   void prescribe_proj_mesh_size(
     apf::Mesh2* m, apf::Field* sizes, double proj_disp)
   {
     // hardcoded parameters
-//    int tailFace = 110; // 2mm case
-//    int headFace = 145; // 2mm case
-    int tailFace = 473; // touch case
-    int headFace = 553; // touch case
+    int tailFace = 110; // 2mm case
+    int headFace = 145; // 2mm case
+//    int tailFace = 473; // touch case
+//    int headFace = 553; // touch case
     double tail = 2.0;
     double head = 0.0;
     double t_min = 0.0;
     double t_max = 2.0;
-    double fine_zone_left_dis_tail = 0.002;
-    double fine_zone_rigt_dis_tail = 0.046;
-    double mode_zone_left_dis_tail = 0.018;
+    double fgap_zone_left_dis_tail = 0.002;
+    double fgap_zone_rigt_dis_tail = 0.028;
+    double step_fine_rig1_dis_tail = 0.435;
+    double step_fine_rig2_dis_tail = 0.581;
+    double step_mode_rig1_dis_tail = 0.411;
+    double step_mode_rig2_dis_tail = 0.597;
+    double step_cors_rig1_dis_tail = 0.363;
+    double step_cors_rig2_dis_tail = 0.629;
+    double fine_zone_left_dis_tail = 0.008;
+    double fine_zone_rigt_dis_tail = 0.052;
+    double mode_zone_left_dis_tail = 0.020;
     double mode_zone_rigt_dis_head = 0.110;
+    double fgap_r = 0.052;
     double zone_r = 0.044;
     double tube_r = 0.060;
     double ref_tol = 0.0001;
-    zone_r = zone_r + ref_tol;
     tube_r = tube_r + ref_tol;
-    apf::Vector3 fine_size = apf::Vector3(0.0005,0.0005,0.0005);
+    apf::Vector3 fgap_size = apf::Vector3(0.0005,0.0005,0.0005);
+    apf::Vector3 stfn_size = apf::Vector3(0.0005,0.0005,0.0005);
+    apf::Vector3 stmd_size = apf::Vector3(0.001,0.001,0.001);
+    apf::Vector3 stcr_size = apf::Vector3(0.002,0.002,0.002);
+    apf::Vector3 fine_size = apf::Vector3(0.002,0.002,0.002);
     apf::Vector3 mode_size = apf::Vector3(0.004,0.004,0.004);
     apf::Vector3 cors_size = apf::Vector3(0.008,0.008,0.008);
 
@@ -380,6 +408,14 @@ if (pm) {
     PCU_Min_Doubles(&tail, 1);
     PCU_Max_Doubles(&head, 1);
 
+    double fgap_zone_min = proj_disp + tail - fgap_zone_left_dis_tail;
+    double fgap_zone_max = proj_disp + tail + fgap_zone_rigt_dis_tail;
+    double step_fine_min = proj_disp + tail + step_fine_rig1_dis_tail;
+    double step_fine_max = proj_disp + tail + step_fine_rig2_dis_tail;
+    double step_mode_min = proj_disp + tail + step_mode_rig1_dis_tail;
+    double step_mode_max = proj_disp + tail + step_mode_rig2_dis_tail;
+    double step_cors_min = proj_disp + tail + step_cors_rig1_dis_tail;
+    double step_cors_max = proj_disp + tail + step_cors_rig2_dis_tail;
     double fine_zone_min = proj_disp + tail - fine_zone_left_dis_tail;
     double fine_zone_max = proj_disp + tail + fine_zone_rigt_dis_tail;
     double mode_zone_min = proj_disp + tail - mode_zone_left_dis_tail;
@@ -388,7 +424,6 @@ if (pm) {
     if(!PCU_Comm_Self())
       printf("tail and head and proj_disp = %f and %f and %f\n",tail,head,proj_disp);
 
-    // set refinement zone 1: around the projectile size = D/40
     apf::Vector3 cur_size = apf::Vector3(0.0,0.0,0.0);
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
@@ -404,9 +439,7 @@ if (pm) {
           apf::setVector(sizes,v,0,mode_size);
         }
         else if (xyz[0] >= fine_zone_min && xyz[0] <= fine_zone_max) {
-          apf::getVector(sizes,v,0,cur_size);
-          if( cur_size[0] < fine_size[0] )
-            apf::setVector(sizes,v,0,fine_size);
+          apf::setVector(sizes,v,0,fine_size);
         }
         else if (xyz[0] > fine_zone_max && xyz[0] < mode_zone_max) {
           apf::setVector(sizes,v,0,mode_size);
@@ -417,13 +450,25 @@ if (pm) {
       }
       else if (xyz[1]*xyz[1]+xyz[2]*xyz[2] >  zone_r*zone_r
             && xyz[1]*xyz[1]+xyz[2]*xyz[2] <= tube_r*tube_r ) {
-        if (xyz[0] >= t_min && xyz[0] < fine_zone_min) {
+        if (xyz[1]*xyz[1]+xyz[2]*xyz[2] >  fgap_r*fgap_r
+         && xyz[0] >= fgap_zone_min && xyz[0] <= fgap_zone_max
+         && isInCircularSector(xyz[1],xyz[2]) ) {
+          apf::setVector(sizes,v,0,fgap_size);
+        }
+        else if (xyz[0] >= step_fine_min && xyz[0] <= step_fine_max) {
+          apf::setVector(sizes,v,0,stfn_size);
+        }
+        else if (xyz[0] >= step_mode_min && xyz[0] <= step_mode_max) {
+          apf::setVector(sizes,v,0,stmd_size);
+        }
+        else if (xyz[0] >= step_cors_min && xyz[0] <= step_cors_max) {
+          apf::setVector(sizes,v,0,stcr_size);
+        }
+        else if (xyz[0] >= t_min && xyz[0] < fine_zone_min) {
           apf::setVector(sizes,v,0,mode_size);
         }
         else if (xyz[0] >= fine_zone_min && xyz[0] <= fine_zone_max) {
-          apf::getVector(sizes,v,0,cur_size);
-          if( cur_size[0] < fine_size[0] )
-            apf::setVector(sizes,v,0,fine_size);
+          apf::setVector(sizes,v,0,fine_size);
         }
         else if (xyz[0] > fine_zone_max && xyz[0] < t_max) {
           apf::setVector(sizes,v,0,mode_size);
