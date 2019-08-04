@@ -48,6 +48,36 @@ namespace pc {
     return outf;
   }
 
+  apf::Field* convertVtxFieldToElm(apf::Mesh* m,
+                  const char* vFieldname,
+                  const char* eFieldname) {
+    apf::Field* vf = m->findField(vFieldname);
+    assert(vf);
+    int size = apf::countComponents(vf);
+    apf::Field* ef = m->findField(eFieldname);
+    if (ef) apf::destroyField(ef);
+    ef = apf::createPackedField(m, eFieldname, size, apf::getConstant(m->getDimension()));
+    apf::NewArray<double> vVal(size);
+    apf::NewArray<double> eVal(size);
+    apf::MeshEntity* elm;
+    apf::MeshIterator* it = m->begin(m->getDimension());
+    while ((elm = m->iterate(it))) {
+      for (int i = 0; i < size; i++) eVal[i] = 0.0;
+      apf::Downward vtx;
+      int nbv = m->getDownward(elm, 0, vtx);
+      for (int j = 0; j < nbv; j++){
+        apf::getComponents(vf, vtx[j], 0, &vVal[0]);
+        for (int i = 0; i < size; i++){
+          eVal[i] += vVal[i]/(double)nbv;
+        }
+      }
+      apf::setComponents(ef, elm, 0, &eVal[0]);
+    }
+    m->end(it);
+    apf::destroyField(vf);
+    return ef;
+  }
+
   void attachMeshSizeField(apf::Mesh2*& m, ph::Input& in, phSolver::Input& inp) {
     /* create a field to store mesh size */
     if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
@@ -68,7 +98,7 @@ namespace pc {
        time der of pressure, time der of velocity, time der of temperature,
        ,mesh velocity and 1 optional field: time resource bound factor field */
     int numOfMappedFields;
-    if (m->findField("tb_factor")) numOfMappedFields = 8;
+    if (m->findField("ctcn_elm")) numOfMappedFields = 8;
     else numOfMappedFields = 7;
     return numOfMappedFields;
   }
@@ -84,7 +114,7 @@ namespace pc {
       if ( f == m->findField("solution") ||
            f == m->findField("time derivative of solution") ||
            f == m->findField("mesh_vel") ||
-           f == m->findField("tb_factor") ) {
+           f == m->findField("ctcn_elm") ) {
         index++;
         continue;
       }
@@ -118,10 +148,10 @@ namespace pc {
       apf::destroyField(m->findField("mesh_vel"));
     }
 
-    if (m->findField("tb_factor")) {
+    if (m->findField("ctcn_elm")) {
       num_flds += 1;
-      sim_flds[7] = apf::getSIMField(chef::extractField(m,"tb_factor","tb_factor_sim",1,apf::SCALAR,simFlag));
-      apf::destroyField(m->findField("tb_factor"));
+      sim_flds[7] = apf::getSIMField(chef::extractField(m,"ctcn_elm","ctcn_elm_sim",1,apf::SCALAR,simFlag));
+      apf::destroyField(m->findField("ctcn_elm"));
     }
 
     return num_flds;
@@ -152,8 +182,8 @@ namespace pc {
       chef::combineField(m,"time derivative of solution","der_pressure","der_velocity","der_temperature");
     if (m->findField("mesh_vel_sim"))
       convertField(m, "mesh_vel_sim", "mesh_vel");
-    if (m->findField("tb_factor_sim"))
-      convertField(m, "tb_factor_sim", "tb_factor");
+    if (m->findField("ctcn_elm_sim"))
+      convertVtxFieldToElm(m, "ctcn_elm_sim", "err_tri_f");
     // destroy mesh size field
     if(m->findField("sizes"))  apf::destroyField(m->findField("sizes"));
     if(m->findField("frames")) apf::destroyField(m->findField("frames"));
@@ -280,28 +310,6 @@ namespace pc {
     return estTolElm;
   }
 
-  void applyMaxElmBound(apf::Mesh2*& m, apf::Field* sizes, ph::Input& in) {
-    double N_est = estimateAdaptedMeshElements(m, sizes);
-    if(!PCU_Comm_Self())
-      printf("Estimated No. of Elm: %f\n", N_est);
-    double f = N_est / (double)in.simMaxAdaptMeshElements;
-    if (f > 1.0) {
-      core_driver_set_err_param(f);
-      apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
-      apf::MeshEntity* v;
-      apf::MeshIterator* vit = m->begin(0);
-      while ((v = m->iterate(vit))) {
-        apf::getVector(sizes,v,0,v_mag);
-        for (int i = 0; i < 3; i++) v_mag[i] = v_mag[i] * cbrt(f);
-        apf::setVector(sizes,v,0,v_mag);
-      }
-      m->end(vit);
-    }
-    else {
-      core_driver_set_err_param(1.0);
-    }
-  }
-
   void applyMaxSizeBound(apf::Mesh2*& m, apf::Field* sizes, ph::Input& in) {
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::MeshEntity* v;
@@ -317,10 +325,11 @@ namespace pc {
   }
 
   void applyMaxTimeResource(apf::Mesh2*& m, apf::Field* sizes,
-                            ph::Input& in, phSolver::Input& inp) {
+                            ph::Input& in, phSolver::Input& inp,
+                            double cn) {
     apf::Field* sol = m->findField("solution");
     assert(sol);
-    apf::Field* ct = apf::createSIMFieldOn(m, "tb_factor", apf::SCALAR);
+    apf::Field* ctcn = apf::createSIMFieldOn(m, "ctcn_elm", apf::SCALAR);
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::NewArray<double> s(in.ensa_dof);
     double maxCt = 1.0;
@@ -335,13 +344,17 @@ namespace pc {
       double h_min = (u+c)*t/in.simCFLUpperBound;
       if (h_min < in.simSizeLowerBound) h_min = in.simSizeLowerBound;
       apf::getVector(sizes,v,0,v_mag);
-      apf::setScalar(ct,v,0,1.0);
+      apf::setScalar(ctcn,v,0,1.0);
       for (int i = 0; i < 3; i++) {
-        if(v_mag[i] < h_min) {
-          if(h_min/v_mag[i] > maxCt) maxCt = h_min/v_mag[i];
-          apf::setScalar(ct,v,0,h_min/v_mag[i]);
+        if(v_mag[i]*cn < h_min) {
+          if(h_min/(v_mag[i]*cn) > maxCt) maxCt = h_min/(v_mag[i]*cn);
+          apf::setScalar(ctcn,v,0,h_min/v_mag[i]);
           if(h_min < minCtH) minCtH = h_min;
           v_mag[i] = h_min;
+        }
+        else {
+          apf::setScalar(ctcn,v,0,cn);
+          v_mag[i] = v_mag[i]*cn;
         }
       }
       apf::setVector(sizes,v,0,v_mag);
@@ -380,10 +393,14 @@ namespace pc {
     pc::applyMaxSizeBound(m, sizes, in);
 
     /* scale mesh if number of elements exceeds threshold */
-    pc::applyMaxElmBound(m, sizes, in);
+    double N_est = estimateAdaptedMeshElements(m, sizes);
+    double cn = N_est / (double)in.simMaxAdaptMeshElements;
+    cn = (cn>1.0)?cn:1.0;
+    if(!PCU_Comm_Self())
+      printf("Estimated No. of Elm: %f and c_N = %f\n", N_est, cn);
 
     /* scale mesh if reach time resource bound */
-    pc::applyMaxTimeResource(m, sizes, in, inp);
+    pc::applyMaxTimeResource(m, sizes, in, inp, cn);
 
     /* apply upper bound */
     pc::applyMaxSizeBound(m, sizes, in);
