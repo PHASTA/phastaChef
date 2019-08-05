@@ -106,7 +106,7 @@ namespace pc {
     }
 // prescribe mesh size field for the projectile case
 // this is hardcoded, please comment out this call for other usage
-    pc::prescribe_proj_mesh_size(m, sizes, in.rbParamData[0]);
+//    pc::prescribe_proj_mesh_size(m, sizes, in.rbParamData[0]);
   }
 
   int getNumOfMappedFields(apf::Mesh2*& m) {
