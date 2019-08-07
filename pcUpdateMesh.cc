@@ -325,15 +325,16 @@ if (pm) {
 // hardcoding {
   bool isInCircularSector(double y, double z) {
     double PI = 3.14159265;
-    double degree = atan2 (z,y) * 180.0 / PI;
-    if ( (degree >= -3.3       && degree <= 3.3)
+    double degree = atan2(z,y) * 180.0 / PI + 180.0;
+    if ( (degree >= 0.0        && degree <= 3.3)
       || (degree >= -3.3+45.0  && degree <= 3.3+45.0)
       || (degree >= -3.3+90.0  && degree <= 3.3+90.0)
       || (degree >= -3.3+135.0 && degree <= 3.3+135.0)
       || (degree >= -3.3+180.0 && degree <= 3.3+180.0)
       || (degree >= -3.3+225.0 && degree <= 3.3+225.0)
       || (degree >= -3.3+270.0 && degree <= 3.3+270.0)
-      || (degree >= -3.3+315.0 && degree <= 3.3+315.0) ) {
+      || (degree >= -3.3+315.0 && degree <= 3.3+315.0)
+      || (degree >= -3.3+360.0 && degree <= 360.0) ) {
       return true;
     }
     return false;
