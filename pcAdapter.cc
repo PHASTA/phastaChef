@@ -431,8 +431,10 @@ namespace pc {
   void applyMaxSizeBound(apf::Mesh2*& m, apf::Field* sizes, ph::Input& in) {
     int barrelTag = 69;  // 2mm case
     int domainTag = 113; // 2mm case
+    int projctTag = 108; // 2mm case
     apf::ModelEntity* bme = m->findModelEntity(3, barrelTag);
     apf::ModelEntity* dme = m->findModelEntity(3, domainTag);
+    apf::ModelEntity* pme = m->findModelEntity(3, projctTag);
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
@@ -449,6 +451,7 @@ namespace pc {
         for (int i = 0; i < 3; i++) {
           if (m->isInClosureOf(me, bme) && v_mag[i] > 0.016) v_mag[i] = 0.016;
           if (m->isInClosureOf(me, dme) && v_mag[i] > 1.024) v_mag[i] = 1.024;
+          if (m->isInClosureOf(me, pme) && v_mag[i] > 0.004) v_mag[i] = 0.004;
         }
         apf::setVector(sizes,v,0,v_mag);
       }
