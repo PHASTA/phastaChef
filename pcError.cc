@@ -111,6 +111,7 @@ namespace pc {
       weightedSize = weightedSize / totalError;
       //set new size
       apf::Vector3 v_mag;
+      if(!isfinite(weightedSize)) weightedSize = 1e16; // avoid inf and NaN
       v_mag[0] = weightedSize;
       v_mag[1] = weightedSize;
       v_mag[2] = weightedSize;
