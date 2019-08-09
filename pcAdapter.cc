@@ -397,10 +397,10 @@ namespace pc {
     double cn = N_est / (double)in.simMaxAdaptMeshElements;
     cn = (cn>1.0)?cn:1.0;
     if(!PCU_Comm_Self())
-      printf("Estimated No. of Elm: %f and c_N = %f\n", N_est, cn);
+      printf("Estimated No. of Elm: %f and c_N = %f\n", N_est, cbrt(cn));
 
     /* scale mesh if reach time resource bound */
-    pc::applyMaxTimeResource(m, sizes, in, inp, cn);
+    pc::applyMaxTimeResource(m, sizes, in, inp, cbrt(cn));
 
     /* apply upper bound */
     pc::applyMaxSizeBound(m, sizes, in);
