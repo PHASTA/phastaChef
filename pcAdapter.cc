@@ -549,15 +549,15 @@ namespace pc {
     /* initial ctcn field */
     pc::initializeCtCn(m);
 
-// prescribe mesh size field for the projectile case
-// this is hardcoded, please comment out this call for other usage
-//    pc::prescribe_proj_mesh_size(m, sizes, in.rbParamData[0]);
-
-    /* apply max number of element */
-    double cn = pc::applyMaxNumberElement(m, sizes, in);
+    /* scale mesh if number of elements exceeds threshold */
+    double N_est = estimateAdaptedMeshElements(m, sizes);
+    double cn = N_est / (double)in.simMaxAdaptMeshElements;
+    cn = (cn>1.0)?cn:1.0;
+    if(!PCU_Comm_Self())
+      printf("Estimated No. of Elm: %f and c_N = %f\n", N_est, cbrt(cn));
 
     /* scale mesh if reach time resource bound */
-    pc::applyMaxTimeResource(m, sizes, in, inp);
+    pc::applyMaxTimeResource(m, sizes, in, inp, cbrt(cn));
 
     /* apply upper bound */
     pc::applyMaxSizeBound(m, sizes, in);
