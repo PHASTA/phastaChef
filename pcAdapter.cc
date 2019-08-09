@@ -440,21 +440,15 @@ namespace pc {
     apf::MeshIterator* vit = m->begin(0);
     while ((v = m->iterate(vit))) {
       apf::getVector(sizes,v,0,v_mag);
-      if(vertexIsInCylinder(v)) {
-        for (int i = 0; i < 3; i++)
-          if(v_mag[i] > in.simSizeUpperBound)
-            v_mag[i] = in.simSizeUpperBound;
-        apf::setVector(sizes,v,0,v_mag);
-      }
-      else {
+      for (int i = 0; i < 3; i++) {
         apf::ModelEntity* me = m->toModel(v);
-        for (int i = 0; i < 3; i++) {
-          if (m->isInClosureOf(me, bme) && v_mag[i] > 0.016) v_mag[i] = 0.016;
-          if (m->isInClosureOf(me, dme) && v_mag[i] > 1.024) v_mag[i] = 1.024;
-          if (m->isInClosureOf(me, pme) && v_mag[i] > 0.004) v_mag[i] = 0.004;
-        }
-        apf::setVector(sizes,v,0,v_mag);
+        if (m->isInClosureOf(me, bme) && v_mag[i] > 0.016) v_mag[i] = 0.016;
+        if (m->isInClosureOf(me, dme) && v_mag[i] > 1.024) v_mag[i] = 1.024;
+        if (m->isInClosureOf(me, pme) && v_mag[i] > 0.004) v_mag[i] = 0.004;
+        if(vertexIsInCylinder(v) && v_mag[i] > in.simSizeUpperBound)
+          v_mag[i] = in.simSizeUpperBound;
       }
+      apf::setVector(sizes,v,0,v_mag);
     }
     m->end(vit);
   }
