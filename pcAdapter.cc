@@ -341,8 +341,6 @@ namespace pc {
     cn = (cn>1.0)?cbrt(cn):1.0;
     if(!PCU_Comm_Self())
       printf("Estimated No. of Elm: %f and c_N = %f\n", N_est, cn);
-    if (cn = 1.0) return cn;
-
     apf::Field* sol = m->findField("solution");
     apf::Field* ctcn = m->findField("ctcn_elm");
     assert(sol);
