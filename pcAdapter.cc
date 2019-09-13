@@ -310,6 +310,16 @@ namespace pc {
     return estTolElm;
   }
 
+  void initializeCtCn(apf::Mesh2*& m) {
+    apf::Field* ctcn = apf::createSIMFieldOn(m, "ctcn_elm", apf::SCALAR);
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      apf::setScalar(ctcn,v,0,1.0);
+    }
+    m->end(vit);
+  }
+
   void applyMaxSizeBound(apf::Mesh2*& m, apf::Field* sizes, ph::Input& in) {
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::MeshEntity* v;
@@ -324,12 +334,40 @@ namespace pc {
     m->end(vit);
   }
 
-  void applyMaxTimeResource(apf::Mesh2*& m, apf::Field* sizes,
-                            ph::Input& in, phSolver::Input& inp,
-                            double cn) {
+  double applyMaxNumberElement(apf::Mesh2*& m, apf::Field* sizes, ph::Input& in)  {
+    /* scale mesh if number of elements exceeds threshold */
+    double N_est = estimateAdaptedMeshElements(m, sizes);
+    double cn = N_est / (double)in.simMaxAdaptMeshElements;
+    cn = (cn>1.0)?cbrt(cn):1.0;
+    if(!PCU_Comm_Self())
+      printf("Estimated No. of Elm: %f and c_N = %f\n", N_est, cn);
     apf::Field* sol = m->findField("solution");
+    apf::Field* ctcn = m->findField("ctcn_elm");
     assert(sol);
-    apf::Field* ctcn = apf::createSIMFieldOn(m, "ctcn_elm", apf::SCALAR);
+    assert(ctcn);
+    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      apf::getVector(sizes,v,0,v_mag);
+      for (int i = 0; i < 3; i++)
+        v_mag[i] = v_mag[i] * cn;
+      apf::setVector(sizes,v,0,v_mag);
+
+      double f = apf::getScalar(ctcn,v,0);
+      f = f * cn;
+      apf::setScalar(ctcn,v,0,f);
+    }
+    m->end(vit);
+    return cn;
+  }
+
+  void applyMaxTimeResource(apf::Mesh2*& m, apf::Field* sizes,
+                            ph::Input& in, phSolver::Input& inp) {
+    apf::Field* sol = m->findField("solution");
+    apf::Field* ctcn = m->findField("ctcn_elm");
+    assert(sol);
+    assert(ctcn);
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::NewArray<double> s(in.ensa_dof);
     double maxCt = 1.0;
@@ -344,17 +382,13 @@ namespace pc {
       double h_min = (u+c)*t/in.simCFLUpperBound;
       if (h_min < in.simSizeLowerBound) h_min = in.simSizeLowerBound;
       apf::getVector(sizes,v,0,v_mag);
-      apf::setScalar(ctcn,v,0,1.0);
+      double f = apf::getScalar(ctcn,v,0);
       for (int i = 0; i < 3; i++) {
-        if(v_mag[i]*cn < h_min) {
-          if(h_min/(v_mag[i]*cn) > maxCt) maxCt = h_min/(v_mag[i]*cn);
-          apf::setScalar(ctcn,v,0,h_min/v_mag[i]);
+        if(v_mag[i] < h_min) {
+          if(h_min/(v_mag[i]) > maxCt) maxCt = h_min/(v_mag[i]);
+          apf::setScalar(ctcn,v,0,h_min/v_mag[i]*f);
           if(h_min < minCtH) minCtH = h_min;
           v_mag[i] = h_min;
-        }
-        else {
-          apf::setScalar(ctcn,v,0,cn);
-          v_mag[i] = v_mag[i]*cn;
         }
       }
       apf::setVector(sizes,v,0,v_mag);
@@ -365,6 +399,35 @@ namespace pc {
     double minCtHAll = PCU_Min_Double(minCtH);
     if (!PCU_Comm_Self())
       printf("max time resource bound factor and min reached size: %f and %f\n",maxCtAll,minCtHAll);
+  }
+
+  void syncMeshSize(apf::Mesh2*& m, apf::Field* sizes) {
+    PCU_Comm_Begin();
+    apf::Copies remotes;
+    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      apf::getVector(sizes,v,0,v_mag);
+      if(m->isShared(v)) {
+        m->getRemotes(v, remotes);
+        APF_ITERATE(apf::Copies, remotes, rit) {
+          PCU_COMM_PACK(rit->first, rit->second);
+          PCU_Comm_Pack(rit->first, &(v_mag[0]), sizeof(double));
+        }
+      }
+    }
+    m->end(vit);
+
+    PCU_Comm_Send();
+    while (PCU_Comm_Receive()) {
+      apf::MeshEntity* rv;
+      PCU_COMM_UNPACK(rv);
+      double rv_mag;
+      PCU_Comm_Unpack(&(rv_mag), sizeof(double));
+      v_mag = apf::Vector3(rv_mag,rv_mag,rv_mag);
+      apf::setVector(sizes,rv,0,v_mag);
+    }
   }
 
   void setupSimImprover(pVolumeMeshImprover vmi, pPList sim_fld_lst) {
@@ -382,6 +445,7 @@ namespace pc {
     MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
     MSA_setBLSnapping(adapter, 0); // currently needed for parametric model
     MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
+    MSA_setSizeGradation(adapter, 1, 0.0);
 
     /* attach mesh size field */
     phSolver::Input inp("solver.inp", "input.config");
@@ -389,24 +453,26 @@ namespace pc {
     apf::Field* sizes = m->findField("sizes");
     assert(sizes);
 
+    /* initial ctcn field */
+    pc::initializeCtCn(m);
+
     /* apply upper bound */
     pc::applyMaxSizeBound(m, sizes, in);
 
-    /* scale mesh if number of elements exceeds threshold */
-    double N_est = estimateAdaptedMeshElements(m, sizes);
-    double cn = N_est / (double)in.simMaxAdaptMeshElements;
-    cn = (cn>1.0)?cn:1.0;
-    if(!PCU_Comm_Self())
-      printf("Estimated No. of Elm: %f and c_N = %f\n", N_est, cbrt(cn));
+    /* apply max number of element */
+    double cn = pc::applyMaxNumberElement(m, sizes, in);
 
     /* scale mesh if reach time resource bound */
-    pc::applyMaxTimeResource(m, sizes, in, inp, cbrt(cn));
+    pc::applyMaxTimeResource(m, sizes, in, inp);
 
     /* apply upper bound */
     pc::applyMaxSizeBound(m, sizes, in);
 
     /* add mesh smooth/gradation function here */
-    pc::addSmoother(m, in.gradingFactor);
+//    pc::addSmoother(m, in.gradingFactor);
+
+    /* sync mesh size over partitions */
+    pc::syncMeshSize(m, sizes);
 
     /* use current size field */
     if(!PCU_Comm_Self())
@@ -421,6 +487,9 @@ namespace pc {
       MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
     }
     m->end(vit);
+
+    /* write error and mesh size */
+    pc::writeSequence(m, in.timeStepNumber, "error_mesh_size_");
 
     /* set fields to be mapped */
     PList_clear(sim_fld_lst);

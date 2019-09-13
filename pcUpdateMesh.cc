@@ -621,11 +621,12 @@ if (pm) {
     }
 
     // set rigid body total disp to be zero
-    for (size_t i_rbpd = 0; (int)i_rbpd < 3*in.nRigidBody; i_rbpd++)
-      in.rbParamData[i_rbpd] = 0.0;
-    // set rigid body total rotation angle to be zero
-    for (size_t i_rbpd = 12*in.nRigidBody; (int)i_rbpd < 13*in.nRigidBody; i_rbpd++)
-      in.rbParamData[i_rbpd] = 0.0;
+    for (size_t i_nrbs = 0; (int)i_nrbs < in.nRigidBody; i_nrbs++) {
+      for (size_t i_rbpd = 0; (int)i_rbpd < 3; i_rbpd++)
+        in.rbParamData[i_rbpd+i_nrbs*(size_t)in.nRBParam] = 0.0;
+      for (size_t i_rbpd = 12; (int)i_rbpd < 13; i_rbpd++)
+        in.rbParamData[i_rbpd+i_nrbs*(size_t)in.nRBParam] = 0.0;
+    }
 
     // write model and mesh
     if(!PCU_Comm_Self())
