@@ -425,8 +425,11 @@ namespace pc {
       PCU_COMM_UNPACK(rv);
       double rv_mag;
       PCU_Comm_Unpack(&(rv_mag), sizeof(double));
-      v_mag = apf::Vector3(rv_mag,rv_mag,rv_mag);
-      apf::setVector(sizes,rv,0,v_mag);
+      apf::getVector(sizes,v,0,v_mag);
+      if(rv_mag < v_mag[0]) { // smaller wins
+        v_mag = apf::Vector3(rv_mag,rv_mag,rv_mag);
+        apf::setVector(sizes,rv,0,v_mag);
+      }
     }
   }
 
