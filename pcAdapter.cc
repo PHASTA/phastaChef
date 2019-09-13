@@ -514,7 +514,39 @@ namespace pc {
 
     double maxCtAll = PCU_Max_Double(maxCt);
     if (!PCU_Comm_Self())
-      printf("max time resource bound factor: %f\n",maxCtAll);
+      printf("max time resource bound factor and min reached size: %f and %f\n",maxCtAll,minCtHAll);
+  }
+
+  void syncMeshSize(apf::Mesh2*& m, apf::Field* sizes) {
+    PCU_Comm_Begin();
+    apf::Copies remotes;
+    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
+    apf::MeshEntity* v;
+    apf::MeshIterator* vit = m->begin(0);
+    while ((v = m->iterate(vit))) {
+      apf::getVector(sizes,v,0,v_mag);
+      if(m->isShared(v)) {
+        m->getRemotes(v, remotes);
+        APF_ITERATE(apf::Copies, remotes, rit) {
+          PCU_COMM_PACK(rit->first, rit->second);
+          PCU_Comm_Pack(rit->first, &(v_mag[0]), sizeof(double));
+        }
+      }
+    }
+    m->end(vit);
+
+    PCU_Comm_Send();
+    while (PCU_Comm_Receive()) {
+      apf::MeshEntity* rv;
+      PCU_COMM_UNPACK(rv);
+      double rv_mag;
+      PCU_Comm_Unpack(&(rv_mag), sizeof(double));
+      apf::getVector(sizes,v,0,v_mag);
+      if(rv_mag < v_mag[0]) { // smaller wins
+        v_mag = apf::Vector3(rv_mag,rv_mag,rv_mag);
+        apf::setVector(sizes,rv,0,v_mag);
+      }
+    }
   }
 
   void setupSimImprover(pVolumeMeshImprover vmi, pPList sim_fld_lst) {
