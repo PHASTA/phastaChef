@@ -472,10 +472,10 @@ namespace pc {
     pc::applyMaxSizeBound(m, sizes, in);
 
     /* add mesh smooth/gradation function here */
-//    pc::addSmoother(m, in.gradingFactor);
+    pc::addSmoother(m, in.gradingFactor);
 
     /* sync mesh size over partitions */
-    pc::syncMeshSize(m, sizes);
+//    pc::syncMeshSize(m, sizes);
 
     /* use current size field */
     if(!PCU_Comm_Self())
