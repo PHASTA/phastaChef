@@ -17,6 +17,7 @@
 #include <maStats.h>
 #include <apfShape.h>
 #include <math.h>
+#include <fstream>
 
 extern void MSA_setBLSnapping(pMSAdapt, int onoff);
 
@@ -24,8 +25,8 @@ namespace pc {
 
   bool vertexIsInCylinder(apf::MeshEntity* v) {
     double x_min = 0.0;
-    double x_max = 2.3;
-    double r_max = 0.065;
+    double x_max = 2.01;
+    double r_max = 0.07;//outer radius
 
     apf::Vector3 xyz = apf::Vector3(0.0,0.0,0.0);
     m->getPoint(v,0,xyz);
@@ -429,24 +430,29 @@ namespace pc {
   }
 
   void applyMaxSizeBound(apf::Mesh2*& m, apf::Field* sizes, ph::Input& in) {
-    int barrelTag = 69;  // 2mm case
-    int domainTag = 113; // 2mm case
-    int projctTag = 108; // 2mm case
-    apf::ModelEntity* bme = m->findModelEntity(3, barrelTag);
+    //int barrelTag = 69;  // 2mm case
+    //int domainTag = 113; // 2mm case
+    //int projctTag = 108; // 2mm case
+    int domainTag = 1; //hollow barrel case	
+
+    //apf::ModelEntity* bme = m->findModelEntity(3, barrelTag);
     apf::ModelEntity* dme = m->findModelEntity(3, domainTag);
-    apf::ModelEntity* pme = m->findModelEntity(3, projctTag);
+    //apf::ModelEntity* pme = m->findModelEntity(3, projctTag);
+
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
+    double dmeSizeUpperBound = 1.00; //upper bound for farfield
+
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
     while ((v = m->iterate(vit))) {
       apf::getVector(sizes,v,0,v_mag);
       for (int i = 0; i < 3; i++) {
         apf::ModelEntity* me = m->toModel(v);
-        if (m->isInClosureOf(me, bme) && v_mag[i] > 0.016) v_mag[i] = 0.016;
-        if (m->isInClosureOf(me, dme) && v_mag[i] > 1.024) v_mag[i] = 1.024;
-        if (m->isInClosureOf(me, pme) && v_mag[i] > 0.004) v_mag[i] = 0.004;
+        //if (m->isInClosureOf(me, bme) && v_mag[i] > 0.016) v_mag[i] = 0.016;
+        if (m->isInClosureOf(me, dme) && v_mag[i] > dmeSizeUpperBound) v_mag[i] = dmeSizeUpperBound;
+        //if (m->isInClosureOf(me, pme) && v_mag[i] > 0.004) v_mag[i] = 0.004;
         if(vertexIsInCylinder(v) && v_mag[i] > in.simSizeUpperBound)
-          v_mag[i] = in.simSizeUpperBound;
+          v_mag[i] = in.simSizeUpperBound; //set in adapt.inp
       }
       apf::setVector(sizes,v,0,v_mag);
     }
@@ -565,22 +571,27 @@ namespace pc {
     MSA_setBLSnapping(adapter, 0); // currently needed for parametric model
     MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
     MSA_setSizeGradation(adapter, 1, 0.0);
+	
 
     /* attach mesh size field */
     phSolver::Input inp("solver.inp", "input.config");
     attachMeshSizeField(m, in, inp);
     apf::Field* sizes = m->findField("sizes");
     assert(sizes);
+	
 
     /* initial ctcn field */
     pc::initializeCtCn(m);
 
-    /* scale mesh if number of elements exceeds threshold */
-    double N_est = estimateAdaptedMeshElements(m, sizes);
-    double cn = N_est / (double)in.simMaxAdaptMeshElements;
-    cn = (cn>1.0)?cn:1.0;
-    if(!PCU_Comm_Self())
-      printf("Estimated No. of Elm: %f and c_N = %f\n", N_est, cbrt(cn));
+
+
+    /* apply upper bound */
+    pc::applyMaxSizeBound(m, sizes, in);
+
+
+
+    /* apply max number of element */
+    double cn = pc::applyMaxNumberElement(m, sizes, in);
 
     /* scale mesh if reach time resource bound */
     pc::applyMaxTimeResource(m, sizes, in, inp, cbrt(cn));
@@ -640,6 +651,100 @@ namespace pc {
       VIter vIter;
       pVertex meshVertex;
 
+      pProgress progress_tmp = Progress_new();
+      Progress_setDefaultCallback(progress_tmp);
+      apf::MeshSIM* apf_msim = dynamic_cast<apf::MeshSIM*>(m);
+      pParMesh ppm = apf_msim->getMesh();
+ 
+     /*Begin shock detection code: Written by Isaac Tam, 2020*/ 
+      
+      PM_write(ppm, "ShockInd.sms",progress_tmp);
+ 
+      apf::Field* S_Ind = m->findField("Shock_Ind");
+      apf::Field* P_Filt = m->findField("P_Filt");
+      apf::Field* vms_err = m->findField("VMS_error");
+ 
+      /* Loop through elements and output IDs that contain a shock after filtering */
+      int nsd = 3;
+      apf::MeshEntity* elm;
+      
+      apf::NewArray<double> Shock_Ind(apf::countComponents(S_Ind));
+      apf::NewArray<double> P_filter(apf::countComponents(P_Filt));
+      apf::NewArray<double> VMS_err(apf::countComponents(vms_err));
+
+      //default values for filtering
+      double P_thres_max   = 10000000000000000.0; // accept the highest values
+      double P_thres_min   = 0.0; // accept lowest values
+      double VMS_thres_max = 10000000000000000.0;
+      double VMS_thres_min = 0.0;
+      
+      //read from "Shock.inp"
+      std::ifstream in_str("Shock.inp");
+      if (!in_str.good()){
+           std::cout << "Can't open Shock.inp to read. Using defaults.\n" <<std::endl;
+      }
+      std::string parse; 
+      while(in_str >> parse){
+           if (parse == "P_thres_max"){
+                in_str >> P_thres_max;
+           } else if (parse == "P_thres_min"){
+                in_str >> P_thres_min;
+           } else if (parse == "VMS_thres_max"){
+                in_str >> VMS_thres_max;
+           } else if (parse == "VMS_thres_min"){
+                in_str >> VMS_thres_min;
+           }
+      } 
+      
+      
+      //Setup for shock parameter recording
+      std::vector<int> ShkIDs;
+      
+      apf::Field* Shock_Param = apf::createField(m, "Shock Param", apf::SCALAR, apf::getConstant(nsd));
+
+
+      apf::MeshIterator* it = m->begin(nsd);
+      while ((elm = m->iterate(it))) {
+          apf::getComponents(S_Ind, elm, 0, &Shock_Ind[0]);
+          apf::getComponents(P_Filt, elm, 0, &P_filter[0]);
+          apf::getComponents(vms_err, elm, 0, &VMS_err[0]);
+
+          apf::setScalar(Shock_Param, elm, 0, 0.0);
+          
+          //get momentum vms err
+          double moment_err = 0.0;
+          moment_err = sqrt(VMS_err[1]*VMS_err[1]
+                           +VMS_err[2]*VMS_err[2]
+                           +VMS_err[3]*VMS_err[3]);
+
+          //actual filtering
+          if (P_thres_max > P_filter[3] && P_filter[3] > P_thres_min){//pressure filter, between max and min
+           if ( VMS_thres_max > moment_err && moment_err > VMS_thres_min) {//similar VMS_filter
+            if (!vertexIsInCylinder(elm)){ //not in cylinder geom filter, update w/ custom func
+               if (Shock_Ind[0] >1 && Shock_Ind[1] <1){//iso surface elements
+                         pEntity ent = reinterpret_cast<pEntity>(elm);
+                         int rID = EN_id(ent);
+                         ShkIDs.push_back(rID);
+                         apf::setScalar(Shock_Param, elm, 0, 1.0);
+               }
+            }
+           }
+          }
+      }
+      m->end(it);
+      
+      std::string ShkFile ="ShockElms-"+ std::to_string(PCU_Comm_Self()) + ".txt";
+      std::ofstream ShockOut(ShkFile);
+      if(!ShockOut.good()){
+          std::cerr << "Can't open "<< ShkFile <<" to write.\n" <<std::endl;
+          exit(1);
+      }
+      for (unsigned int i=0; i<ShkIDs.size();i++){
+          ShockOut << ShkIDs[i] << std::endl;
+      }
+
+      
+      
       /* create the Simmetrix adapter */
       if(!PCU_Comm_Self())
         printf("Start mesh adapt\n");
