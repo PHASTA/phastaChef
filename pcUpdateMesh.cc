@@ -26,6 +26,7 @@ extern void MSA_setBLSnapping(pMSAdapt, int onoff);
 namespace pc {
 
   bool updateAPFCoord(ph::Input& in, apf::Mesh2* m) {
+    //std::cout << "entered updateAPF Coord" << std::endl;
     apf::Field* f = m->findField("motion_coords");
     assert(f);
     double* vals = new double[apf::countComponents(f)];
@@ -33,6 +34,7 @@ namespace pc {
     apf::MeshEntity* vtx;
     apf::Vector3 points;
     apf::MeshIterator* itr = m->begin(0);
+    //std::cout << "begin iterator" << std::endl;
     while( (vtx = m->iterate(itr)) ) {
       apf::getComponents(f, vtx, 0, vals);
       for ( int i = 0; i < 3; i++ )  points[i] = vals[i];
@@ -490,6 +492,7 @@ if (pm) {
 
 // auto detect non-rigid body model entities
   bool updateSIMCoordAuto(ph::Input& in, apf::Mesh2* m, int cooperation) {
+    //std::cout << "updateSIM in" << std::endl;
     if (in.writeSimLog)
       Sim_logOn("updateSIMCoord.log");
 
@@ -499,14 +502,20 @@ if (pm) {
     apf::MeshSIM* apf_msim = dynamic_cast<apf::MeshSIM*>(m);
     pParMesh ppm = apf_msim->getMesh();
     pMesh pm = PM_mesh(ppm,0);
+    //std::cout << "meshSIM in" << std::endl;
 
     gmi_model* gmiModel = apf_msim->getModel();
     pGModel model = gmi_export_sim(gmiModel);
+    //std::cout << "model in" << std::endl;
 
     apf::Field* f = m->findField("motion_coords");
+    //std::cout << "motion coords gathered" << std::endl;
     assert(f);
+    //std::cout << "assert passed  f: " << f <<  std::endl;
     apf::NewArray<double> vals(apf::countComponents(f));
+    //std::cout << "count components: " << apf::countComponents(f) << std::endl;
     assert(apf::countComponents(f) == 3);
+    //std::cout << "2nd assert passed" << std::endl;
 
     // declaration
     pGRegion modelRegion;
@@ -699,24 +708,39 @@ if (pm) {
   void runMeshMover(ph::Input& in, apf::Mesh2* m, int step, int cooperation) {
     bool done = false;
     if (in.simmetrixMesh) {
+      //std::cout << "simmetrix in" << std::endl;
       done = updateSIMCoordAuto(in, m, cooperation);
+      // done = true;
+      //std::cout << "simmetrix mesh ran" << std::endl;
     }
     else {
+      //std::cout << "non-simmetrix in" << std::endl;
       done = updateAPFCoord(in, m);
+      ////std::cout << "non-simmetrix mesh ran" << std::endl;
     }
     assert(done);
   }
 
   void updateMesh(ph::Input& in, apf::Mesh2* m, apf::Field* szFld, int step, int cooperation) {
+    ////std::cout << "entered updateMesh" << std::endl;
     if (in.simmetrixMesh && cooperation) {
+      ////std::cout << "simmetrixMesh and cooperation" << std::endl;
       pc::runMeshMover(in,m,step,cooperation);
+      //std::cout << "mesh mover ran" << std::endl;
       m->verify();
+      //std::cout << "verify ran" << std::endl;
+      if(!PCU_Comm_Self())
+        printf("breakpoint-end\n");
     }
     else {
+      //std::cout << "else" << std::endl;
       pc::runMeshMover(in,m,step);
+      //std::cout << "mesh mover ran" << std::endl;
       m->verify();
       pc::runMeshAdapter(in,m,szFld,step);
+      //std::cout << "mesh adapter ran" << std::endl;
       m->verify();
+      //std::cout << "verify ran" << std::endl;
     }
   }
 

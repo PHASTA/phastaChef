@@ -30,6 +30,10 @@
 #include "pcUpdateMesh.h"
 #include "pcAdapter.h"
 
+#include <maStats.h>
+#include <apfShape.h>
+
+
 namespace {
   void freeMesh(apf::Mesh* m) {
     m->destroyNative();
@@ -99,15 +103,19 @@ int main(int argc, char** argv) {
   pc::writeSequence(m,0,"init_");
   int step = 0; int old_step = 0;
   do {
+    // std::cout << "step: " << step << std::endl;
     m->verify();
     pass_info_to_phasta(m, ctrl);
+
+    
     /* take the initial mesh as size field */
     apf::Field* szFld = samSz::isoSize(m);
-    step = phasta(inp,grs,rs);
+    step = phasta(inp,grs,rs); // primary phasta call
+    
+   
     double t0 = PCU_Time();
     pc::writePHTfiles(old_step, step, inp); old_step = step;
     ctrl.rs = rs;
-    clearGRStream(grs);
     if(!PCU_Comm_Self())
       fprintf(stderr, "STATUS ran to step %d\n", step);
     if( step >= maxStep )

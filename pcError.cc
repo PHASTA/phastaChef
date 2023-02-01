@@ -31,7 +31,7 @@ namespace pc {
     }
     return min;
   }
-
+  
   void calAndAttachVMSSizeField(apf::Mesh2*& m, ph::Input& in, phSolver::Input& inp) {
     pc::attachCurrentSizeField(m);
     apf::Field* cur_size = m->findField("cur_size");
@@ -41,6 +41,12 @@ namespace pc {
     apf::Field* err = m->findField("VMS_error");
     //get nodal-based mesh size field
     apf::Field* sizes = m->findField("sizes");
+
+    //SS:read phasta solution field
+    // apf::Field* sol = m->findField("solution");
+    // //SS:read shock detection field (1s or 0s)
+    apf::Field* shock_param = m->findField("Shock Param");
+
     //create a field to store element-based mesh size
     int nsd = m->getDimension();
     apf::Field* elm_size = apf::createField(m, "elm_size", apf::SCALAR, apf::getConstant(nsd));
@@ -76,15 +82,40 @@ namespace pc {
       //get new size
       //currently, we only focus on the momemtum error // debugging
       double factor = 0.0;
-      factor = desr_err[1] / sqrt(curr_err[1]*curr_err[1]
-                                 +curr_err[2]*curr_err[2]
-                                 +curr_err[3]*curr_err[3]);
+      double curr_err_mag = sqrt(curr_err[1]*curr_err[1]
+                                +curr_err[2]*curr_err[2]
+                                +curr_err[3]*curr_err[3]);
+      factor = desr_err[1] / curr_err_mag;
+
       if(!isfinite(factor)) factor = 1e16; // avoid inf and NaN
       h_new = h_old/sqrt(3) * pow(factor, 2.0/(2.0*(1.0+1.0-exp_m)+(double)nsd));
+      
+      //option to manually set size of elements with a shock
+      bool shock_guided = in.shockGuidedAdaptation;
+      if(shock_guided){
+        double n_shock = 0.0; //neighboring element with shock
+        apf::Adjacent adj_vert;
+        m->getAdjacent(elm, 0, adj_vert);
+
+        //loop neighboring elements
+        for(size_t i = 0; i < adj_vert.getSize(); i++){
+          apf::Adjacent adj_elm;
+          m->getAdjacent(adj_vert[i],m->getDimension(), adj_elm);
+          for(size_t j= 0; j<adj_elm.getSize(); j++){
+            n_shock += apf::getScalar(shock_param,adj_elm[j], 0);
+          }
+        }
+
+        double param = apf::getScalar(shock_param, elm, 0);
+        // if(n_shock > 0 || param > 0.0) h_new = 1e-4; //user specified shock element size
+        if(n_shock > 0 || param > 0.0) h_new = in.isotropicShockSize; //user specified shock element size
+      }
+
       //set new size
       apf::setScalar(elm_size, elm, 0, h_new);
     }
     m->end(it);
+
 
     //loop over vertices
     apf::MeshEntity* vtx;
@@ -94,11 +125,18 @@ namespace pc {
       m->getAdjacent(vtx, m->getDimension(), adj_elm);
       double weightedSize = 0.0;
       double totalError = 0.0;
+      double current_size = 0.0;
       //loop over adjacent elements
+      bool shock = false;
       for (std::size_t i = 0; i < adj_elm.getSize(); ++i) {
         //get weighted size and weight
         apf::getComponents(err, adj_elm[i], 0, &curr_err[0]);
         double curr_size = apf::getScalar(elm_size, adj_elm[i], 0);
+        //current_size += curr_size;
+
+        // double param = apf::getScalar(shock_param, adj_elm[i], 0);  
+        // if(param > 0.5) shock = true;
+
         //currently, we only focus on the momemtum error // debugging
 //        weightedSize += apf::getScalar(elm_size,adj_elm[i],0)*curr_err[1];
         weightedSize += curr_size*sqrt(curr_err[1]*curr_err[1]
@@ -107,15 +145,19 @@ namespace pc {
         totalError += sqrt(curr_err[1]*curr_err[1]
                           +curr_err[2]*curr_err[2]
                           +curr_err[3]*curr_err[3]);
+
       }
       //get size of this vertex
       weightedSize = weightedSize / totalError;
+
       //set new size
       apf::Vector3 v_mag;
       if(!isfinite(weightedSize)) weightedSize = 1e16; // avoid inf and NaN
+
       v_mag[0] = weightedSize;
       v_mag[1] = weightedSize;
       v_mag[2] = weightedSize;
+
       apf::setVector(sizes, vtx, 0, v_mag);
     }
     m->end(it);

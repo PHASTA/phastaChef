@@ -18,10 +18,99 @@
 #include <apfShape.h>
 #include <math.h>
 #include <fstream>
+#include <limits>
+#include <iomanip>
+#include <set>
+#include <map>
+#include <spr.h>
 
 extern void MSA_setBLSnapping(pMSAdapt, int onoff);
 
 namespace pc {
+
+     std::vector<std::string> ParseDeliminatedString(std::string& FullLine, std::string& delim){
+          std::vector<std::string> output;
+          size_t pos=0;
+          std::string token;
+
+          while ((pos = FullLine.find(delim)) != std::string::npos) {
+               token = FullLine.substr(0, pos);
+               output.push_back(token);
+               FullLine.erase(0, pos + delim.length());
+          }
+          output.push_back(token);
+
+
+          return output;          
+     }
+
+     std::set<apf::MeshEntity*> TraceSurf(std::map<apf::MeshEntity*, std::pair<std::set<apf::MeshEntity*>,int> >& LocGraph,
+                                        std::set<apf::MeshEntity*>& StartSet){
+          
+          std::set<apf::MeshEntity*> output=StartSet;
+          for (auto itr1=StartSet.begin(); itr1!=StartSet.end(); itr1++){
+               for (auto nei=LocGraph[*itr1].first.begin(); nei!=LocGraph[*itr1].first.end(); nei++){
+                    output.insert(*nei); 
+               }     
+          }
+     return output;
+     }
+
+     void PropagateID1(std::map<apf::MeshEntity*, std::pair<set<apf::MeshEntity*>, int> >& LocGraph,
+                         std::set<apf::MeshEntity*>& InputSet,
+                         int ID){
+          if(InputSet.size()==0) {return;}
+          std::set<apf::MeshEntity*> NextSet;
+          for(auto itr=InputSet.begin(); itr!=InputSet.end(); itr++){
+               //set ID
+               LocGraph[*itr].second=ID;
+               //check neighbours
+               for(auto nei=LocGraph[*itr].first.begin(); nei!=LocGraph[*itr].first.end(); nei++ ){
+                    if (LocGraph[*nei].second!=0){//skip set IDs
+                         NextSet.insert(*nei);     
+                    }
+               }
+          }
+          PropagateID1(LocGraph,NextSet,ID);
+          return;
+     }
+
+
+     void PropagateID(std::set<apf::MeshEntity*>& Start, std::map<apf::MeshEntity*, std::pair<set<apf::MeshEntity*>, int> >& LocGraph, int ID){
+         int check=0; std::set<apf::MeshEntity*> Fill=Start;
+         while (check!=Fill.size()){
+              check=Fill.size();
+              Fill=TraceSurf(LocGraph, Fill);
+          }
+          for (auto itr=Fill.begin(); itr!=Fill.end(); itr++){
+               LocGraph[*itr].second=ID;     
+          }
+     }
+
+
+  std::set<apf::MeshEntity*> GetNeighs(std::set<apf::MeshEntity*>& Input, apf::Mesh2* m){
+     std::set<apf::MeshEntity*> Output = Input;
+     for (auto itr1=Input.begin(); itr1!=Input.end(); itr1++){
+          apf::Adjacent Adja; apf::MeshEntity* tmp;
+          getBridgeAdjacent(m, *itr1, 2,3, Adja); //get adjacent elements;
+          for(size_t i=0; i<Adja.getSize(); i++){
+               tmp=Adja[i];
+               Output.insert(tmp);
+          }
+     }
+     return Output;
+  } 
+
+  std::set<apf::MeshEntity*> GetN_Neighs(apf::MeshEntity* elm, apf::Mesh2* m, int n){
+     int check=0; std::set<apf::MeshEntity*> Fill={elm};
+     
+     while (check !=n){
+          Fill=GetNeighs(Fill, m);
+          check++;
+     }
+     return Fill;
+  }
+
 
   bool vertexIsInCylinder(apf::MeshEntity* v) {
     double x_min = 0.0;
@@ -35,6 +124,7 @@ namespace pc {
       return true;
     return false;
   }
+
 
   apf::Field* convertField(apf::Mesh* m,
     const char* inFieldname,
@@ -433,14 +523,32 @@ namespace pc {
     //int barrelTag = 69;  // 2mm case
     //int domainTag = 113; // 2mm case
     //int projctTag = 108; // 2mm case
-    int domainTag = 1; //hollow barrel case	
+    //int domainTag = 1; //hollow barrel case
+    //int a_barrelTag = 285; //back of barrel
+    //int b_barrelTag = 377; //front of barrel
 
+
+    // int domainTag = 171; //diamond (unfitted)
+    //  int domainTag = 195; //capsule (unfitted)
+    // int domainTag = 152; //capsule (m2_fit)
+    // int domainTag = 153; //cpasule (m_fit_long)
+    int domainTag = 92; //bullet stationary cube
+    // int domainTag = 254;
+    //int a_barrelTag = 185;
+    //int b_barrelTag = 1;
+    //int domainTag = 128;//2d dw case
+    
     //apf::ModelEntity* bme = m->findModelEntity(3, barrelTag);
-    apf::ModelEntity* dme = m->findModelEntity(3, domainTag);
+    
+    apf::ModelEntity* dme = m->findModelEntity(3, domainTag); //for barrel problems
+    
     //apf::ModelEntity* pme = m->findModelEntity(3, projctTag);
 
+    //apf::ModelEntity* a_bme = m->findModelEntity(3,a_barrelTag); // for hb problems
+    //apf::ModelEntity* b_bme = m->findModelEntity(3,b_barrelTag);//
+
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
-    double dmeSizeUpperBound = 1.00; //upper bound for farfield
+    //double dmeSizeUpperBound = 0.1; //upper bound for farfield
 
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
@@ -448,11 +556,11 @@ namespace pc {
       apf::getVector(sizes,v,0,v_mag);
       for (int i = 0; i < 3; i++) {
         apf::ModelEntity* me = m->toModel(v);
-        //if (m->isInClosureOf(me, bme) && v_mag[i] > 0.016) v_mag[i] = 0.016;
-        if (m->isInClosureOf(me, dme) && v_mag[i] > dmeSizeUpperBound) v_mag[i] = dmeSizeUpperBound;
+        //if ((m->isInClosureOf(me, b_bme) || m->isInClosureOf(me, a_bme) ) && v_mag[i] > 0.016) v_mag[i] = 0.016;
+        if (m->isInClosureOf(me, dme) && v_mag[i] > in.simSizeUpperBound) v_mag[i] = in.simSizeUpperBound;
         //if (m->isInClosureOf(me, pme) && v_mag[i] > 0.004) v_mag[i] = 0.004;
-        if(vertexIsInCylinder(v) && v_mag[i] > in.simSizeUpperBound)
-          v_mag[i] = in.simSizeUpperBound; //set in adapt.inp
+        /*if(vertexIsInCylinder(v) && v_mag[i] > in.simSizeUpperBound)
+          v_mag[i] = in.simSizeUpperBound; //set in adapt.inp*/
       }
       apf::setVector(sizes,v,0,v_mag);
     }
@@ -523,6 +631,7 @@ namespace pc {
       printf("max time resource bound factor and min reached size: %f and %f\n",maxCtAll,minCtHAll);
   }
 
+
   void syncMeshSize(apf::Mesh2*& m, apf::Field* sizes) {
     PCU_Comm_Begin();
     apf::Copies remotes;
@@ -579,47 +688,163 @@ namespace pc {
     apf::Field* sizes = m->findField("sizes");
     assert(sizes);
 	
-
     /* initial ctcn field */
     pc::initializeCtCn(m);
 
-
-
     /* apply upper bound */
-    pc::applyMaxSizeBound(m, sizes, in);
-
-
+    // pc::applyMaxSizeBound(m, sizes, in);
 
     /* apply max number of element */
-    double cn = pc::applyMaxNumberElement(m, sizes, in);
+    // double cn = pc::applyMaxNumberElement(m, sizes, in);
 
     /* scale mesh if reach time resource bound */
-    pc::applyMaxTimeResource(m, sizes, in, inp, cbrt(cn));
+    // pc::applyMaxTimeResource(m, sizes, in, inp);
 
     /* apply upper bound */
     pc::applyMaxSizeBound(m, sizes, in);
 
-    /* add mesh smooth/gradation function here */
-    pc::addSmoother(m, in.gradingFactor);
-
-    /* sync mesh size over partitions */
-//    pc::syncMeshSize(m, sizes);
-
-    /* use current size field */
-    if(!PCU_Comm_Self())
-      printf("Start mesh adapt of setting size field\n");
+    apf::Field* position = m->findField("motion_coords");
+    apf::Vector3 pos;
+    apf::Field* PG_avg = m->findField("PG_avg");
+    apf::Vector3 PG;
+    double aspect_ratio = 8;
+    apf::Field* shock_param = m->findField("Shock Param");
 
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
     while ((v = m->iterate(vit))) {
+      /*
+      Game plan: at each vertex, check if an adjacent element contains a shock
+      if yes - perform anisotropic refinement by PG direction and VMS size for thickness
+              tangent direction size defined by aspect ratio
+      else - perform isotropic refinement by the VMS size
+      */
+      apf::Adjacent adj_elm;
+      m->getAdjacent(v, m->getDimension(), adj_elm);
+      bool shock = false;
+      for (std::size_t i = 0; i < adj_elm.getSize(); ++i) {
+        double param = apf::getScalar(shock_param, adj_elm[i], 0);  
+        if(param > 0.5) shock = true;
+      }
+ 
       apf::getVector(sizes,v,0,v_mag);
       pVertex meshVertex = reinterpret_cast<pVertex>(v);
-      MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
+      bool aniso = in.anisotropicShockAdaptation;
+
+      if(!EN_isOnPartBdry(meshVertex)){
+        if(aniso && shock){
+          // anisotropic refinement based on PG direction
+          double aspect_ratio = in.anisotropicShockAR;
+
+          apf::getComponents(PG_avg,v,0,&PG[0]);
+          double PG_mag = sqrt(PG[0]*PG[0]+PG[1]*PG[1]+PG[2]*PG[2]);
+          double n1[3] = {PG[0]/PG_mag, PG[1]/PG_mag, PG[2]/PG_mag};
+
+          double e[3] = {1,0,0}; 
+          if(n1[1] < n1[0]){
+            if(n1[2] < n1[1]){
+              e[0] = 0;
+              e[2] = 1;
+            }
+            else{
+              e[0] = 0;
+              e[1] = 1;
+            } 
+          }
+          else if (n1[2] < n1[0]){
+            e[0] = 0;
+            e[2] = 1;
+          }
+
+          double t1[3] = {n1[1]*e[2]-e[1]*n1[2], -(n1[0]*e[2]-e[0]*n1[2]), n1[0]*e[1]-e[0]*n1[1]};
+          double t1_mag = sqrt(t1[0]*t1[0]+t1[1]*t1[1]+t1[2]*t1[2]);
+          t1[0] /= t1_mag; t1[1] /= t1_mag; t1[2] /= t1_mag;
+          double t2[3] = {n1[1]*t1[2]-t1[1]*n1[2], -(n1[0]*t1[2]-t1[0]*n1[2]), n1[0]*t1[1]-t1[0]*n1[1]};
+          double t2_mag = sqrt(t2[0]*t2[0]+t2[1]*t2[1]+t2[2]*t2[2]);
+          t2[0] /= t2_mag; t2[1] /= t2_mag; t2[2] /= t2_mag;
+
+          // set vector mags for element size in those directions
+          // n1[0] *= v_mag[0]; n1[1] *= v_mag[0]; n1[2] *= v_mag[0];
+          // t1[0] *= v_mag[0]*aspect_ratio; t1[1] *= v_mag[0]*aspect_ratio; t1[2] *= v_mag[0]*aspect_ratio;
+          // t2[0] *= v_mag[0]*aspect_ratio; t2[1] *= v_mag[0]*aspect_ratio; t2[2] *= v_mag[0]*aspect_ratio;
+          // set vector mags for element size in those directions
+          // n1[0] *= v_mag[0]/aspect_ratio; n1[1] *= v_mag[0]/aspect_ratio; n1[2] *= v_mag[0]/aspect_ratio;
+          // t1[0] *= v_mag[0]; t1[1] *= v_mag[0]; t1[2] *= v_mag[0];
+          // t2[0] *= v_mag[0]; t2[1] *= v_mag[0]; t2[2] *= v_mag[0];
+
+          double n_val = v_mag[0];
+          double t_val = v_mag[0]*in.anisotropicShockAR;
+
+
+          // double n_val = 0.025/8;
+          // double t_val = 0.025;
+          n1[0] *= n_val; n1[1] *= n_val; n1[2] *= n_val;
+          t1[0] *= t_val; t1[1] *= t_val; t1[2] *= t_val;
+          t2[0] *= t_val; t2[1] *= t_val; t2[2] *= t_val;
+
+
+          t1_mag = sqrt(t1[0]*t1[0]+t1[1]*t1[1]+t1[2]*t1[2]);
+          t2_mag = sqrt(t2[0]*t2[0]+t2[1]*t2[1]+t2[2]*t2[2]);
+          double n1_mag = sqrt(n1[0]*n1[0]+n1[1]*n1[1]+n1[2]*n1[2]);
+
+          double anisoSize[3][3] = {{n1[0],n1[1],n1[2]},{t1[0],t1[1],t1[2]},{t2[0],t2[1],t2[2]}}; 
+          // if(PCU_Comm_Self()==0){
+          //   std::cout << "n1:\t" <<  n1[0] << "\t" << n1[1] << "\t" << n1[2] << "\tmag: " << n1_mag << std::endl;
+          //   std::cout << "t1:\t" <<  t1[0] << "\t" << t1[1] << "\t" << t1[2] << "\tmag: " << t1_mag << std::endl;
+          //   std::cout << "t2:\t" <<  t2[0] << "\t" << t2[1] << "\t" << t2[2] << "\tmag: " << t2_mag << std::endl << std::endl;
+          // }
+
+          MSA_setAnisoVertexSize(adapter, meshVertex, anisoSize);
+        }
+        else {
+          // isotropic refinement based on VMS error
+          MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
+        }
+      }
+      else if(!aniso){
+        MSA_setVertexSize(adapter,meshVertex,v_mag[0]);
+      }
+
+      // MS_setMaxAnisoRatio(pACase cs, double ratio);
+
+      // apf::getComponents(position,v,0,&pos[0]);
+      // double h_max = 0.0875/10;
+      // // double h_min = 0.0875/96;
+      // double h_min = h_max / 32;
+
+      // double L1 = (-0.0875+-0.02)/2;
+      // double delta = 0.0015;
+      // double theta = 45*3.14159265/180;
+      // double tan_theta = 1;
+
+
+      // apf::getVector(sizes,v,0,v_mag);
+      // v_mag[0] = h_min;
+      // double anisoSize[3][3] = {{v_mag[0]*32,0,0},{0,v_mag[0]/sqrt(2),-v_mag[0]/sqrt(2)},{0,v_mag[0]*32/sqrt(2),v_mag[0]*32/sqrt(2)}};
+      // v_mag[0] = h_max;
+      // // pVertex meshVertex = reinterpret_cast<pVertex>(v);
+      // if (pos[1] < L1+delta +pos[2]/tan_theta  && pos[1] > L1-delta + pos[2]/tan_theta){
+      //   MSA_setAnisoVertexSize(adapter, meshVertex, anisoSize);
+      // }
+      // else{
+      //   MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
+      // }
     }
     m->end(vit);
 
-    // additional writing to see mesh size before adaptation
+     /* add mesh smooth/gradation function here */
+    pc::addSmoother(m, in.gradingFactor);
+
+    /* sync mesh size over partitions */
+    // pc::syncMeshSize(m, sizes);
+
+    /* use current size field */
+    if(!PCU_Comm_Self())
+      printf("Start mesh adapt of setting size field\n");
+
+
+    /* write error and mesh size */
     pc::writeSequence(m, in.timeStepNumber, "error_mesh_size_");
 
     /* set fields to be mapped */
@@ -655,62 +880,172 @@ namespace pc {
       Progress_setDefaultCallback(progress_tmp);
       apf::MeshSIM* apf_msim = dynamic_cast<apf::MeshSIM*>(m);
       pParMesh ppm = apf_msim->getMesh();
- 
+  
+      
      /*Begin shock detection code: Written by Isaac Tam, 2020*/ 
       
       PM_write(ppm, "ShockInd.sms",progress_tmp);
  
       apf::Field* S_Ind = m->findField("Shock_Ind");
       apf::Field* P_Filt = m->findField("P_Filt");
-      apf::Field* vms_err = m->findField("VMS_error");
- 
+      apf::Field* vms_err = m->findField("VMS_error");\
+
+      apf::Field* sol = m->findField("solution");
+      apf::Field* td_sol = m->findField("time derivative of solution");
+     
+
+     //mesh resampling hacks
+      bool mesh_resample = false; // resample mesh from solution transfer in paraview
+      if (mesh_resample && step == 1){ //just the initial step
+          
+          //read in the resampled data
+          std::ifstream in_stream("outpoints.csv");
+          if (!in_stream.good()){
+               std::cerr<< "can't find the resampled data"<<std::endl;
+               exit(1);
+          }
+          std::string debugstring1; in_stream >> debugstring1; //remove header
+          std::string Lin_Parse; std::string delimin=",";
+          
+          std::map < int, std::vector<double> >  resample_map; // vert_ID, solution vec
+
+          while(in_stream >> Lin_Parse){
+               std::vector <std::string > working_vec = ParseDeliminatedString(Lin_Parse, delimin);
+               // populate map
+               if(PCU_Comm_Self() == std::stoi(working_vec[5] )){
+                   std::vector< double> dropin;
+                   dropin.push_back(std::stod(working_vec[0])); dropin.push_back(std::stod(working_vec[1]));
+                   dropin.push_back(std::stod(working_vec[2])); dropin.push_back(std::stod(working_vec[3]));
+                   dropin.push_back(std::stod(working_vec[4]));
+
+                   resample_map[std::stoi(working_vec[6])] = dropin;
+
+                   //if (!PCU_Comm_Self()) std::cout << working_vec[5] <<" " <<working_vec[6]<< " " << dropin[0] <<std::endl;
+               }
+          }
+          
+
+          // solution can be changed here
+          apf::MeshEntity* vert_tmp;
+          apf::MeshIterator* v_iter = m->begin(0);
+          while ((vert_tmp = m->iterate(v_iter))) {
+               // grab solution          
+               apf::NewArray<double> solu_tmp(apf::countComponents(sol));
+               apf::getComponents(sol, vert_tmp, 0, &solu_tmp[0]);
+               pEntity ent1 = reinterpret_cast<pEntity>(vert_tmp);
+               int v_ID = EN_id(ent1);
+
+               std::vector<double> insert_vec= resample_map[v_ID];
+
+               solu_tmp[0]=insert_vec[0]; solu_tmp[1]=insert_vec[1];
+               solu_tmp[2]=insert_vec[2]; solu_tmp[3]=insert_vec[3];
+               solu_tmp[4]=insert_vec[4];
+
+               apf::setComponents(sol, vert_tmp, 0, &solu_tmp[0]);
+          }
+    pc::writeSequence(m,in.timeStepNumber, "resampled_prior_");
+     // end mesh resampling hacks
+     }
+
+     /* Get smooth pressure gradient field, chef level shock detector*/
+     
+     apf::Field* PG_avg= apf::createFieldOn(m,"PG_avg",apf::VECTOR);
+     apf::Field* shk_det= apf::createFieldOn(m,"shk_det",apf::SCALAR);
+
+     apf::NewArray<double> holder(apf::countComponents(P_Filt));
+     apf::Vector3 PG_add = apf::Vector3(0.0,0.0,0.0);
+
+     apf::MeshEntity* v_tmp;
+     apf::MeshIterator* v_itr = m->begin(0);
+     while ((v_tmp = m->iterate(v_itr))) {
+          //get adjacent nodes
+          PG_add[0]=0.0; PG_add[1]=0.0; PG_add[2]=0.0;
+          apf::Adjacent Adja;
+          m->getAdjacent(v_tmp,3,Adja);
+          
+          //loop for averages
+          for (size_t i=0; i<Adja.getSize(); i++){
+               apf::getComponents(P_Filt, Adja[i], 0, &holder[0]);
+               PG_add[0]=PG_add[0]+holder[0];
+               PG_add[1]=PG_add[1]+holder[1];
+               PG_add[2]=PG_add[2]+holder[2];
+          }
+          PG_add=PG_add/Adja.getSize();
+          //set value
+          apf::setVector(PG_avg, v_tmp, 0, PG_add); 
+
+          double loc_det=0.0;
+          apf::NewArray<double> sol_tmp(apf::countComponents(sol));
+          apf::NewArray<double> td_sol_tmp(apf::countComponents(td_sol));
+
+          apf::getComponents(sol, v_tmp, 0, &sol_tmp[0]);
+          apf::getComponents(td_sol, v_tmp, 0, &td_sol_tmp[0]);
+
+          loc_det= sol_tmp[1]*PG_add[0] + sol_tmp[2]*PG_add[1] + sol_tmp[3]*PG_add[2];//term 2
+          loc_det= loc_det + td_sol_tmp[0];//term 1
+          loc_det= loc_det/ ( sqrt(1.4*287*sol_tmp[4])  );//speed of sound
+          loc_det= loc_det/ ( sqrt(PG_add[0]*PG_add[0] + PG_add[1]*PG_add[1] + PG_add[2]*PG_add[2]) );
+          // P Grad Mag
+          
+          apf::setScalar(shk_det, v_tmp, 0, loc_det);
+          
+     }
+     m->end(v_itr);
+
+      
       /* Loop through elements and output IDs that contain a shock after filtering */
+      
       int nsd = 3;
       apf::MeshEntity* elm;
+
       
       apf::NewArray<double> Shock_Ind(apf::countComponents(S_Ind));
       apf::NewArray<double> P_filter(apf::countComponents(P_Filt));
       apf::NewArray<double> VMS_err(apf::countComponents(vms_err));
 
       //default values for filtering
-      double P_thres_max   = 10000000000000000.0; // accept the highest values
+      double P_thres_max   = 10000000000000000000000.0; // accept the highest values
       double P_thres_min   = 0.0; // accept lowest values
-      double VMS_thres_max = 10000000000000000.0;
+      //P_thres_min = 3529981.18288112; //debug val for DW case @ step 488
+      double VMS_thres_max = 10000000000000000000000.0;
       double VMS_thres_min = 0.0;
       
       //read from "Shock.inp"
       std::ifstream in_str("Shock.inp");
       if (!in_str.good()){
-           std::cout << "Can't open Shock.inp to read. Using defaults.\n" <<std::endl;
-      }
+          if(!PCU_Comm_Self()){
+               std::cout << "Can't open Shock.inp to read. Using defaults.\n" <<std::endl;
+          }
+      }else{
       std::string parse; 
-      while(in_str >> parse){
-           if (parse == "P_thres_max"){
-                in_str >> P_thres_max;
-           } else if (parse == "P_thres_min"){
-                in_str >> P_thres_min;
-           } else if (parse == "VMS_thres_max"){
-                in_str >> VMS_thres_max;
-           } else if (parse == "VMS_thres_min"){
-                in_str >> VMS_thres_min;
-           }
-      } 
-      
+          while(in_str >> parse){
+                 if (parse == "P_thres_max"){
+                     in_str >> P_thres_max;
+                } else if (parse == "P_thres_min"){
+                     in_str >> P_thres_min;
+                } else if (parse == "VMS_thres_max"){
+                     in_str >> VMS_thres_max;
+                } else if (parse == "VMS_thres_min"){
+                      in_str >> VMS_thres_min;
+                }
+          }
+      }
       
       //Setup for shock parameter recording
       std::vector<int> ShkIDs;
+      std::vector<apf::Vector3 > ShkLocs;
+      std::vector<double> ShkFilt;
       
       apf::Field* Shock_Param = apf::createField(m, "Shock Param", apf::SCALAR, apf::getConstant(nsd));
+      apf::Field* Shock_IDs   = apf::createField(m, "Shock ID", apf::SCALAR, apf::getConstant(nsd));
 
 
       apf::MeshIterator* it = m->begin(nsd);
       while ((elm = m->iterate(it))) {
-          apf::getComponents(S_Ind, elm, 0, &Shock_Ind[0]);
+          apf::getComponents(S_Ind, elm, 0, &Shock_Ind[0]);//phasta det calc
           apf::getComponents(P_Filt, elm, 0, &P_filter[0]);
           apf::getComponents(vms_err, elm, 0, &VMS_err[0]);
 
-          apf::setScalar(Shock_Param, elm, 0, 0.0);
-          
           //get momentum vms err
           double moment_err = 0.0;
           moment_err = sqrt(VMS_err[1]*VMS_err[1]
@@ -720,67 +1055,202 @@ namespace pc {
           //actual filtering
           if (P_thres_max > P_filter[3] && P_filter[3] > P_thres_min){//pressure filter, between max and min
            if ( VMS_thres_max > moment_err && moment_err > VMS_thres_min) {//similar VMS_filter
-            if (!vertexIsInCylinder(elm)){ //not in cylinder geom filter, update w/ custom func
-               if (Shock_Ind[0] >1 && Shock_Ind[1] <1){//iso surface elements
-                         pEntity ent = reinterpret_cast<pEntity>(elm);
-                         int rID = EN_id(ent);
-                         ShkIDs.push_back(rID);
-                         apf::setScalar(Shock_Param, elm, 0, 1.0);
+               
+               apf::Adjacent Adja;
+               m->getAdjacent(elm,0,Adja);
+               //find iso surface elms
+               bool loc_gt = false; bool loc_lt=false; double loc_check=0.0;
+               for (size_t i=0; i<Adja.getSize(); i++){
+                    apf::getComponents(shk_det, Adja[i], 0, &loc_check);
+                    if (loc_check >= 1.0){
+                         loc_gt=true;
+                    }
+                    if (loc_check <= 1.0){
+                         loc_lt=true;
+                    }
+
                }
-            }
-           }
+
+               //if (Shock_Ind[0] >1 && Shock_Ind[1] <1){//iso surface elements from phasta
+               if (loc_gt && loc_lt){ // iso surface elements from chef          
+                         
+                         apf::Vector3 x3p = apf::Vector3(0.0,0.0,0.0);
+                         m->getPoint(Adja[0],0,x3p);//for geom filter
+                         double x3p_r= sqrt(x3p[1]*x3p[1] + x3p[2]*x3p[2]);
+                         
+                         if(true){// !(x3p[0] < 2.01 && x3p_r < 0.07)){ // geom filtering
+                              pEntity ent = reinterpret_cast<pEntity>(elm);
+                              int rID = EN_id(ent);
+                              
+                              apf::Vector3 CellCent = apf::getLinearCentroid(m, elm);
+                              ShkLocs.push_back(CellCent);
+
+                              ShkIDs.push_back(rID);
+                              ShkFilt.push_back(P_filter[3]);
+                              apf::setScalar(Shock_Param, elm, 0, 1.0);
+                              apf::setScalar(Shock_IDs, elm, 0, rID);
+                         }
+               }
+             }
           }
       }
       m->end(it);
       
       std::string ShkFile ="ShockElms-"+ std::to_string(PCU_Comm_Self()) + ".txt";
       std::ofstream ShockOut(ShkFile);
+      std::setprecision(std::numeric_limits<double>::digits10+1);
       if(!ShockOut.good()){
           std::cerr << "Can't open "<< ShkFile <<" to write.\n" <<std::endl;
           exit(1);
       }
+      double tmpO1; double tmpO2; double tmpO3;
       for (unsigned int i=0; i<ShkIDs.size();i++){
-          ShockOut << ShkIDs[i] << std::endl;
+          ShockOut <<ShkIDs[i] << ",";
+          tmpO1=ShkLocs[i][0]; tmpO2=ShkLocs[i][1]; tmpO3=ShkLocs[i][2];
+          ShockOut << tmpO1 << "," << tmpO2 <<"," <<tmpO3 << "," << ShkFilt[i] <<std::endl;
+      }
+      
+
+     /* Shock System Identification process  */
+
+      apf::Field* SurfID= apf::createField(m,"Surf ID", apf::SCALAR, apf::getConstant(nsd)); 
+
+      double work_val=0.0; std::vector<apf::MeshEntity*> LocShkElms;
+
+      it=m->begin(nsd);
+      while(elm=m->iterate(it)){ //loop over elms
+          apf::setScalar(SurfID,elm,0,0.0); //set surfID to zero
+          apf::getComponents(Shock_Param, elm, 0, &work_val);
+          if (work_val>0.0){
+               LocShkElms.push_back(elm);     
+          }
+
+      }
+      m->end(it);
+      
+      double all_s_elms=LocShkElms.size();
+      PCU_Add_Doubles(&all_s_elms,1);
+
+      if(!PCU_Comm_Self()){
+          std::cout<< "Shock Elms count: "  <<all_s_elms<<std::endl;     
+      }
+     
+
+      /*
+      // LocGraph[elm]= pair (Neighbors set, surfID) 
+      std::map<apf::MeshEntity*, std::pair<std::set<apf::MeshEntity*>,int> > LocGraph;
+
+      int n_layers=5; int maxcount=0;
+      for (int i=0; i<LocShkElms.size();i++){//populate the graph
+
+          std::set<apf::MeshEntity*> RawSet = GetN_Neighs(LocShkElms[i],m,n_layers);
+          LocGraph[LocShkElms[i]].first=RawSet;
+          LocGraph[LocShkElms[i]].second=0;
+
+          for (std::set<apf::MeshEntity*>::iterator i1=RawSet.begin(); i1!=RawSet.end(); i1++){
+                    double work_val=0.0; apf::getComponents(Shock_Param,*i1,0,&work_val);
+                    if ( work_val > 0.0){
+                         LocGraph[LocShkElms[i]].first.insert(*i1);   
+                    }
+          }
+          if (maxcount < LocGraph[LocShkElms[i]].first.size()){ maxcount = LocGraph[LocShkElms[i]].first.size();}
       }
 
+
+      if(!PCU_Comm_Self()){
+          std::cout << "most neighbours: " << maxcount<<std::endl;
+          apf::MeshIterator* it1 = m->begin(2);//loop over faces
+          apf::MeshEntity* fac; int count=0; int counter=0;
+          std::set<apf::MeshEntity*> B_Elms1, B_Elms2; //elms and faces
+          while(fac=m->iterate(it1)){
+               apf::Adjacent Adja;
+               m->getAdjacent(fac,3,Adja);
+               if (m->isShared(fac)){//count boundary faces, used to vertices
+                    count++;     
+               }
+               for (size_t i=0; i<Adja.getSize(); i++){
+                    if(m->isShared(fac)){
+                         B_Elms1.insert(Adja[i]);
+                         B_Elms2.insert(fac);
+                         apf::setScalar(SurfID,Adja[i],0,-7.0);
+                    }
+                       
+               } 
+          }
       
+          std::cout <<"Boundary faces | elms | faces: "<< count<<" " << B_Elms1.size()<<" "<< B_Elms2.size() <<std::endl;
+          m->end(it1);
+      }
+      pc::writeSequence(m,in.timeStepNumber, "shock_field_");
+
       
-      /* create the Simmetrix adapter */
+          Solve the connected components problem.
+          loc_suf_ID=1
+          loop over shock elms
+               if it has non-zero loc_surf_ID, continue to next shock elm
+               else, this one belongs to loc_surf_ID
+                    propagate the ID out
+               loc_suf_ID++;
+
+       
+      
+      bool ProcessSurfs=false;
+      if (ProcessSurfs){
+      int cur_surf=1;
+      for ( int i=0; i<LocShkElms.size(); i++){
+          if (LocGraph[LocShkElms[i]].second!=0){ continue;}
+          else{
+               PropagateID(LocGraph[LocShkElms[i]].first,LocGraph,cur_surf);//recursively go through neighs, assign surf ID
+               cur_surf++;//increment surfID
+          }
+      }
+      double tmp2;
+      for (int i=0; i<LocShkElms.size();i++){
+          tmp2=LocGraph[LocShkElms[i]].second;
+          apf::setScalar(SurfID,LocShkElms[i],0,tmp2);
+      }
+      }
+      */
+      
+      // create the Simmetrix adapter *
       if(!PCU_Comm_Self())
         printf("Start mesh adapt\n");
       pMSAdapt adapter = MSA_new(sim_pm, 1);
       pPList sim_fld_lst = PList_new();
       setupSimAdapter(adapter, in, m, sim_fld_lst);
 
-      /* run the adapter */
+      // run the adapter *
       if(!PCU_Comm_Self())
         printf("do real mesh adapt\n");
       MSA_adapt(adapter, progress);
       MSA_delete(adapter);
 
-      /* create Simmetrix improver */
+      // create Simmetrix improver *
       pVolumeMeshImprover vmi = VolumeMeshImprover_new(sim_pm);
       setupSimImprover(vmi, sim_fld_lst);
 
-      /* run the improver */
+      // run the improver *
       VolumeMeshImprover_execute(vmi, progress);
       VolumeMeshImprover_delete(vmi);
 
       PList_clear(sim_fld_lst);
       PList_delete(sim_fld_lst);
 
-      /* load balance */
+      // load balance *
       pc::balanceEqualWeights(sim_pm, progress);
 
-      /* write mesh */
+
+      // write mesh *
       if(!PCU_Comm_Self())
         printf("write mesh after mesh adaptation\n");
       writeSIMMesh(sim_pm, in.timeStepNumber, "sim_mesh_");
+      
+      
       Progress_delete(progress);
 
-      /* transfer data back to apf */
+      // transfer data back to apf *
       if (in.solutionMigration)
-        transferSimFields(m);
+        transferSimFields(m); 
     }
     else {
       assert(szFld);
