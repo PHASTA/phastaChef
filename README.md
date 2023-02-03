@@ -13,7 +13,7 @@ Check the nightly status on the
 # Build and Test
 
 Build SCOREC/core; see [SCOREC/core build
-instructions](https://github.com/SCOREC/core/wiki/General-Build-instructions).  Note, you must specify `CMAKE_INSTALL_PREFIX` when running cmake and run `make install` to install the necessary CMake package files.
+instructions](https://github.com/SCOREC/core/wiki/General-Build-instructions).  Note, you must specify `-DPUMI_FORTRAN_INTERFACE=ON` and `-DCMAKE_INSTALL_PREFIX=/path/to/install/dir` when running cmake and run `make install` to install the necessary CMake package files.
 
 The following example compilation instructions assume that the phasta repo was
 downloaded following the Setup instructions above.  If you already have the
@@ -31,7 +31,7 @@ Note, the following disables the SVLS and PETSC solvers and relies on LESLIB for
     -DCMAKE_C_FLAGS="$opt" \
     -DCMAKE_CXX_FLAGS="$opt" \
     -DCMAKE_EXE_LINKER_FLAGS="-ldl $opt" \
-    -DCMAKE_INSTALL_PREFIX=$PWD/install_nothread/ \
+    -DCMAKE_INSTALL_PREFIX=$PWD/install/ \
     \
     -DSCOREC_PREFIX=/path/to/SCOREC/core/install/ \
     \
@@ -41,12 +41,20 @@ Note, the following disables the SVLS and PETSC solvers and relies on LESLIB for
     -DPHASTA_USE_PETSC=OFF \
     -DLESLIB=/path/to/libles.a \
     -DPHASTA_TESTING=ON \
-    -DCASES=/path/to/phastaChefTests/ \
-    ..
+    -DCASES=/path/to/phastaChefTests/
 
     make
     make test
 
+# Documentation
+
+After running CMake Doxygen documentation can be generated with
+
+  make doc
+
+The latest version of the docs are also available here
+
+  https://www.scorec.rpi.edu/~cwsmith/phastaChefDocs
 
 # development discussion
 

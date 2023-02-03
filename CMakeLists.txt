@@ -11,6 +11,20 @@ execute_process(
   OUTPUT_FILE "${CMAKE_BINARY_DIR}/VERSION.phastaChef"
 )
 
+# Set options for doxygen documentation
+find_package(Doxygen)
+if(DOXYGEN_FOUND)
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in
+  ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY
+)
+add_custom_target(doc
+  ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  COMMENT "Generating API documentation with Doxygen" VERBATIM
+)
+endif()
+
 set(PHASTA_CHEF_ENABLED ON)
 
 enable_testing()
@@ -58,10 +72,8 @@ macro(setup_exe exename srcname IC)
   set_target_properties(${exename} PROPERTIES HAS_CXX TRUE)
   set_target_properties(${exename} PROPERTIES LINKER_LANGUAGE Fortran)
   set_target_properties(${exename} PROPERTIES LINKER_LANGUAGE Fortran)
-
   #chef
   target_link_libraries(${exename} PRIVATE SCOREC::core)
-
   #phasta
   if( ${IC} )
     include_directories(${PHASTAIC_INCLUDE_DIRS})
@@ -84,4 +96,17 @@ setup_exe(solutionProjection solutionProjection.cc ${phastaIC_FOUND})
 setup_exe(calcEfficiency calcEfficiency.cc ${phastaIC_FOUND})
 setup_exe(meshGrading meshGrading.cc ${phastaIC_FOUND})
 
+setup_exe(_posix chef_phasta_posix.cc)
+setup_exe(_stream chef_phasta_stream.cc)
+setup_exe(Loop_ur chef_phasta_loop_stream_ur.cc)
+setup_exe(Loop_adapt chef_phasta_adaptLoop.cc)
+setup_exe(Loop_adapt_posix chef_phasta_adaptLoop_posix.cc)
+setup_exe(Loop_adapt_ramdisk chef_phasta_adaptLoop_ramdisk.cc)
+setup_exe(Loop_sam_adapt chef_phasta_sam_adaptLoop.cc)
+setup_exe(Loop_sam_adapt_sz chef_phasta_sam_adaptLoop_sz.cc)
+setup_exe(Loop_sam_adapt_sz_posix chef_phasta_sam_adaptLoop_sz_posix.cc)
+setup_exe(Loop_sam_adapt_sz_ramdisk chef_phasta_sam_adaptLoop_sz_ramdisk.cc)
+setup_exe(Loop_sam_adapt_ramdisk chef_phasta_sam_adaptLoop_ramdisk.cc)
+create_exe(chefPhastaICLoop_aro chef_phasta_loop_aro.cc
+  "${PHASTAIC_INCLUDE_DIRS}" "${PHASTAIC_LIBS}")
 add_subdirectory(test)
