@@ -3,12 +3,6 @@
 #include <phasta.h>
 #include "chefPhasta.h"
 
-/** \file chef_phasta_posix.cc
-    \brief Example file-based driver for running Chef then PHASTA
-    \remark Runs Chef and then PHASTA using POSIX files to transfer
-            mesh and field information.
-*/
-
 namespace {
   void freeMesh(apf::Mesh* m) {
     m->destroyNative();
