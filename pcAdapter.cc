@@ -282,98 +282,6 @@ namespace pc {
     return sim_fld_lst;
   }
 
-  void measureIsoMeshAndWrite(apf::Mesh2*& m, ph::Input& in) {
-    apf::Field* sizes = m->findField("sizes_sim");
-    assert(sizes);
-    apf::Field* isoSize = apf::createFieldOn(m, "iso_size", apf::SCALAR);
-    apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
-    apf::MeshEntity* v;
-    apf::MeshIterator* vit = m->begin(0);
-    while ((v = m->iterate(vit))) {
-      apf::getVector(sizes,v,0,v_mag);
-      apf::setScalar(isoSize,v,0,v_mag[0]);
-    }
-    m->end(vit);
-
-    if (PCU_Comm_Self() == 0)
-      printf("\n evaluating the statistics! \n");
-    // get the stats
-    ma::SizeField* sf = ma::makeSizeField(m, isoSize);
-    std::vector<double> el, lq;
-    ma::stats(m, sf, el, lq, true);
-
-    // create field for visualizaition
-    apf::Field* f_lq = apf::createField(m, "linear_quality", apf::SCALAR, apf::getConstant(m->getDimension()));
-
-    // attach cell-based mesh quality
-    int n;
-    apf::MeshEntity* r;
-    if (m->getDimension() == 3)
-      n = apf::countEntitiesOfType(m, apf::Mesh::TET);
-    else
-      n = apf::countEntitiesOfType(m, apf::Mesh::TRIANGLE);
-    size_t i = 0;
-    apf::MeshIterator* rit = m->begin(m->getDimension());
-    while ((r = m->iterate(rit))) {
-      if (! apf::isSimplex(m->getType(r))) {// ignore non-simplex elements
-        apf::setScalar(f_lq, r, 0, 100.0); // set as 100
-      }
-      else {
-        apf::setScalar(f_lq, r, 0, lq[i]);
-        ++i;
-      }
-    }
-    m->end(rit);
-    PCU_ALWAYS_ASSERT(i == (size_t) n);
-
-    // attach current mesh size
-    if(m->findField("sizes")) apf::destroyField(m->findField("sizes"));
-    if(m->findField("frames")) apf::destroyField(m->findField("frames"));
-    apf::Field* aniSizes  = apf::createSIMFieldOn(m, "sizes", apf::VECTOR);
-    apf::Field* aniFrames = apf::createSIMFieldOn(m, "frames", apf::MATRIX);
-    ph::attachSIMSizeField(m, aniSizes, aniFrames);
-
-    // write out mesh
-    pc::writeSequence(m,in.timeStepNumber,"mesh_stats_");
-
-    // delete fields
-    apf::destroyField(sizes);
-    apf::destroyField(aniSizes);
-    apf::destroyField(aniFrames);
-    apf::destroyField(isoSize);
-    apf::destroyField(f_lq);
-  }
-
-  void attachMinSizeFlagField(apf::Mesh2*& m, ph::Input& in) {
-    // create field
-    if(m->findField("hmin_flag")) apf::destroyField(m->findField("hmin_flag"));
-    apf::Field* rf = apf::createFieldOn(m, "hmin_flag", apf::SCALAR);
-    // loop over vertices
-    long counter = 0;
-    double size[1];
-    double anisosize[3][3];
-    apf::MeshEntity* v;
-    apf::MeshIterator* vit = m->begin(0);
-    while ((v = m->iterate(vit))) {
-      pVertex meshVertex = reinterpret_cast<pVertex>(v);
-      // request the size on it
-      V_size(meshVertex, size, anisosize);
-      // compare with the lower bound
-      if (size[0] <= in.simSizeLowerBound) {
-        apf::setScalar(rf,v,0,1.0);
-        counter++;
-      }
-      else {
-        apf::setScalar(rf,v,0,0.0);
-      }
-    }
-    m->end(vit);
-
-    // Sum counter over processors
-    long hminTolElm = PCU_Add_Long(counter);
-    if(!PCU_Comm_Self()) printf("total number of hmin elm: %ld\n",hminTolElm);
-  }
-
   void transferSimFields(apf::Mesh2*& m) {
     if (m->findField("pressure")) // assume we had solution before
       chef::combineField(m,"solution","pressure","velocity","temperature");
@@ -604,6 +512,7 @@ namespace pc {
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::NewArray<double> s(in.ensa_dof);
     double maxCt = 1.0;
+    double minCtH = 1.0e16;
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
     while ((v = m->iterate(vit))) {
@@ -617,8 +526,9 @@ namespace pc {
       double f = apf::getScalar(ctcn,v,0);
       for (int i = 0; i < 3; i++) {
         if(v_mag[i] < h_min) {
-          if(h_min/v_mag[i] > maxCt) maxCt = h_min/v_mag[i];
-          apf::setScalar(ct,v,0,h_min/v_mag[i]);
+          if(h_min/(v_mag[i]) > maxCt) maxCt = h_min/(v_mag[i]);
+          apf::setScalar(ctcn,v,0,h_min/v_mag[i]*f);
+          if(h_min < minCtH) minCtH = h_min;
           v_mag[i] = h_min;
         }
       }
@@ -626,7 +536,8 @@ namespace pc {
     }
     m->end(vit);
 
-    double maxCtAll = PCU_Max_Double(maxCt);
+    double maxCtAll  = PCU_Max_Double(maxCt);
+    double minCtHAll = PCU_Min_Double(minCtH);
     if (!PCU_Comm_Self())
       printf("max time resource bound factor and min reached size: %f and %f\n",maxCtAll,minCtHAll);
   }
