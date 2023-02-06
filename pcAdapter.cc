@@ -793,7 +793,7 @@ namespace pc {
       pParMesh ppm = apf_msim->getMesh();
   
       
-     /*Begin shock detection code: Written by Isaac Tam, 2020*/ 
+      /*Begin shock detection code: Written by Isaac Tam, 2020*/ 
       
       PM_write(ppm, "ShockInd.sms",progress_tmp);
  
@@ -805,7 +805,7 @@ namespace pc {
       apf::Field* td_sol = m->findField("time derivative of solution");
      
 
-     //mesh resampling hacks
+      //mesh resampling hacks
       bool mesh_resample = false; // resample mesh from solution transfer in paraview
       if (mesh_resample && step == 1){ //just the initial step
           
@@ -854,54 +854,147 @@ namespace pc {
 
                apf::setComponents(sol, vert_tmp, 0, &solu_tmp[0]);
           }
-    pc::writeSequence(m,in.timeStepNumber, "resampled_prior_");
-     // end mesh resampling hacks
-     }
+        pc::writeSequence(m,in.timeStepNumber, "resampled_prior_");
+        // end mesh resampling hacks
+      }
 
-     /* Get smooth pressure gradient field, chef level shock detector*/
+      /* Get smooth pressure gradient field, chef level shock detector*/
      
-     apf::Field* PG_avg= apf::createFieldOn(m,"PG_avg",apf::VECTOR);
-     apf::Field* shk_det= apf::createFieldOn(m,"shk_det",apf::SCALAR);
+      apf::Field* PG_avg= apf::createFieldOn(m,"PG_avg",apf::VECTOR);
+      apf::Field* shk_det= apf::createFieldOn(m,"shk_det",apf::SCALAR);
+      apf::Field* num_elms= apf::createFieldOn(m,"num_elms",apf::SCALAR);
+ 
+      apf::NewArray<double> holder(apf::countComponents(P_Filt));
+      apf::Vector3 PG_add = apf::Vector3(0.0,0.0,0.0);
 
-     apf::NewArray<double> holder(apf::countComponents(P_Filt));
-     apf::Vector3 PG_add = apf::Vector3(0.0,0.0,0.0);
-
-     apf::MeshEntity* v_tmp;
-     apf::MeshIterator* v_itr = m->begin(0);
-     while ((v_tmp = m->iterate(v_itr))) {
-          //get adjacent nodes
-          PG_add[0]=0.0; PG_add[1]=0.0; PG_add[2]=0.0;
-          apf::Adjacent Adja;
-          m->getAdjacent(v_tmp,3,Adja);
+      PCU_Comm_Begin();
+ 
+      apf::MeshEntity* v_tmp;
+      apf::MeshIterator* v_itr = m->begin(0);
+      while ((v_tmp = m->iterate(v_itr))) {
+        //get adjacent nodes
+        PG_add[0]=0.0; PG_add[1]=0.0; PG_add[2]=0.0;
+        apf::Adjacent Adja;
+        m->getAdjacent(v_tmp,3,Adja);
+        int num_elm = Adja.getSize(); //number of elements for current sum
           
           //loop for averages
-          for (size_t i=0; i<Adja.getSize(); i++){
-               apf::getComponents(P_Filt, Adja[i], 0, &holder[0]);
-               PG_add[0]=PG_add[0]+holder[0];
-               PG_add[1]=PG_add[1]+holder[1];
-               PG_add[2]=PG_add[2]+holder[2];
-          }
-          PG_add=PG_add/Adja.getSize();
-          //set value
-          apf::setVector(PG_avg, v_tmp, 0, PG_add); 
+        for (size_t i=0; i<num_elm; i++){
+          apf::getComponents(P_Filt, Adja[i], 0, &holder[0]);
+          PG_add[0]=PG_add[0]+holder[0];
+          PG_add[1]=PG_add[1]+holder[1];
+          PG_add[2]=PG_add[2]+holder[2];
+        }
 
-          double loc_det=0.0;
-          apf::NewArray<double> sol_tmp(apf::countComponents(sol));
-          apf::NewArray<double> td_sol_tmp(apf::countComponents(td_sol));
+        PG_add=PG_add/Adja.getSize();
+        //set value
+        apf::setVector(PG_avg, v_tmp, 0, PG_add); 
+        apf::setScalar(num_elms,v_tmp,0, Adja.getSize());
 
-          apf::getComponents(sol, v_tmp, 0, &sol_tmp[0]);
-          apf::getComponents(td_sol, v_tmp, 0, &td_sol_tmp[0]);
+        //pack up data for communications
+        if(!m->isOwned(v_tmp)){
+          apf::Copies remotes;
+          m->getRemotes(v_tmp,remotes);
+          int owningPart = m->getOwner(v_tmp);
 
-          loc_det= sol_tmp[1]*PG_add[0] + sol_tmp[2]*PG_add[1] + sol_tmp[3]*PG_add[2];//term 2
-          loc_det= loc_det + td_sol_tmp[0];//term 1
-          loc_det= loc_det/ ( sqrt(1.4*287*sol_tmp[4])  );//speed of sound
-          loc_det= loc_det/ ( sqrt(PG_add[0]*PG_add[0] + PG_add[1]*PG_add[1] + PG_add[2]*PG_add[2]) );
-          // P Grad Mag
-          
-          apf::setScalar(shk_det, v_tmp, 0, loc_det);
-          
-     }
-     m->end(v_itr);
+          PCU_COMM_PACK(owningPart,remotes[owningPart]); //send entity
+          PCU_COMM_PACK(owningPart,num_elm); //send int 
+          PCU_COMM_PACK(owningPart,PG_add); //send apf::Vector3
+        }
+      }
+      m->end(v_itr);
+
+      PCU_Comm_Send();
+
+      apf::MeshEntity* ent;
+      int received_num_elm;
+      apf::Vector3 received_PG;
+      apf::Vector3 current_PG;
+      int current_num_elm;
+
+      while(PCU_Comm_Receive()){
+        //receive comms 
+        PCU_COMM_UNPACK(ent);
+        PCU_COMM_UNPACK(received_num_elm);
+        PCU_COMM_UNPACK(received_PG);
+
+        if(!m->isOwned(ent)){
+          std::cout << "ERROR: Data sent to non-owner entity" << std::endl;
+          std::exit(1);
+        }
+
+        apf::getComponents(PG_avg,ent,0,&current_PG[0]);
+        current_num_elm = apf::getScalar(num_elms,ent,0);
+        int total_elms = current_num_elm + received_num_elm;
+        //compute weighted averaging of current process PG and received
+        current_PG[0] = current_PG[0]*current_num_elm + received_PG[0]*received_num_elm;
+        current_PG[1] = current_PG[1]*current_num_elm + received_PG[1]*received_num_elm;
+        current_PG[2] = current_PG[2]*current_num_elm + received_PG[2]*received_num_elm;
+        current_PG[0] /= total_elms;
+        current_PG[1] /= total_elms;
+        current_PG[2] /= total_elms;
+
+        //update current fields (on owner)
+        apf::setVector(PG_avg, v_tmp, 0, current_PG); 
+        apf::setScalar(num_elms,v_tmp,0, total_elms);
+      } //end receive comms
+
+      //synchronize data on all processes
+      apf::synchronize(PG_avg);
+      apf::synchronize(num_elms);
+
+      
+
+      //send from owners to all of their remotes to have all processes up to date
+      // PCU_Comm_Begin();
+      // v_itr = m->begin(0);
+      // while((v_tmp = m->iterate(v_itr))){
+      //   //only loop over owners
+      //   if(!m->isOwned(v_tmp)){
+      //     continue;
+      //   }
+      //   apf::getComponents(PG_avg,ent,0,&current_PG[0]);
+      //   current_num_elm = apf::getScalar(num_elms,ent,0);
+
+      //   apf::Copies remotes;
+      //   m->getRemotes(v_tmp,remotes);
+      //   for(auto iter = remotes.begin(); iter != remotes.end(); ++iter){
+      //     PCU_COMM_PACK(iter->first,iter->second);
+      //   }
+      // }
+      // m->end(v_itr);
+
+      // PCU_Comm_Send();
+
+      // while(PCU_Comm_Receive()){
+      //   PCU_COMM_UNPACK(ent);
+        
+      //   if(m->isOwned(ent)){
+      //     std::cout << "Comm sent to self" << std::endl;
+      //     std::exit(1);
+      //   }
+      // }
+
+
+      v_itr = m->begin(0);
+      while((v_tmp = m->iterate(v_itr))){
+            double loc_det=0.0;
+            apf::NewArray<double> sol_tmp(apf::countComponents(sol));
+            apf::NewArray<double> td_sol_tmp(apf::countComponents(td_sol));
+
+            apf::getComponents(sol, v_tmp, 0, &sol_tmp[0]);
+            apf::getComponents(td_sol, v_tmp, 0, &td_sol_tmp[0]);
+
+            loc_det= sol_tmp[1]*PG_add[0] + sol_tmp[2]*PG_add[1] + sol_tmp[3]*PG_add[2];//term 2
+            loc_det= loc_det + td_sol_tmp[0];//term 1
+            loc_det= loc_det/ ( sqrt(1.4*287*sol_tmp[4])  );//speed of sound
+            loc_det= loc_det/ ( sqrt(PG_add[0]*PG_add[0] + PG_add[1]*PG_add[1] + PG_add[2]*PG_add[2]) );
+            // P Grad Mag
+            
+            apf::setScalar(shk_det, v_tmp, 0, loc_det);
+            
+      }
+      m->end(v_itr);
 
       
       /* Loop through elements and output IDs that contain a shock after filtering */
