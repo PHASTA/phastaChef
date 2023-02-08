@@ -879,7 +879,7 @@ namespace pc {
         m->getAdjacent(v_tmp,3,Adja);
         int num_elm = Adja.getSize(); //number of elements for current sum
           
-        //loop for averages
+        //loop for contributions from neighboring elements
         for (size_t i=0; i<num_elm; i++){
           apf::getComponents(P_Filt, Adja[i], 0, &holder[0]);
           PG_add[0]=PG_add[0]+holder[0];
@@ -887,7 +887,6 @@ namespace pc {
           PG_add[2]=PG_add[2]+holder[2];
         }
 
-        PG_add=PG_add/Adja.getSize();
         //set value
         apf::setVector(PG_avg, v_tmp, 0, PG_add); 
         apf::setScalar(num_elms,v_tmp,0, Adja.getSize());
@@ -927,18 +926,30 @@ namespace pc {
         apf::getComponents(PG_avg,ent,0,&current_PG[0]);
         current_num_elm = apf::getScalar(num_elms,ent,0);
         int total_elms = current_num_elm + received_num_elm;
-        //compute weighted averaging of current process PG and received
-        current_PG[0] = current_PG[0]*current_num_elm + received_PG[0]*received_num_elm;
-        current_PG[1] = current_PG[1]*current_num_elm + received_PG[1]*received_num_elm;
-        current_PG[2] = current_PG[2]*current_num_elm + received_PG[2]*received_num_elm;
-        current_PG[0] /= (double)total_elms;
-        current_PG[1] /= (double)total_elms;
-        current_PG[2] /= (double)total_elms;
+        //compute accumulation from remotes
+        current_PG[0] = current_PG[0] + received_PG[0];
+        current_PG[1] = current_PG[1] + received_PG[1];
+        current_PG[2] = current_PG[2] + received_PG[2];
 
         //update current fields (on owner)
         apf::setComponents(PG_avg, ent, 0, &current_PG[0]); 
         apf::setScalar(num_elms,ent,0, total_elms);
       } //end receive comms
+
+      //perform averaging
+      int total_elms;
+      v_itr = m->begin(0);
+      while((v_tmp = m->iterate(v_itr))){
+        if(m->isOwned(v_tmp)){
+          total_elms = apf::getScalar(num_elms,v_tmp,0);
+          apf::getComponents(PG_avg,v_tmp,0,&current_PG[0]);
+          current_PG[0] /= (double)total_elms;
+          current_PG[1] /= (double)total_elms;
+          current_PG[2] /= (double)total_elms;
+          apf::setComponents(PG_avg, v_tmp, 0, &current_PG[0]); 
+        }
+      }
+      m->end(v_itr);
 
       //synchronize data on all processes
       apf::synchronize(PG_avg);
@@ -990,7 +1001,7 @@ namespace pc {
           assert(abs(current_PG[1] - received_PG[1]) < 1e-12);
           assert(abs(current_PG[2] - received_PG[2]) < 1e-12);
         }
-      }
+      } //end if verify
       /*
       End pressure gradient parallel comms
       */
