@@ -643,79 +643,76 @@ namespace pc {
       pVertex meshVertex = reinterpret_cast<pVertex>(v);
       bool aniso = in.anisotropicShockAdaptation;
 
-      if(!EN_isOnPartBdry(meshVertex)){
-        if(aniso && shock){
-          // anisotropic refinement based on PG direction
-          double aspect_ratio = in.anisotropicShockAR;
 
-          apf::getComponents(PG_avg,v,0,&PG[0]);
-          double PG_mag = sqrt(PG[0]*PG[0]+PG[1]*PG[1]+PG[2]*PG[2]);
-          double n1[3] = {PG[0]/PG_mag, PG[1]/PG_mag, PG[2]/PG_mag};
+      if(aniso && shock){
+        // anisotropic refinement based on PG direction
+        double aspect_ratio = in.anisotropicShockAR;
 
-          double e[3] = {1,0,0}; 
-          if(n1[1] < n1[0]){
-            if(n1[2] < n1[1]){
-              e[0] = 0;
-              e[2] = 1;
-            }
-            else{
-              e[0] = 0;
-              e[1] = 1;
-            } 
-          }
-          else if (n1[2] < n1[0]){
+        apf::getComponents(PG_avg,v,0,&PG[0]);
+        double PG_mag = sqrt(PG[0]*PG[0]+PG[1]*PG[1]+PG[2]*PG[2]);
+        double n1[3] = {PG[0]/PG_mag, PG[1]/PG_mag, PG[2]/PG_mag};
+
+        double e[3] = {1,0,0}; 
+        if(n1[1] < n1[0]){
+          if(n1[2] < n1[1]){
             e[0] = 0;
             e[2] = 1;
           }
-
-          double t1[3] = {n1[1]*e[2]-e[1]*n1[2], -(n1[0]*e[2]-e[0]*n1[2]), n1[0]*e[1]-e[0]*n1[1]};
-          double t1_mag = sqrt(t1[0]*t1[0]+t1[1]*t1[1]+t1[2]*t1[2]);
-          t1[0] /= t1_mag; t1[1] /= t1_mag; t1[2] /= t1_mag;
-          double t2[3] = {n1[1]*t1[2]-t1[1]*n1[2], -(n1[0]*t1[2]-t1[0]*n1[2]), n1[0]*t1[1]-t1[0]*n1[1]};
-          double t2_mag = sqrt(t2[0]*t2[0]+t2[1]*t2[1]+t2[2]*t2[2]);
-          t2[0] /= t2_mag; t2[1] /= t2_mag; t2[2] /= t2_mag;
-
-          // set vector mags for element size in those directions
-          // n1[0] *= v_mag[0]; n1[1] *= v_mag[0]; n1[2] *= v_mag[0];
-          // t1[0] *= v_mag[0]*aspect_ratio; t1[1] *= v_mag[0]*aspect_ratio; t1[2] *= v_mag[0]*aspect_ratio;
-          // t2[0] *= v_mag[0]*aspect_ratio; t2[1] *= v_mag[0]*aspect_ratio; t2[2] *= v_mag[0]*aspect_ratio;
-          // set vector mags for element size in those directions
-          // n1[0] *= v_mag[0]/aspect_ratio; n1[1] *= v_mag[0]/aspect_ratio; n1[2] *= v_mag[0]/aspect_ratio;
-          // t1[0] *= v_mag[0]; t1[1] *= v_mag[0]; t1[2] *= v_mag[0];
-          // t2[0] *= v_mag[0]; t2[1] *= v_mag[0]; t2[2] *= v_mag[0];
-
-          double n_val = v_mag[0];
-          double t_val = v_mag[0]*in.anisotropicShockAR;
-
-
-          // double n_val = 0.025/8;
-          // double t_val = 0.025;
-          n1[0] *= n_val; n1[1] *= n_val; n1[2] *= n_val;
-          t1[0] *= t_val; t1[1] *= t_val; t1[2] *= t_val;
-          t2[0] *= t_val; t2[1] *= t_val; t2[2] *= t_val;
-
-
-          t1_mag = sqrt(t1[0]*t1[0]+t1[1]*t1[1]+t1[2]*t1[2]);
-          t2_mag = sqrt(t2[0]*t2[0]+t2[1]*t2[1]+t2[2]*t2[2]);
-          double n1_mag = sqrt(n1[0]*n1[0]+n1[1]*n1[1]+n1[2]*n1[2]);
-
-          double anisoSize[3][3] = {{n1[0],n1[1],n1[2]},{t1[0],t1[1],t1[2]},{t2[0],t2[1],t2[2]}}; 
-          // if(PCU_Comm_Self()==0){
-          //   std::cout << "n1:\t" <<  n1[0] << "\t" << n1[1] << "\t" << n1[2] << "\tmag: " << n1_mag << std::endl;
-          //   std::cout << "t1:\t" <<  t1[0] << "\t" << t1[1] << "\t" << t1[2] << "\tmag: " << t1_mag << std::endl;
-          //   std::cout << "t2:\t" <<  t2[0] << "\t" << t2[1] << "\t" << t2[2] << "\tmag: " << t2_mag << std::endl << std::endl;
-          // }
-
-          MSA_setAnisoVertexSize(adapter, meshVertex, anisoSize);
+          else{
+            e[0] = 0;
+            e[1] = 1;
+          } 
         }
-        else {
-          // isotropic refinement based on VMS error
-          MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
+        else if (n1[2] < n1[0]){
+          e[0] = 0;
+          e[2] = 1;
         }
+
+        double t1[3] = {n1[1]*e[2]-e[1]*n1[2], -(n1[0]*e[2]-e[0]*n1[2]), n1[0]*e[1]-e[0]*n1[1]};
+        double t1_mag = sqrt(t1[0]*t1[0]+t1[1]*t1[1]+t1[2]*t1[2]);
+        t1[0] /= t1_mag; t1[1] /= t1_mag; t1[2] /= t1_mag;
+        double t2[3] = {n1[1]*t1[2]-t1[1]*n1[2], -(n1[0]*t1[2]-t1[0]*n1[2]), n1[0]*t1[1]-t1[0]*n1[1]};
+        double t2_mag = sqrt(t2[0]*t2[0]+t2[1]*t2[1]+t2[2]*t2[2]);
+        t2[0] /= t2_mag; t2[1] /= t2_mag; t2[2] /= t2_mag;
+
+        // set vector mags for element size in those directions
+        // n1[0] *= v_mag[0]; n1[1] *= v_mag[0]; n1[2] *= v_mag[0];
+        // t1[0] *= v_mag[0]*aspect_ratio; t1[1] *= v_mag[0]*aspect_ratio; t1[2] *= v_mag[0]*aspect_ratio;
+        // t2[0] *= v_mag[0]*aspect_ratio; t2[1] *= v_mag[0]*aspect_ratio; t2[2] *= v_mag[0]*aspect_ratio;
+        // set vector mags for element size in those directions
+        // n1[0] *= v_mag[0]/aspect_ratio; n1[1] *= v_mag[0]/aspect_ratio; n1[2] *= v_mag[0]/aspect_ratio;
+        // t1[0] *= v_mag[0]; t1[1] *= v_mag[0]; t1[2] *= v_mag[0];
+        // t2[0] *= v_mag[0]; t2[1] *= v_mag[0]; t2[2] *= v_mag[0];
+
+        double n_val = v_mag[0];
+        double t_val = v_mag[0]*in.anisotropicShockAR;
+
+
+        // double n_val = 0.025/8;
+        // double t_val = 0.025;
+        n1[0] *= n_val; n1[1] *= n_val; n1[2] *= n_val;
+        t1[0] *= t_val; t1[1] *= t_val; t1[2] *= t_val;
+        t2[0] *= t_val; t2[1] *= t_val; t2[2] *= t_val;
+
+
+        t1_mag = sqrt(t1[0]*t1[0]+t1[1]*t1[1]+t1[2]*t1[2]);
+        t2_mag = sqrt(t2[0]*t2[0]+t2[1]*t2[1]+t2[2]*t2[2]);
+        double n1_mag = sqrt(n1[0]*n1[0]+n1[1]*n1[1]+n1[2]*n1[2]);
+
+        double anisoSize[3][3] = {{n1[0],n1[1],n1[2]},{t1[0],t1[1],t1[2]},{t2[0],t2[1],t2[2]}}; 
+        // if(PCU_Comm_Self()==0){
+        //   std::cout << "n1:\t" <<  n1[0] << "\t" << n1[1] << "\t" << n1[2] << "\tmag: " << n1_mag << std::endl;
+        //   std::cout << "t1:\t" <<  t1[0] << "\t" << t1[1] << "\t" << t1[2] << "\tmag: " << t1_mag << std::endl;
+        //   std::cout << "t2:\t" <<  t2[0] << "\t" << t2[1] << "\t" << t2[2] << "\tmag: " << t2_mag << std::endl << std::endl;
+        // }
+
+        MSA_setAnisoVertexSize(adapter, meshVertex, anisoSize);
       }
-      else if(!aniso){
-        MSA_setVertexSize(adapter,meshVertex,v_mag[0]);
+      else {
+        // isotropic refinement based on VMS error
+        MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
       }
+
 
       // MS_setMaxAnisoRatio(pACase cs, double ratio);
 
@@ -807,56 +804,63 @@ namespace pc {
 
       //mesh resampling hacks
       bool mesh_resample = false; // resample mesh from solution transfer in paraview
-      if (mesh_resample && step == 1){ //just the initial step
-          
-          //read in the resampled data
-          std::ifstream in_stream("outpoints.csv");
-          if (!in_stream.good()){
-               std::cerr<< "can't find the resampled data"<<std::endl;
-               exit(1);
+      if (mesh_resample && step == 1){ // just the initial step
+        // read in the resampled data
+        std::ifstream in_stream("outpoints.csv");
+        if (!in_stream.good())
+        {
+          std::cerr << "can't find the resampled data" << std::endl;
+          exit(1);
+        }
+        std::string debugstring1;
+        in_stream >> debugstring1; // remove header
+        std::string Lin_Parse;
+        std::string delimin = ",";
+
+        std::map<int, std::vector<double>> resample_map; // vert_ID, solution vec
+
+        while (in_stream >> Lin_Parse)
+        {
+          std::vector<std::string> working_vec = ParseDeliminatedString(Lin_Parse, delimin);
+          // populate map
+          if (PCU_Comm_Self() == std::stoi(working_vec[5]))
+          {
+            std::vector<double> dropin;
+            dropin.push_back(std::stod(working_vec[0]));
+            dropin.push_back(std::stod(working_vec[1]));
+            dropin.push_back(std::stod(working_vec[2]));
+            dropin.push_back(std::stod(working_vec[3]));
+            dropin.push_back(std::stod(working_vec[4]));
+
+            resample_map[std::stoi(working_vec[6])] = dropin;
+
+            // if (!PCU_Comm_Self()) std::cout << working_vec[5] <<" " <<working_vec[6]<< " " << dropin[0] <<std::endl;
           }
-          std::string debugstring1; in_stream >> debugstring1; //remove header
-          std::string Lin_Parse; std::string delimin=",";
-          
-          std::map < int, std::vector<double> >  resample_map; // vert_ID, solution vec
+        }
 
-          while(in_stream >> Lin_Parse){
-               std::vector <std::string > working_vec = ParseDeliminatedString(Lin_Parse, delimin);
-               // populate map
-               if(PCU_Comm_Self() == std::stoi(working_vec[5] )){
-                   std::vector< double> dropin;
-                   dropin.push_back(std::stod(working_vec[0])); dropin.push_back(std::stod(working_vec[1]));
-                   dropin.push_back(std::stod(working_vec[2])); dropin.push_back(std::stod(working_vec[3]));
-                   dropin.push_back(std::stod(working_vec[4]));
+        // solution can be changed here
+        apf::MeshEntity *vert_tmp;
+        apf::MeshIterator *v_iter = m->begin(0);
+        while ((vert_tmp = m->iterate(v_iter)))
+        {
+          // grab solution
+          apf::NewArray<double> solu_tmp(apf::countComponents(sol));
+          apf::getComponents(sol, vert_tmp, 0, &solu_tmp[0]);
+          pEntity ent1 = reinterpret_cast<pEntity>(vert_tmp);
+          int v_ID = EN_id(ent1);
 
-                   resample_map[std::stoi(working_vec[6])] = dropin;
+          std::vector<double> insert_vec = resample_map[v_ID];
 
-                   //if (!PCU_Comm_Self()) std::cout << working_vec[5] <<" " <<working_vec[6]<< " " << dropin[0] <<std::endl;
-               }
-          }
-          
+          solu_tmp[0] = insert_vec[0];
+          solu_tmp[1] = insert_vec[1];
+          solu_tmp[2] = insert_vec[2];
+          solu_tmp[3] = insert_vec[3];
+          solu_tmp[4] = insert_vec[4];
 
-          // solution can be changed here
-          apf::MeshEntity* vert_tmp;
-          apf::MeshIterator* v_iter = m->begin(0);
-          while ((vert_tmp = m->iterate(v_iter))) {
-               // grab solution          
-               apf::NewArray<double> solu_tmp(apf::countComponents(sol));
-               apf::getComponents(sol, vert_tmp, 0, &solu_tmp[0]);
-               pEntity ent1 = reinterpret_cast<pEntity>(vert_tmp);
-               int v_ID = EN_id(ent1);
-
-               std::vector<double> insert_vec= resample_map[v_ID];
-
-               solu_tmp[0]=insert_vec[0]; solu_tmp[1]=insert_vec[1];
-               solu_tmp[2]=insert_vec[2]; solu_tmp[3]=insert_vec[3];
-               solu_tmp[4]=insert_vec[4];
-
-               apf::setComponents(sol, vert_tmp, 0, &solu_tmp[0]);
-          }
-        pc::writeSequence(m,in.timeStepNumber, "resampled_prior_");
-        // end mesh resampling hacks
-      }
+          apf::setComponents(sol, vert_tmp, 0, &solu_tmp[0]);
+        }
+        pc::writeSequence(m, in.timeStepNumber, "resampled_prior_");
+      }// end mesh resampling hacks
 
       /* Get smooth pressure gradient field, chef level shock detector*/
      
@@ -901,7 +905,7 @@ namespace pc {
           PCU_COMM_PACK(owningPart,num_elm); //send int 
           PCU_COMM_PACK(owningPart,PG_add); //send apf::Vector3
         }
-      }
+      } //end PG accumulation and comm packaging iteration
       m->end(v_itr);
 
       PCU_Comm_Send();
@@ -948,7 +952,7 @@ namespace pc {
           current_PG[2] /= (double)total_elms;
           apf::setComponents(PG_avg, v_tmp, 0, &current_PG[0]); 
         }
-      }
+      } //end averaging iteration
       m->end(v_itr);
 
       //synchronize data on all processes
@@ -1006,6 +1010,7 @@ namespace pc {
       End pressure gradient parallel comms
       */
 
+      apf::Vector3 PG_tmp = apf::Vector3(0.0,0.0,0.0);
       v_itr = m->begin(0);
       while((v_tmp = m->iterate(v_itr))){
         double loc_det=0.0;
@@ -1014,15 +1019,15 @@ namespace pc {
 
         apf::getComponents(sol, v_tmp, 0, &sol_tmp[0]);
         apf::getComponents(td_sol, v_tmp, 0, &td_sol_tmp[0]);
+        apf::getComponents(PG_avg, v_tmp, 0, &PG_tmp[0]);
 
-        loc_det= sol_tmp[1]*PG_add[0] + sol_tmp[2]*PG_add[1] + sol_tmp[3]*PG_add[2];//term 2
+        loc_det= sol_tmp[1]*PG_tmp[0] + sol_tmp[2]*PG_tmp[1] + sol_tmp[3]*PG_tmp[2];//term 2
         loc_det= loc_det + td_sol_tmp[0];//term 1
         loc_det= loc_det/ ( sqrt(1.4*287*sol_tmp[4])  );//speed of sound
-        loc_det= loc_det/ ( sqrt(PG_add[0]*PG_add[0] + PG_add[1]*PG_add[1] + PG_add[2]*PG_add[2]) );
+        loc_det= loc_det/ ( sqrt(PG_tmp[0]*PG_tmp[0] + PG_tmp[1]*PG_tmp[1] + PG_tmp[2]*PG_tmp[2]) );
         // P Grad Mag
         
         apf::setScalar(shk_det, v_tmp, 0, loc_det);
-            
       }
       m->end(v_itr);
 
