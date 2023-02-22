@@ -1016,6 +1016,7 @@ namespace pc {
       End pressure gradient parallel comms
       */
 
+      //iterate over vertices and calculate normal mach number (Lovely & Haimes), store in shk_det
       apf::Vector3 PG_tmp = apf::Vector3(0.0,0.0,0.0);
       v_itr = m->begin(0);
       while((v_tmp = m->iterate(v_itr))){
@@ -1034,154 +1035,160 @@ namespace pc {
         // P Grad Mag
         
         apf::setScalar(shk_det, v_tmp, 0, loc_det);
-      }
+      } //end iterate setting normal mach number
       m->end(v_itr);
 
-      
-      /* Loop through elements and output IDs that contain a shock after filtering */
-      
+      /* Loop through elements and output IDs that contain a shock after filtering */      
       int nsd = 3;
       apf::MeshEntity* elm;
 
-      
       apf::NewArray<double> Shock_Ind(apf::countComponents(S_Ind));
       apf::NewArray<double> P_filter(apf::countComponents(P_Filt));
       apf::NewArray<double> VMS_err(apf::countComponents(vms_err));
 
       //default values for filtering
+      //pressure gradient threshold
       double P_thres_max   = 10000000000000000000000.0; // accept the highest values
       double P_thres_min   = 0.0; // accept lowest values
-      //P_thres_min = 3529981.18288112; //debug val for DW case @ step 488
+      //VMS error threshold
       double VMS_thres_max = 10000000000000000000000.0;
       double VMS_thres_min = 0.0;
       
       //read from "Shock.inp"
       std::ifstream in_str("Shock.inp");
       if (!in_str.good()){
-          if(!PCU_Comm_Self()){
-               std::cout << "Can't open Shock.inp to read. Using defaults.\n" <<std::endl;
-          }
-      }else{
-      std::string parse; 
-          while(in_str >> parse){
-                 if (parse == "P_thres_max"){
-                     in_str >> P_thres_max;
-                } else if (parse == "P_thres_min"){
-                     in_str >> P_thres_min;
-                } else if (parse == "VMS_thres_max"){
-                     in_str >> VMS_thres_max;
-                } else if (parse == "VMS_thres_min"){
-                      in_str >> VMS_thres_min;
-                }
-          }
+        if (!PCU_Comm_Self()){
+          std::cout << "Can't open Shock.inp to read. Using defaults.\n" 
+                    << std::endl;
+        }
       }
-      
+      else{
+        std::string parse;
+        while (in_str >> parse){
+          if (parse == "P_thres_max"){
+            in_str >> P_thres_max;
+          }
+          else if (parse == "P_thres_min"){
+            in_str >> P_thres_min;
+          }
+          else if (parse == "VMS_thres_max"){
+            in_str >> VMS_thres_max;
+          }
+          else if (parse == "VMS_thres_min"){
+            in_str >> VMS_thres_min;
+          }
+        }
+      }
+
       //Setup for shock parameter recording
       std::vector<int> ShkIDs;
       std::vector<apf::Vector3 > ShkLocs;
       std::vector<double> ShkFilt;
       
+      //1 or 0 indicator of shock in element
       apf::Field* Shock_Param = apf::createField(m, "Shock Param", apf::SCALAR, apf::getConstant(nsd));
+      //shock system ID (not currently implemented here)
       apf::Field* Shock_IDs   = apf::createField(m, "Shock ID", apf::SCALAR, apf::getConstant(nsd));
 
-
+      //iterate over elements to set shock parameter
+      int num_shock_elms = 0;
       apf::MeshIterator* it = m->begin(nsd);
       while ((elm = m->iterate(it))) {
-          apf::getComponents(S_Ind, elm, 0, &Shock_Ind[0]);//phasta det calc
-          apf::getComponents(P_Filt, elm, 0, &P_filter[0]);
-          apf::getComponents(vms_err, elm, 0, &VMS_err[0]);
+        apf::getComponents(S_Ind, elm, 0, &Shock_Ind[0]);//phasta det calc
+        apf::getComponents(P_Filt, elm, 0, &P_filter[0]);
+        apf::getComponents(vms_err, elm, 0, &VMS_err[0]);
 
-          //get momentum vms err
-          double moment_err = 0.0;
-          moment_err = sqrt(VMS_err[1]*VMS_err[1]
-                           +VMS_err[2]*VMS_err[2]
-                           +VMS_err[3]*VMS_err[3]);
+        //get momentum vms err
+        double moment_err = 0.0;
+        moment_err = sqrt(VMS_err[1]*VMS_err[1]
+                          +VMS_err[2]*VMS_err[2]
+                          +VMS_err[3]*VMS_err[3]);
 
-          //actual filtering
-          if (P_thres_max > P_filter[3] && P_filter[3] > P_thres_min){//pressure filter, between max and min
-           if ( VMS_thres_max > moment_err && moment_err > VMS_thres_min) {//similar VMS_filter
-               
-               apf::Adjacent Adja;
-               m->getAdjacent(elm,0,Adja);
-               //find iso surface elms
-               bool loc_gt = false; bool loc_lt=false; double loc_check=0.0;
-               for (size_t i=0; i<Adja.getSize(); i++){
-                    apf::getComponents(shk_det, Adja[i], 0, &loc_check);
-                    if (loc_check >= 1.0){
-                         loc_gt=true;
-                    }
-                    if (loc_check <= 1.0){
-                         loc_lt=true;
-                    }
+        //actual filtering
+        if (P_thres_max > P_filter[3] && P_filter[3] > P_thres_min){//pressure filter, between max and min
+          if ( VMS_thres_max > moment_err && moment_err > VMS_thres_min) {//similar VMS_filter
+            apf::Adjacent Adja;
+            m->getAdjacent(elm,0,Adja);
+            //find iso surface elms
+            bool loc_gt = false; bool loc_lt=false; double loc_check=0.0;
+            //loop adjacent vertices to see if element contains a normal 
+            //mach number of 1 => element contains shock
+            for (size_t i=0; i<Adja.getSize(); i++){
+              apf::getComponents(shk_det, Adja[i], 0, &loc_check);
+              if (loc_check >= 1.0){
+                loc_gt=true;
+              }
+              if (loc_check <= 1.0){
+                loc_lt=true;
+              }
+            }
 
-               }
+            if (loc_gt && loc_lt){ // iso surface elements from chef    
+              /* option for geometric filtering as well:
+              if desired add if condtiional to only look at elements in filter          
+              apf::Vector3 x3p = apf::Vector3(0.0,0.0,0.0);
+              m->getPoint(Adja[0],0,x3p);//for geom filter
+              double x3p_r= sqrt(x3p[1]*x3p[1] + x3p[2]*x3p[2]);
+              !(x3p[0] < 2.01 && x3p_r < 0.07)){ // geom filtering
+              */
+              pEntity ent = reinterpret_cast<pEntity>(elm);
+              int rID = EN_id(ent);
+              
+              apf::Vector3 CellCent = apf::getLinearCentroid(m, elm);
+              ShkLocs.push_back(CellCent);
 
-               //if (Shock_Ind[0] >1 && Shock_Ind[1] <1){//iso surface elements from phasta
-               if (loc_gt && loc_lt){ // iso surface elements from chef          
-                         
-                         apf::Vector3 x3p = apf::Vector3(0.0,0.0,0.0);
-                         m->getPoint(Adja[0],0,x3p);//for geom filter
-                         double x3p_r= sqrt(x3p[1]*x3p[1] + x3p[2]*x3p[2]);
-                         
-                         if(true){// !(x3p[0] < 2.01 && x3p_r < 0.07)){ // geom filtering
-                              pEntity ent = reinterpret_cast<pEntity>(elm);
-                              int rID = EN_id(ent);
-                              
-                              apf::Vector3 CellCent = apf::getLinearCentroid(m, elm);
-                              ShkLocs.push_back(CellCent);
-
-                              ShkIDs.push_back(rID);
-                              ShkFilt.push_back(P_filter[3]);
-                              apf::setScalar(Shock_Param, elm, 0, 1.0);
-                              apf::setScalar(Shock_IDs, elm, 0, rID);
-                         }
-               }
-             }
+              ShkIDs.push_back(rID);
+              ShkFilt.push_back(P_filter[3]);
+              apf::setScalar(Shock_Param, elm, 0, 1.0);
+              apf::setScalar(Shock_IDs, elm, 0, rID);
+              ++num_shock_elms;
+            }
           }
-      }
+        }
+      } //end iterate over elements to set shock parameter
       m->end(it);
-      
-      std::string ShkFile ="ShockElms-"+ std::to_string(PCU_Comm_Self()) + ".txt";
-      std::ofstream ShockOut(ShkFile);
-      std::setprecision(std::numeric_limits<double>::digits10+1);
-      if(!ShockOut.good()){
-          std::cerr << "Can't open "<< ShkFile <<" to write.\n" <<std::endl;
-          exit(1);
+
+      //option to output shock information to file
+      bool shock_to_file = false;
+      if(shock_to_file){
+        std::string ShkFile ="ShockElms-"+ std::to_string(PCU_Comm_Self()) + ".txt";
+        std::ofstream ShockOut(ShkFile);
+        std::setprecision(std::numeric_limits<double>::digits10+1);
+        if(!ShockOut.good()){
+            std::cerr << "Can't open "<< ShkFile <<" to write.\n" <<std::endl;
+            exit(1);
+        }
+        double tmpO1; double tmpO2; double tmpO3;
+        for (unsigned int i=0; i<ShkIDs.size();i++){
+            ShockOut <<ShkIDs[i] << ",";
+            tmpO1=ShkLocs[i][0]; tmpO2=ShkLocs[i][1]; tmpO3=ShkLocs[i][2];
+            ShockOut << tmpO1 << "," << tmpO2 <<"," <<tmpO3 << "," << ShkFilt[i] <<std::endl;
+        }
       }
-      double tmpO1; double tmpO2; double tmpO3;
-      for (unsigned int i=0; i<ShkIDs.size();i++){
-          ShockOut <<ShkIDs[i] << ",";
-          tmpO1=ShkLocs[i][0]; tmpO2=ShkLocs[i][1]; tmpO3=ShkLocs[i][2];
-          ShockOut << tmpO1 << "," << tmpO2 <<"," <<tmpO3 << "," << ShkFilt[i] <<std::endl;
+
+      PCU_Add_Int(num_shock_elms);
+      if(!PCU_Comm_Self()){
+        std::cout<< "Shock Elms count: " << num_shock_elms <<std::endl;     
       }
       
 
-     /* Shock System Identification process  */
-
+      /*
+      // Shock System Identification process  //
       apf::Field* SurfID= apf::createField(m,"Surf ID", apf::SCALAR, apf::getConstant(nsd)); 
-
       double work_val=0.0; std::vector<apf::MeshEntity*> LocShkElms;
-
       it=m->begin(nsd);
       while(elm=m->iterate(it)){ //loop over elms
-          apf::setScalar(SurfID,elm,0,0.0); //set surfID to zero
-          apf::getComponents(Shock_Param, elm, 0, &work_val);
-          if (work_val>0.0){
-               LocShkElms.push_back(elm);     
-          }
-
+        apf::setScalar(SurfID,elm,0,0.0); //set surfID to zero
+        apf::getComponents(Shock_Param, elm, 0, &work_val);
+        if (work_val>0.0){
+          LocShkElms.push_back(elm);     
+        }
       }
       m->end(it);
       
       double all_s_elms=LocShkElms.size();
       PCU_Add_Doubles(&all_s_elms,1);
 
-      if(!PCU_Comm_Self()){
-          std::cout<< "Shock Elms count: "  <<all_s_elms<<std::endl;     
-      }
-     
-
-      /*
       // LocGraph[elm]= pair (Neighbors set, surfID) 
       std::map<apf::MeshEntity*, std::pair<std::set<apf::MeshEntity*>,int> > LocGraph;
 
@@ -1255,6 +1262,10 @@ namespace pc {
           apf::setScalar(SurfID,LocShkElms[i],0,tmp2);
       }
       }
+      */
+
+      /*
+      End Shock Detection Code
       */
       
       // create the Simmetrix adapter *
