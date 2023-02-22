@@ -961,50 +961,56 @@ namespace pc {
 
       /*
       Verification code for PG parallel implementation
-      - send from all remotes back to owner and make sure values are consistent
+      - manually check calculation at a couple of nodes on capsule mesh
       */
       bool verify = false;
       if(verify){
-        PCU_Comm_Begin();
-        v_itr = m->begin(0);
-        while((v_tmp = m->iterate(v_itr))){
-          //pack messages on all non-owners
-          if(!m->isOwned(v_tmp)){
-            apf::getComponents(PG_avg,v_tmp,0,&current_PG[0]);
-            current_num_elm = apf::getScalar(num_elms,v_tmp,0);
+        std::vector<apf::Vector3> test_points;
+        test_points.push_back(apf::Vector3(0.02761936967552711,0.002656329198976054,-0.01381257900898625));
+        test_points.push_back(apf::Vector3(0.01395862371794598,0.04375,-0.01329952834624482));
+        test_points.push_back(apf::Vector3(0.03056206933225488,0.002906680097775706,-0.01940581952224469));
+        test_points.push_back(apf::Vector3(-0.004149733625824178,-0.005578124905005098,0.003800701247837794));
+        std::vector<apf::Vector3> calc_PG;
+        calc_PG.push_back(apf::Vector3(-148329.5814892917,394113.773062053,-1272923.024116426));
+        calc_PG.push_back(apf::Vector3(-149.573553748554,-1046.695409188947,115.6703377753061));
+        calc_PG.push_back(apf::Vector3(-1429689.208438647,332382.4595561386,-2767507.861050387));
+        calc_PG.push_back(apf::Vector3(-27418.32882550262,-4250.69794072089,-9216.980973738549));
+        apf::Vector3 pos,PG;
+        double tol = 1e-14;
 
-            apf::Copies remotes;
-            m->getRemotes(v_tmp,remotes);
-            int owningPart = m->getOwner(v_tmp);
+        int PID = PCU_Comm_Self();
 
-            PCU_COMM_PACK(owningPart,remotes[owningPart]); //send entity
-            PCU_COMM_PACK(owningPart,current_num_elm); //send int 
-            PCU_COMM_PACK(owningPart,current_PG); //send apf::Vector3
+        for(int i = 0; i < test_points.size(); ++i){
+          // PCU_Comm_Begin();
+          v_itr = m->begin(0);
+          while((v_tmp = m->iterate(v_itr))){
+            m->getPoint(v_tmp,0,pos);
+
+            if(abs(pos[0] - test_points[i][0]) < tol &&
+               abs(pos[1] - test_points[i][1]) < tol &&
+               abs(pos[2] - test_points[i][2]) < tol){
+              apf::getComponents(PG_avg,v_tmp,0,&PG[0]);
+
+              
+              apf::Adjacent elements;
+              apf::NewArray<double> temp(apf::countComponents(P_Filt));
+              m->getAdjacent(v_tmp,3,elements);
+              int num_adj = elements.getSize();
+
+              if(m->isOwned(v_tmp)){
+                std::cout << PID<<"Pos:"<< i << "\t" << pos[0] << "\t" << pos[1] << "\t" << pos[2] << std::endl;
+                std::cout << PID<<"PG_para"<< i << "\t"<<calc_PG[i][0] << "\t" << calc_PG[i][1] << "\t" << calc_PG[i][2] << std::endl;
+                std::cout << PID<<"PG_code"<< i << "\t" << PG[0] << "\t" << PG[1] << "\t" << PG[2] << std::endl << std::endl;
+              }
+
+              for(int j = 0; j < num_adj; j++){
+                apf::getComponents(P_Filt,elements[j],0,&temp[0]);
+                std::cout << PID<<"Adj" << i << "\t" << temp[0] << "\t" << temp[1] << "\t" << temp[2] << std::endl;
+              }
+            }
           }
-        }
-        m->end(v_itr);
-
-        PCU_Comm_Send();
-
-        while(PCU_Comm_Receive()){
-          //receive comms 
-          PCU_COMM_UNPACK(ent);
-          PCU_COMM_UNPACK(received_num_elm);
-          PCU_COMM_UNPACK(received_PG);
-
-          if(!m->isOwned(ent)){
-            std::cout << "ERROR: Data sent to non-owner entity" << std::endl;
-            std::exit(1);
-          }
-
-          apf::getComponents(PG_avg,ent,0,&current_PG[0]);
-          current_num_elm = apf::getScalar(num_elms,ent,0);
-
-          assert(received_num_elm == current_num_elm);
-          assert(abs(current_PG[0] - received_PG[0]) < 1e-12);
-          assert(abs(current_PG[1] - received_PG[1]) < 1e-12);
-          assert(abs(current_PG[2] - received_PG[2]) < 1e-12);
-        }
+          m->end(v_itr);              
+        } //end for test_points
       } //end if verify
       /*
       End pressure gradient parallel comms
