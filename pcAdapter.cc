@@ -575,6 +575,70 @@ namespace pc {
     }
   }
 
+  void syncMeshSize(apf::Mesh2*& m){
+    apf::Field* sizes = m->findField("sizes");
+    assert(sizes);
+
+    if(!PCU_Comm_Self())
+      std::cerr << "Begin sync mesh size" << std::endl;
+
+    // PCU_Comm_Begin();
+    // apf::Copies remotes;
+    // apf::NewArray<double> v_mag(apf::countComponents(sizes));
+    // apf::NewArray<double> v_mag_rec(apf::countComponents(sizes));
+    // apf::MeshEntity* vtx;
+    // apf::MeshIterator* vit = m->begin(0);
+
+    // while((vtx = m->iterate(vit))){
+    //   if(!m->isOwned(vtx)){
+    //     m->getRemotes(vtx,remotes);
+    //     int owningPart = m->getOwner(vtx);
+
+    //     apf::getComponents(sizes,vtx,0,&v_mag[0]);
+
+    //     PCU_COMM_PACK(owningPart,remotes[owningPart]);
+    //     PCU_COMM_PACK(owningPart,v_mag);
+    //   }
+    // }
+    // m->end(vit);
+
+    // PCU_Comm_Send();
+
+    // if(!PCU_Comm_Self())
+    //   std::cerr << "Messages sent" << std::endl;
+
+    // double new_size;
+    // while(PCU_Comm_Receive()){
+    //   PCU_COMM_UNPACK(vtx);
+    //   PCU_COMM_UNPACK(v_mag_rec);
+
+    //   if(!m->isOwned(vtx)){
+    //     std::cerr << "Error: Data sent to non-owner entity" << std::endl;
+    //     std::exit(1);
+    //   }
+
+    //   apf::getComponents(sizes,vtx,0,&v_mag[0]);
+
+    //   if(v_mag_rec[0] < v_mag[0]){
+    //     v_mag[0] = v_mag_rec[0];
+    //     v_mag[1] = v_mag_rec[1];
+    //     v_mag[2] = v_mag_rec[2];
+    //   }
+  
+    //   if(!PCU_Comm_Self())
+    //     std::cerr << "Comparison done" << std::endl;
+
+    //   apf::setComponents(sizes,vtx,0,&v_mag[0]);
+
+    //   if(!PCU_Comm_Self())
+    //     std::cerr << "Set components done" << std::endl;
+    // }
+
+    if(!PCU_Comm_Self())
+      std::cerr << "Call to syncrhonize" << std::endl;
+    apf::synchronize(sizes);
+  }
+
   void setupSimImprover(pVolumeMeshImprover vmi, pPList sim_fld_lst) {
     VolumeMeshImprover_setModifyBL(vmi, 1);
     VolumeMeshImprover_setShapeMetric(vmi, ShapeMetricType_VolLenRatio, 0.3);
@@ -612,7 +676,12 @@ namespace pc {
     // pc::applyMaxTimeResource(m, sizes, in, inp);
 
     /* apply upper bound */
-    pc::applyMaxSizeBound(m, sizes, in);
+    // pc::applyMaxSizeBound(m, sizes, in);
+
+    /* add mesh smooth/gradation function here */
+    // pc::addSmoother(m, in.gradingFactor);
+
+    pc::syncMeshSize(m);
 
     apf::Field* position = m->findField("motion_coords");
     apf::Vector3 pos;
@@ -741,16 +810,12 @@ namespace pc {
     }
     m->end(vit);
 
-     /* add mesh smooth/gradation function here */
-    pc::addSmoother(m, in.gradingFactor);
-
     /* sync mesh size over partitions */
     // pc::syncMeshSize(m, sizes);
 
     /* use current size field */
     if(!PCU_Comm_Self())
       printf("Start mesh adapt of setting size field\n");
-
 
     /* write error and mesh size */
     pc::writeSequence(m, in.timeStepNumber, "error_mesh_size_");
@@ -1170,6 +1235,53 @@ namespace pc {
       if(!PCU_Comm_Self()){
         std::cout<< "Shock Elms count: " << num_shock_elms <<std::endl;     
       }
+
+      /* Create vertex level shock indicator for aniso adaptation */
+      PCU_Comm_Begin();
+      apf::Field* shock_vert = apf::createFieldOn(m,"shock_vert",apf::SCALAR);
+      v_itr = m->begin(0);
+      while((v_tmp = m->iterate(v_itr))){
+        double v_shock = 0;
+        apf::Adjacent elements;
+        m->getAdjacent(v_tmp,3,elements);
+        for(int i = 0; i < elements.size(); ++i){
+          if(apf::getScalar(Shock_Param,elements[i],0)){
+            v_shock = 1;
+            break;
+          }
+        }
+        apf::setScalar(shock_vert,v_tmp,0,v_shock);
+
+        if(!m->isOwned(v_tmp)){
+          apf::Copies remotes;
+          m->getRemotes(v_tmp,remotes);
+          int owningPart = m->getOwner(v_tmp);
+
+          PCU_COMM_PACK(owningPart,remotes[owningPart]); //send entity
+          PCU_COMM_PACK(owningPart,v_shock); //send int 
+        }
+      }
+      m->end(v_itr);
+
+      PCU_Comm_Send();
+
+      double v_shock_rec;
+      while(PCU_Comm_Receive()){
+        PCU_COMM_UNPACK(ent);
+        PCU_COMM_UNPACK(v_shock_rec);
+
+        if(!m->isOwned(ent)){
+          std::cerr << "ERROR: Data sent to non-owner entity" << std::endl;
+          std::exit(1);
+        }
+
+        double v_shock_curr = apf::getScalar(shock_vert,ent,0);
+        v_shock_curr = v_shock_curr + v_shock_rec;
+
+        apf::setScalar(shock_vert,ent,0,v_shock_curr);
+      }
+
+      apf::synchronize(shock_vert);
       
 
       /*

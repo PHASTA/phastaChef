@@ -27,6 +27,8 @@ namespace pc {
 
   void transferSimFields(apf::Mesh2*& m);
 
+  void syncMeshSize(apf::Mesh2*& m);
+
   void attachCurrentSizeField(apf::Mesh2*& m);
 
   void setupSimImprover(pVolumeMeshImprover vmi, pPList sim_fld_lst);
