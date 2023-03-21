@@ -654,7 +654,9 @@ namespace pc {
     MSA_setExposedBLBehavior(adapter,BL_DisallowExposed);
     MSA_setBLSnapping(adapter, 0); // currently needed for parametric model
     MSA_setBLMinLayerAspectRatio(adapter, 0.0); // needed in parallel
-    MSA_setSizeGradation(adapter, 1, 0.0);
+
+    // double grad_rate = 1.0;
+    // MSA_setSizeGradation(adapter, 0, grad_rate);
 	
 
     /* attach mesh size field */
@@ -688,7 +690,12 @@ namespace pc {
     apf::Field* PG_avg = m->findField("PG_avg");
     apf::Vector3 PG;
     double aspect_ratio = 8;
-    apf::Field* shock_param = m->findField("Shock Param");
+    // apf::Field* shock_param = m->findField("Shock Param");
+    apf::Field* shock_vert = m->findField("shock_vert");
+
+    apf::Field* aniso_size = apf::createFieldOn(m,"aniso_size",apf::MATRIX);
+    apf::Field* parab = apf::createFieldOn(m,"parab",apf::SCALAR);
+    apf::Matrix3x3 an_size;
 
     apf::Vector3 v_mag = apf::Vector3(0.0,0.0,0.0);
     apf::MeshEntity* v;
@@ -702,16 +709,12 @@ namespace pc {
       */
       apf::Adjacent adj_elm;
       m->getAdjacent(v, m->getDimension(), adj_elm);
-      bool shock = false;
-      for (std::size_t i = 0; i < adj_elm.getSize(); ++i) {
-        double param = apf::getScalar(shock_param, adj_elm[i], 0);  
-        if(param > 0.5) shock = true;
-      }
+
+      double shock = apf::getScalar(shock_vert,v,0);
  
       apf::getVector(sizes,v,0,v_mag);
       pVertex meshVertex = reinterpret_cast<pVertex>(v);
       bool aniso = in.anisotropicShockAdaptation;
-
 
       if(aniso && shock){
         // anisotropic refinement based on PG direction
@@ -744,21 +747,9 @@ namespace pc {
         double t2_mag = sqrt(t2[0]*t2[0]+t2[1]*t2[1]+t2[2]*t2[2]);
         t2[0] /= t2_mag; t2[1] /= t2_mag; t2[2] /= t2_mag;
 
-        // set vector mags for element size in those directions
-        // n1[0] *= v_mag[0]; n1[1] *= v_mag[0]; n1[2] *= v_mag[0];
-        // t1[0] *= v_mag[0]*aspect_ratio; t1[1] *= v_mag[0]*aspect_ratio; t1[2] *= v_mag[0]*aspect_ratio;
-        // t2[0] *= v_mag[0]*aspect_ratio; t2[1] *= v_mag[0]*aspect_ratio; t2[2] *= v_mag[0]*aspect_ratio;
-        // set vector mags for element size in those directions
-        // n1[0] *= v_mag[0]/aspect_ratio; n1[1] *= v_mag[0]/aspect_ratio; n1[2] *= v_mag[0]/aspect_ratio;
-        // t1[0] *= v_mag[0]; t1[1] *= v_mag[0]; t1[2] *= v_mag[0];
-        // t2[0] *= v_mag[0]; t2[1] *= v_mag[0]; t2[2] *= v_mag[0];
-
         double n_val = v_mag[0];
-        double t_val = v_mag[0]*in.anisotropicShockAR;
+        double t_val = v_mag[0]*aspect_ratio;
 
-
-        // double n_val = 0.025/8;
-        // double t_val = 0.025;
         n1[0] *= n_val; n1[1] *= n_val; n1[2] *= n_val;
         t1[0] *= t_val; t1[1] *= t_val; t1[2] *= t_val;
         t2[0] *= t_val; t2[1] *= t_val; t2[2] *= t_val;
@@ -768,46 +759,96 @@ namespace pc {
         t2_mag = sqrt(t2[0]*t2[0]+t2[1]*t2[1]+t2[2]*t2[2]);
         double n1_mag = sqrt(n1[0]*n1[0]+n1[1]*n1[1]+n1[2]*n1[2]);
 
+        apf::Vector3 Vecs[3];
+        Vecs[0] = apf::Vector3(n1[0],n1[1],n1[2]);
+        Vecs[1] = apf::Vector3(t1[0],t1[1],t1[2]);
+        Vecs[2] = apf::Vector3(t2[0],t2[1],t2[2]);
+        an_size = apf::Matrix3x3(Vecs);
+
+        apf::setMatrix(aniso_size,v,0,an_size);
+
         double anisoSize[3][3] = {{n1[0],n1[1],n1[2]},{t1[0],t1[1],t1[2]},{t2[0],t2[1],t2[2]}}; 
-        // if(PCU_Comm_Self()==0){
-        //   std::cout << "n1:\t" <<  n1[0] << "\t" << n1[1] << "\t" << n1[2] << "\tmag: " << n1_mag << std::endl;
-        //   std::cout << "t1:\t" <<  t1[0] << "\t" << t1[1] << "\t" << t1[2] << "\tmag: " << t1_mag << std::endl;
-        //   std::cout << "t2:\t" <<  t2[0] << "\t" << t2[1] << "\t" << t2[2] << "\tmag: " << t2_mag << std::endl << std::endl;
-        // }
 
         MSA_setAnisoVertexSize(adapter, meshVertex, anisoSize);
       }
       else {
         // isotropic refinement based on VMS error
+        an_size = apf::Matrix3x3(v_mag[0],0,0,0,v_mag[0],0,0,0,v_mag[0]);
+        apf::setMatrix(aniso_size,v,0,an_size);
         MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
       }
 
 
       // MS_setMaxAnisoRatio(pACase cs, double ratio);
+      if(false){ //test manually setting parabolic aniso
+        m->getPoint(v,0,pos);
+        double AR = 4*4;
+        double h_max = 0.005;
+        double h_min = h_max / AR;
 
-      // apf::getComponents(position,v,0,&pos[0]);
-      // double h_max = 0.0875/10;
-      // // double h_min = 0.0875/96;
-      // double h_min = h_max / 32;
+        double r = 0.0025;
+        double y_apex = 0;
+        double x_apex = -4*r;
+        double a = 10*r;
+        double delta = 0.0025;
 
-      // double L1 = (-0.0875+-0.02)/2;
-      // double delta = 0.0015;
-      // double theta = 45*3.14159265/180;
-      // double tan_theta = 1;
+        double n1[3] = {4*a, -2*(pos[1] - y_apex), 0};
+        double n_mag = sqrt(n1[0]*n1[0] + n1[1]*n1[1]+n1[2]*n1[2]);
+        n1[0] /= n_mag; n1[1] /= n_mag; n1[2] /= n_mag;
 
+        double e[3] = {1,0,0}; 
+        if(n1[1] < n1[0]){
+          if(n1[2] < n1[1]){
+            e[0] = 0;
+            e[2] = 1;
+          }
+          else{
+            e[0] = 0;
+            e[1] = 1;
+          } 
+        }
+        else if (n1[2] < n1[0]){
+          e[0] = 0;
+          e[2] = 1;
+        }
 
-      // apf::getVector(sizes,v,0,v_mag);
-      // v_mag[0] = h_min;
-      // double anisoSize[3][3] = {{v_mag[0]*32,0,0},{0,v_mag[0]/sqrt(2),-v_mag[0]/sqrt(2)},{0,v_mag[0]*32/sqrt(2),v_mag[0]*32/sqrt(2)}};
-      // v_mag[0] = h_max;
-      // // pVertex meshVertex = reinterpret_cast<pVertex>(v);
-      // if (pos[1] < L1+delta +pos[2]/tan_theta  && pos[1] > L1-delta + pos[2]/tan_theta){
-      //   MSA_setAnisoVertexSize(adapter, meshVertex, anisoSize);
-      // }
-      // else{
-      //   MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
-      // }
-    }
+        double t1[3] = {n1[1]*e[2]-e[1]*n1[2], -(n1[0]*e[2]-e[0]*n1[2]), n1[0]*e[1]-e[0]*n1[1]};
+        double t1_mag = sqrt(t1[0]*t1[0]+t1[1]*t1[1]+t1[2]*t1[2]);
+        t1[0] /= t1_mag; t1[1] /= t1_mag; t1[2] /= t1_mag;
+        double t2[3] = {n1[1]*t1[2]-t1[1]*n1[2], -(n1[0]*t1[2]-t1[0]*n1[2]), n1[0]*t1[1]-t1[0]*n1[1]};
+        double t2_mag = sqrt(t2[0]*t2[0]+t2[1]*t2[1]+t2[2]*t2[2]);
+        t2[0] /= t2_mag; t2[1] /= t2_mag; t2[2] /= t2_mag;
+
+        double n_val = h_min;
+        double t_val = h_max;
+
+        n1[0] *= n_val; n1[1] *= n_val; n1[2] *= n_val;
+        t1[0] *= t_val; t1[1] *= t_val; t1[2] *= t_val;
+        t2[0] *= t_val; t2[1] *= t_val; t2[2] *= t_val;
+
+        apf::Vector3 Vecs[3];
+        Vecs[0] = apf::Vector3(n1[0],n1[1],n1[2]);
+        Vecs[1] = apf::Vector3(t1[0],t1[1],t1[2]);
+        Vecs[2] = apf::Vector3(t2[0],t2[1],t2[2]);
+        an_size = apf::Matrix3x3(Vecs);
+
+        apf::setMatrix(aniso_size,v,0,an_size);
+
+        double anisoSize[3][3] = {{n1[0],n1[1],n1[2]},{t1[0],t1[1],t1[2]},{t2[0],t2[1],t2[2]}}; 
+
+        double x_calc = 1./4./a*(4*a*x_apex + (pos[1]-y_apex)*(pos[1]-y_apex));
+        // std::cout << pos[0] << "\t" << x_calc << std::endl;
+        // pVertex meshVertex = reinterpret_cast<pVertex>(v);
+        if (  abs(pos[0]-x_calc) < delta   ){
+          MSA_setAnisoVertexSize(adapter, meshVertex, anisoSize);
+          apf::setScalar(parab,v,0,1);
+        }
+        else{
+          MSA_setVertexSize(adapter, meshVertex, h_max);
+          apf::setScalar(parab,v,0,0);
+        }
+      }//end manual parabola test
+    } //end iterate over vertices
     m->end(vit);
 
     /* sync mesh size over partitions */
@@ -1237,6 +1278,7 @@ namespace pc {
       }
 
       /* Create vertex level shock indicator for aniso adaptation */
+      // Mark vertices that have an adjacent shock containing element 
       PCU_Comm_Begin();
       apf::Field* shock_vert = apf::createFieldOn(m,"shock_vert",apf::SCALAR);
       v_itr = m->begin(0);
@@ -1282,6 +1324,7 @@ namespace pc {
       }
 
       apf::synchronize(shock_vert);
+      /* End vertex level shock indicator */
       
 
       /*
