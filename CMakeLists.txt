@@ -43,6 +43,9 @@ endif()
 
 find_library(ACUSOLVE_LIB libles)
 
+list(APPEND CMAKE_PREFIX_PATH "/gpfs/u/home/MCFD/MCFDstsp/scratch/code/detection/armadillo-12.0.1/install/")
+find_package(Armadillo REQUIRED)
+
 macro(setup_exe exename srcname IC)
   set(src ${srcname}
     pcWriteFiles.cc
@@ -70,6 +73,10 @@ macro(setup_exe exename srcname IC)
     include_directories(${PHASTAC_INCLUDE_DIRS})
     target_link_libraries(${exename} PRIVATE ${PHASTAC_LIBS})
   endif()
+
+  #armadillo
+  include_directories(${ARMADILLO_INCLUDE_DIRS})
+  target_link_libraries(${exename} PRIVATE ${ARMADILLO_LIBRARIES})
 endmacro(setup_exe)
 
 setup_exe(chefPhasta_posix chef_phasta_posix.cc ${phastaIC_FOUND})

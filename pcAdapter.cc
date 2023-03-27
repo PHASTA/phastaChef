@@ -23,10 +23,20 @@
 #include <set>
 #include <map>
 #include <spr.h>
+#include <armadillo>
 
 extern void MSA_setBLSnapping(pMSAdapt, int onoff);
 
 namespace pc {
+
+  /*
+  Begin porting of Isaac's shock surface ID code
+  */
+
+
+  /*
+  End shock ID code
+  */
 
      std::vector<std::string> ParseDeliminatedString(std::string& FullLine, std::string& delim){
           std::vector<std::string> output;
@@ -689,7 +699,6 @@ namespace pc {
     apf::Vector3 pos;
     apf::Field* PG_avg = m->findField("PG_avg");
     apf::Vector3 PG;
-    double aspect_ratio = 8;
     // apf::Field* shock_param = m->findField("Shock Param");
     apf::Field* shock_vert = m->findField("shock_vert");
 
@@ -747,8 +756,8 @@ namespace pc {
         double t2_mag = sqrt(t2[0]*t2[0]+t2[1]*t2[1]+t2[2]*t2[2]);
         t2[0] /= t2_mag; t2[1] /= t2_mag; t2[2] /= t2_mag;
 
-        double n_val = v_mag[0];
-        double t_val = v_mag[0]*aspect_ratio;
+        double n_val = v_mag[0]/aspect_ratio;
+        double t_val = v_mag[0];
 
         n1[0] *= n_val; n1[1] *= n_val; n1[2] *= n_val;
         t1[0] *= t_val; t1[1] *= t_val; t1[2] *= t_val;
