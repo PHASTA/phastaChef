@@ -43,7 +43,6 @@ endif()
 
 find_library(ACUSOLVE_LIB libles)
 
-list(APPEND CMAKE_PREFIX_PATH "/gpfs/u/home/MCFD/MCFDstsp/scratch/code/detection/armadillo-12.0.1/install/")
 find_package(Armadillo REQUIRED)
 
 macro(setup_exe exename srcname IC)
