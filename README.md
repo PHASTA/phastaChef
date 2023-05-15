@@ -16,6 +16,8 @@ git clone https://github.com/PHASTA/phastaChef.git
 cd phastaChef
 git checkout shockDetection
 cd $root
+git clone https://gitlab.com/conradsnicta/armadillo-code.git
+cd $root
 ```
 
 # Build and Test
@@ -25,6 +27,10 @@ Start in directory where all repos are stored
 
 ## Environment
 ```
+#!/bin/bash -x 
+
+root=$PWD
+
 ln -snf /usr/lib64/libslurm.so.30 $HOME/libslurm.so.27
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME
 
@@ -40,9 +46,13 @@ module load \
   parmetis/4.0.3-int32-z5vu5me \
   zoltan/3.83-int32-ruqfm3u \
   simmetrix-simmodsuite/14.0-190617dev-ufy24ll \
-  cmake
+  cmake \
 
-root=$PWD
+module load \
+  openblas/0.3.6-7lkibbq \
+  superlu-dist/6.1.1-int32-tjzvebm
+
+export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:$root/armadillo-12.0.1/install/
 ```
 ## SCOREC Core
 ```
@@ -80,8 +90,8 @@ cmake .. \
 -DCMAKE_CXX_COMPILER=mpicxx \
 -DCMAKE_Fortran_COMPILER=mpif90 \
 -DCMAKE_BUILD_TYPE=Release \
--DSCOREC_PREFIX=/gpfs/u/home/MCFD/MCFDstsp/scratch/code/detection/core/build/install/ \
--DPHASTA_SRC_DIR=/gpfs/u/home/MCFD/MCFDstsp/scratch/code/detection/phasta \
+-DSCOREC_PREFIX=$root/core/build/install/ \
+-DPHASTA_SRC_DIR=$root/phasta \
 -DPHASTA_INCOMPRESSIBLE=OFF \
 -DPHASTA_COMPRESSIBLE=ON \
 
