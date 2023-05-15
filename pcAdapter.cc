@@ -1,4 +1,5 @@
 #include "pcAdapter.h"
+#include "pcShock.h"
 #include "pcError.h"
 #include "pcUpdateMesh.h"
 #include "pcSmooth.h"
@@ -24,13 +25,13 @@
 #include <map>
 #include <spr.h>
 
-// for shock surface ID
-#include <armadillo>
-#include <unordered_set>
+// // for shock surface ID
+// #include <armadillo>
+// #include <unordered_set>
 #include <vector>
 
-typedef unordered_set<int>::iterator nbd_iter;
-typedef unordered_set<int>& set_ref;
+// typedef unordered_set<int>::iterator nbd_iter;
+// typedef unordered_set<int>& set_ref;
 
 extern void MSA_setBLSnapping(pMSAdapt, int onoff);
 
@@ -39,307 +40,307 @@ namespace pc {
   /*
   Begin porting of Isaac's shock surface ID code
   */
+  // struct sElm{
+  //   int ElmID;
+  //   int SurfID = 0;
 
-  struct sElm{
-    int ElmID;
-    int SurfID = 0;
+  //   double x_pos; 
+  //   double y_pos; 
+  //   double z_pos; //xyz coords
+  //   double svd_val = 0.0; // planarity indicator
 
-    double x_pos; 
-    double y_pos; 
-    double z_pos; //xyz coords
-    double svd_val = 0.0; // planarity indicator
-
-    std::unordered_set<int> nbs; //neighbours
-  };
-
-  void ReadData(std::vector<sElm> &AllElms, int proc, int cum_elements)
-  {
-    std::string file = "ShockElms-" + std::to_string(proc) + ".txt";
-    std::ifstream in_str(file);
-    if (!in_str)
-    {
-      cerr << "Could not open " << file << " to read\n";
-      exit(1);
-    }
-
-    string parse;
-    cout << "Reading " << proc << endl;
-    string delimiter = ",";
-    int id_iter = cum_elements;
-
-    while (in_str >> parse)
-    {
-      vector<string> work_vec;
-
-      string s = parse;
-      size_t pos = 0;
-      string token;
-      while ((pos = s.find(delimiter)) != std::string::npos)
-      {
-        token = s.substr(0, pos);
-        work_vec.push_back(token);
-        s.erase(0, pos + delimiter.length());
-      }
-      work_vec.push_back(s); // work vec has the x,y,z coords
-
-      sElm drop;
-      drop.x_pos = stod(work_vec[1]);
-      drop.y_pos = stod(work_vec[2]);
-      drop.z_pos = stod(work_vec[3]);
-
-      drop.ElmID = id_iter;
-      id_iter++;
-
-      AllElms.push_back(drop);
-    }
-
-    cout << "Done reading " << proc << endl;
-    return;
-  }
-
-  void GetNbs(std::vector<sElm>& Elms, double spacing){
-    //get neighbors = elements within a set distance between them
-    float cur2 = 0.0;
-    int comp1 = 0;
-
-    std::cout << "Elements size: " << Elms.size() << std::endl;
-    for (int i = 0; i < Elms.size(); i++)
-    {
-      for (int j = i+1; j < Elms.size(); j++)
-      { // account for symmetry?
-        if (i == j)
-        {
-          continue;
-        }
-        double dist = (Elms[i].x_pos - Elms[j].x_pos) * (Elms[i].x_pos - Elms[j].x_pos) 
-                    + (Elms[i].y_pos - Elms[j].y_pos) * (Elms[i].y_pos - Elms[j].y_pos) 
-                    + (Elms[i].z_pos - Elms[j].z_pos) * (Elms[i].z_pos - Elms[j].z_pos);
-        dist = sqrt(dist); // absolute dist between elms
-        if (dist < spacing)
-        {
-          Elms[i].nbs.insert(Elms[j].ElmID);
-          Elms[j].nbs.insert(Elms[i].ElmID);
-        }
-      }
-      // cur2 = 10 * i / Elms.size();
-      // cur2 = std::ceil(cur2);
-      // if (comp1 < cur2)
-      // {
-      //   comp1++;
-      //   std::cout << 10 * cur2 << "%" << std::endl;
-      // }
-    }
-
-    std::cout << "Done finding neighbors" << std::endl;
-    return;
-  }
-
-  void get_n_layers(int n, set_ref cur_set, set_ref work_set,set_ref ret_set, std::vector<sElm>& Elms){
-    if (n == 0)
-      return; // recursive stopping condition
-
-    for (nbd_iter i = cur_set.begin(); i != cur_set.end(); i++)
-    {
-      // insert all of cur_set into ret, since we ignore it in work
-      if (ret_set.find(*i) == ret_set.end())
-        ;
-      ret_set.insert(*i);
-      for (nbd_iter j = Elms[*i].nbs.begin(); j != Elms[*i].nbs.end(); j++)
-      {
-        // insert cur's nbs into work and ret
-        if (ret_set.find(*j) == ret_set.end())
-        {
-          work_set.insert(*j);
-          ret_set.insert(*j);
-        }
-      }
-    }
-
-    n--; // decrement layer counter
-    cur_set = work_set;
-    work_set.clear(); // generally set up for the recursion
-    get_n_layers(n, cur_set, work_set, ret_set, Elms);
-
-    return;
-  }
+  //   std::unordered_set<int> nbs; //neighbours
+  // };
   
-  void CalcPlanarity(std::vector<sElm>& Elms){
-    // std::cout << "getting planarity" << std::endl;
 
-    float cur3 = 0.0;
-    int percent_done = 0;
-    int comp2 = 0;
-    for (int i = 0; i < Elms.size(); i++)
-    {
-      percent_done = ceil(100*i/Elms.size());
-      if(percent_done%10==0){
-        std::cout << "Planarity calc " << percent_done << "\% completed" << std::endl;
-      }
+  // void ReadData(std::vector<sElm> &AllElms, int proc, int cum_elements)
+  // {
+  //   std::string file = "ShockElms-" + std::to_string(proc) + ".txt";
+  //   std::ifstream in_str(file);
+  //   if (!in_str)
+  //   {
+  //     cerr << "Could not open " << file << " to read\n";
+  //     exit(1);
+  //   }
+
+  //   string parse;
+  //   cout << "Reading " << proc << endl;
+  //   string delimiter = ",";
+  //   int id_iter = cum_elements;
+
+  //   while (in_str >> parse)
+  //   {
+  //     vector<string> work_vec;
+
+  //     string s = parse;
+  //     size_t pos = 0;
+  //     string token;
+  //     while ((pos = s.find(delimiter)) != std::string::npos)
+  //     {
+  //       token = s.substr(0, pos);
+  //       work_vec.push_back(token);
+  //       s.erase(0, pos + delimiter.length());
+  //     }
+  //     work_vec.push_back(s); // work vec has the x,y,z coords
+
+  //     sElm drop;
+  //     drop.x_pos = stod(work_vec[1]);
+  //     drop.y_pos = stod(work_vec[2]);
+  //     drop.z_pos = stod(work_vec[3]);
+
+  //     drop.ElmID = id_iter;
+  //     id_iter++;
+
+  //     AllElms.push_back(drop);
+  //   }
+
+  //   cout << "Done reading " << proc << endl;
+  //   return;
+  // }
+
+  // void GetNbs(std::vector<sElm>& Elms, double spacing){
+  //   //get neighbors = elements within a set distance between them
+  //   float cur2 = 0.0;
+  //   int comp1 = 0;
+
+  //   std::cout << "Elements size: " << Elms.size() << std::endl;
+  //   for (int i = 0; i < Elms.size(); i++)
+  //   {
+  //     for (int j = i+1; j < Elms.size(); j++)
+  //     { // account for symmetry?
+  //       if (i == j)
+  //       {
+  //         continue;
+  //       }
+  //       double dist = (Elms[i].x_pos - Elms[j].x_pos) * (Elms[i].x_pos - Elms[j].x_pos) 
+  //                   + (Elms[i].y_pos - Elms[j].y_pos) * (Elms[i].y_pos - Elms[j].y_pos) 
+  //                   + (Elms[i].z_pos - Elms[j].z_pos) * (Elms[i].z_pos - Elms[j].z_pos);
+  //       dist = sqrt(dist); // absolute dist between elms
+  //       if (dist < spacing)
+  //       {
+  //         Elms[i].nbs.insert(Elms[j].ElmID);
+  //         Elms[j].nbs.insert(Elms[i].ElmID);
+  //       }
+  //     }
+  //     // cur2 = 10 * i / Elms.size();
+  //     // cur2 = std::ceil(cur2);
+  //     // if (comp1 < cur2)
+  //     // {
+  //     //   comp1++;
+  //     //   std::cout << 10 * cur2 << "%" << std::endl;
+  //     // }
+  //   }
+
+  //   std::cout << "Done finding neighbors" << std::endl;
+  //   return;
+  // }
+
+  // void get_n_layers(int n, set_ref cur_set, set_ref work_set,set_ref ret_set, std::vector<sElm>& Elms){
+  //   if (n == 0)
+  //     return; // recursive stopping condition
+
+  //   for (nbd_iter i = cur_set.begin(); i != cur_set.end(); i++)
+  //   {
+  //     // insert all of cur_set into ret, since we ignore it in work
+  //     if (ret_set.find(*i) == ret_set.end())
+  //       ;
+  //     ret_set.insert(*i);
+  //     for (nbd_iter j = Elms[*i].nbs.begin(); j != Elms[*i].nbs.end(); j++)
+  //     {
+  //       // insert cur's nbs into work and ret
+  //       if (ret_set.find(*j) == ret_set.end())
+  //       {
+  //         work_set.insert(*j);
+  //         ret_set.insert(*j);
+  //       }
+  //     }
+  //   }
+
+  //   n--; // decrement layer counter
+  //   cur_set = work_set;
+  //   work_set.clear(); // generally set up for the recursion
+  //   get_n_layers(n, cur_set, work_set, ret_set, Elms);
+
+  //   return;
+  // }
+  
+  // void CalcPlanarity(std::vector<sElm>& Elms){
+  //   // std::cout << "getting planarity" << std::endl;
+
+  //   float cur3 = 0.0;
+  //   int percent_done = 0;
+  //   int comp2 = 0;
+  //   for (int i = 0; i < Elms.size(); i++)
+  //   {
+  //     percent_done = ceil(100*i/Elms.size());
+  //     if(percent_done%10==0){
+  //       std::cout << "Planarity calc " << percent_done << "\% completed" << std::endl;
+  //     }
 
 
-      // cur3=100*i/Elms.size();
-      // cur3=ceil(cur3);
-      // if (i % 100 == 0)
-      // {
-      //   // comp2++;
-      //   cout << i << " so far" << endl;
-      // }
+  //     // cur3=100*i/Elms.size();
+  //     // cur3=ceil(cur3);
+  //     // if (i % 100 == 0)
+  //     // {
+  //     //   // comp2++;
+  //     //   cout << i << " so far" << endl;
+  //     // }
 
-      std::unordered_set<int> tmp1;
-      std::unordered_set<int> tmp2;
-      std::unordered_set<int> friends;
-      tmp1.insert(Elms[i].ElmID);
-      get_n_layers(7, tmp1, tmp2, friends, Elms); // friends includes itself
+  //     std::unordered_set<int> tmp1;
+  //     std::unordered_set<int> tmp2;
+  //     std::unordered_set<int> friends;
+  //     tmp1.insert(Elms[i].ElmID);
+  //     get_n_layers(7, tmp1, tmp2, friends, Elms); // friends includes itself
 
-      arma::mat locMeme(3, friends.size());
-      int iter = 0; // for the matrix insertion memes
+  //     arma::mat locMeme(3, friends.size());
+  //     int iter = 0; // for the matrix insertion memes
 
-      double x_c = 0.0; // Elms[i].x_pos;
-      double y_c = 0.0; // Elms[i].y_pos;
-      double z_c = 0.0; // Elms[i].z_pos;
+  //     double x_c = 0.0; // Elms[i].x_pos;
+  //     double y_c = 0.0; // Elms[i].y_pos;
+  //     double z_c = 0.0; // Elms[i].z_pos;
 
-      for (nbd_iter j = friends.begin(); j != friends.end(); j++)
-      { // populate matrix for svd
-        locMeme(0, iter) = Elms[*j].x_pos - x_c;
-        locMeme(1, iter) = Elms[*j].y_pos - y_c;
-        locMeme(2, iter) = Elms[*j].z_pos - z_c;
-        iter++;
-      }
+  //     for (nbd_iter j = friends.begin(); j != friends.end(); j++)
+  //     { // populate matrix for svd
+  //       locMeme(0, iter) = Elms[*j].x_pos - x_c;
+  //       locMeme(1, iter) = Elms[*j].y_pos - y_c;
+  //       locMeme(2, iter) = Elms[*j].z_pos - z_c;
+  //       iter++;
+  //     }
 
-      for (int j = 0; j < friends.size(); j++)
-      { // comment loop out to remove centering
-        x_c += locMeme(0, j);
-        y_c += locMeme(1, j);
-        z_c += locMeme(2, j);
-      }
-      x_c = x_c / friends.size();
-      y_c = y_c / friends.size();
-      z_c = z_c / friends.size(); // this too
-      for (int k = 0; k < friends.size(); k++)
-      {
-        locMeme(0, k) = locMeme(0, k) - x_c;
-        locMeme(1, k) = locMeme(1, k) - y_c;
-        locMeme(2, k) = locMeme(2, k) - z_c;
-      }
+  //     for (int j = 0; j < friends.size(); j++)
+  //     { // comment loop out to remove centering
+  //       x_c += locMeme(0, j);
+  //       y_c += locMeme(1, j);
+  //       z_c += locMeme(2, j);
+  //     }
+  //     x_c = x_c / friends.size();
+  //     y_c = y_c / friends.size();
+  //     z_c = z_c / friends.size(); // this too
+  //     for (int k = 0; k < friends.size(); k++)
+  //     {
+  //       locMeme(0, k) = locMeme(0, k) - x_c;
+  //       locMeme(1, k) = locMeme(1, k) - y_c;
+  //       locMeme(2, k) = locMeme(2, k) - z_c;
+  //     }
 
-      arma::vec s = arma::svd(locMeme);
-      double pln = 0.0; // default to as planar as possible
-      if (friends.size() > 3)
-      { // need more than 3 points for a guess
-        pln = (s(2) * s(2)) / ((s(0) * s(0)) + (s(1) * s(1)) + (s(2) * s(2)));
-      }
-      Elms[i].svd_val = pln; // svd_val is the normalized 3rd singular value
-      // cout << friends.size() << " svd val: " <<pln<<endl;
-    }
-    std::cout << "got planarity" << std::endl;
+  //     arma::vec s = arma::svd(locMeme);
+  //     double pln = 0.0; // default to as planar as possible
+  //     if (friends.size() > 3)
+  //     { // need more than 3 points for a guess
+  //       pln = (s(2) * s(2)) / ((s(0) * s(0)) + (s(1) * s(1)) + (s(2) * s(2)));
+  //     }
+  //     Elms[i].svd_val = pln; // svd_val is the normalized 3rd singular value
+  //     // cout << friends.size() << " svd val: " <<pln<<endl;
+  //   }
+  //   std::cout << "got planarity" << std::endl;
 
-    return;
-  }
+  //   return;
+  // }
 
-  std::unordered_set<int> outliner(std::unordered_set<int> &start, std::vector<sElm> &All_Elms, int cur_ID)
-  {
-    // int start_size = 0;
-    // //count number of neighbors of each element in set and sum
-    // for (nbd_iter i = start.begin(); i != start.end(); i++)
-    // {
-    //   start_size += All_Elms[*i].nbs.size();
-    // }
-    std::unordered_set<int> ret;
-    // ret.rehash(start_size); //start with the max size, save rehash time
+  // std::unordered_set<int> outliner(std::unordered_set<int> &start, std::vector<sElm> &All_Elms, int cur_ID)
+  // {
+  //   // int start_size = 0;
+  //   // //count number of neighbors of each element in set and sum
+  //   // for (nbd_iter i = start.begin(); i != start.end(); i++)
+  //   // {
+  //   //   start_size += All_Elms[*i].nbs.size();
+  //   // }
+  //   std::unordered_set<int> ret;
+  //   // ret.rehash(start_size); //start with the max size, save rehash time
 
-    //iterate over neighboring elements
-    for (nbd_iter i = start.begin(); i != start.end(); i++)
-    { 
-      //grab all of current element's neighbors and iterate
-      std::unordered_set<int> work = All_Elms[*i].nbs;
-      for (nbd_iter j = work.begin(); j != work.end(); j++)
-      { 
-        //search current set of neighbors and exclude if contained
-        if (start.find(*j) == start.end())
-        { 
-          //check that element is unnumbered
-          if (All_Elms[*j].SurfID == 0)
-          { 
-            //insert element to numbering set
-            ret.insert(*j);
-          }
-        }
-      }
-    }
-    // a set full of the unnumbered neighbours
-    return ret;
-  }
+  //   //iterate over neighboring elements
+  //   for (nbd_iter i = start.begin(); i != start.end(); i++)
+  //   { 
+  //     //grab all of current element's neighbors and iterate
+  //     std::unordered_set<int> work = All_Elms[*i].nbs;
+  //     for (nbd_iter j = work.begin(); j != work.end(); j++)
+  //     { 
+  //       //search current set of neighbors and exclude if contained
+  //       if (start.find(*j) == start.end())
+  //       { 
+  //         //check that element is unnumbered
+  //         if (All_Elms[*j].SurfID == 0)
+  //         { 
+  //           //insert element to numbering set
+  //           ret.insert(*j);
+  //         }
+  //       }
+  //     }
+  //   }
+  //   // a set full of the unnumbered neighbours
+  //   return ret;
+  // }
 
-  void SurfTracer(std::unordered_set<int> &cur_set, std::vector<sElm> &All_Elms, int cur_ID)
-  {
-    //loop neighbors and set surface ID to current ID
-    for (nbd_iter i = cur_set.begin(); i != cur_set.end(); i++)
-    {
-      All_Elms[*i].SurfID = cur_ID; // set the ID
-    }
-    //fill set with next group of elements to add to current shock system 
-    std::unordered_set<int> next_set = outliner(cur_set, All_Elms, cur_ID);
-    if (next_set.size() > 0)
-    { 
-      // recurse if set is not empty
-      SurfTracer(next_set, All_Elms, cur_ID);
-    }
-    return;
-  }
+  // void SurfTracer(std::unordered_set<int> &cur_set, std::vector<sElm> &All_Elms, int cur_ID)
+  // {
+  //   //loop neighbors and set surface ID to current ID
+  //   for (nbd_iter i = cur_set.begin(); i != cur_set.end(); i++)
+  //   {
+  //     All_Elms[*i].SurfID = cur_ID; // set the ID
+  //   }
+  //   //fill set with next group of elements to add to current shock system 
+  //   std::unordered_set<int> next_set = outliner(cur_set, All_Elms, cur_ID);
+  //   if (next_set.size() > 0)
+  //   { 
+  //     // recurse if set is not empty
+  //     SurfTracer(next_set, All_Elms, cur_ID);
+  //   }
+  //   return;
+  // }
 
-  std::vector<int> SurfaceSorter(std::vector<sElm> &All_Elms)
-  {
-    int SurfID_iter = 1;
-    //loop over all elements
-    for (int i = 0; i < All_Elms.size(); i++)
-    {
-      //if non surface ID has been assigned
-      if (All_Elms[i].SurfID == 0)
-      {
-        //create set for all elements in shock system
-        std::unordered_set<int> begin;
-        begin.insert(i); // initialize the function w/ a size 1 set
+  // std::vector<int> SurfaceSorter(std::vector<sElm> &All_Elms)
+  // {
+  //   int SurfID_iter = 1;
+  //   //loop over all elements
+  //   for (int i = 0; i < All_Elms.size(); i++)
+  //   {
+  //     //if non surface ID has been assigned
+  //     if (All_Elms[i].SurfID == 0)
+  //     {
+  //       //create set for all elements in shock system
+  //       std::unordered_set<int> begin;
+  //       begin.insert(i); // initialize the function w/ a size 1 set
 
-        SurfTracer(begin, All_Elms, SurfID_iter);
-        SurfID_iter++;
-      }
-    }
+  //       SurfTracer(begin, All_Elms, SurfID_iter);
+  //       SurfID_iter++;
+  //     }
+  //   }
 
-    //vector of number of elements in each shock system
-    std::vector<int> ret;
-    ret.resize(SurfID_iter);
-    for (int i = 0; i < All_Elms.size(); i++)
-    {
-      ret[All_Elms[i].SurfID]++;
-    }
+  //   //vector of number of elements in each shock system
+  //   std::vector<int> ret;
+  //   ret.resize(SurfID_iter);
+  //   for (int i = 0; i < All_Elms.size(); i++)
+  //   {
+  //     ret[All_Elms[i].SurfID]++;
+  //   }
 
-    return ret;
-  }
+  //   return ret;
+  // }
 
-  void WriteData(std::vector<sElm> &Elms){
-    std::ofstream out_str("processed_shock_elements.txt");
-    if (!out_str.good())
-    {
-      cerr << "Can't open " << "processed_shock_elements.txt" << " to write." << endl;
-      exit(1);
-    }
+  // void WriteData(std::vector<sElm> &Elms){
+  //   std::ofstream out_str("processed_shock_elements.txt");
+  //   if (!out_str.good())
+  //   {
+  //     cerr << "Can't open " << "processed_shock_elements.txt" << " to write." << endl;
+  //     exit(1);
+  //   }
 
-    out_str << setprecision(std::numeric_limits<double>::digits10 + 1);
-    // out_str << "\"vtkOriginalPointIds\",\"Points:0\",\"Points:1\",\"Points:2\",\"Surface_ID\",\"Planarity_Ind\" " << std::endl;
+  //   out_str << setprecision(std::numeric_limits<double>::digits10 + 1);
+  //   // out_str << "\"vtkOriginalPointIds\",\"Points:0\",\"Points:1\",\"Points:2\",\"Surface_ID\",\"Planarity_Ind\" " << std::endl;
 
-    for (int i = 0; i < Elms.size(); i++)
-    {
-      out_str << i << ",";
-      out_str << Elms[i].x_pos << ",";
-      out_str << Elms[i].y_pos << ",";
-      out_str << Elms[i].z_pos << ",";
-      out_str << Elms[i].SurfID << ",";
-      out_str << Elms[i].svd_val << ",";
-      out_str << "dummy" << std::endl;
-    }
+  //   for (int i = 0; i < Elms.size(); i++)
+  //   {
+  //     out_str << i << ",";
+  //     out_str << Elms[i].x_pos << ",";
+  //     out_str << Elms[i].y_pos << ",";
+  //     out_str << Elms[i].z_pos << ",";
+  //     out_str << Elms[i].SurfID << ",";
+  //     out_str << Elms[i].svd_val << ",";
+  //     out_str << "dummy" << std::endl;
+  //   }
 
-    return;
-  }
+  //   return;
+  // }
 
   // void assemble_pts(arma::mat &main, std::vector<arma::vec> &drop)
   // {
@@ -803,7 +804,8 @@ namespace pc {
       for (int i = 0; i < 3; i++) {
         apf::ModelEntity* me = m->toModel(v);
         //if ((m->isInClosureOf(me, b_bme) || m->isInClosureOf(me, a_bme) ) && v_mag[i] > 0.016) v_mag[i] = 0.016;
-        if (m->isInClosureOf(me, dme) && v_mag[i] > in.simSizeUpperBound) v_mag[i] = in.simSizeUpperBound;
+        // if (m->isInClosureOf(me, dme) && v_mag[i] > in.simSizeUpperBound) v_mag[i] = in.simSizeUpperBound;
+        if (v_mag[i] > in.simSizeUpperBound) v_mag[i] = in.simSizeUpperBound;
         //if (m->isInClosureOf(me, pme) && v_mag[i] > 0.004) v_mag[i] = 0.004;
         /*if(vertexIsInCylinder(v) && v_mag[i] > in.simSizeUpperBound)
           v_mag[i] = in.simSizeUpperBound; //set in adapt.inp*/
@@ -1007,7 +1009,10 @@ namespace pc {
     pc::initializeCtCn(m);
 
     /* apply upper bound */
-    // pc::applyMaxSizeBound(m, sizes, in);
+    pc::applyMaxSizeBound(m, sizes, in);
+
+    /* attach current size field for verification */
+    pc::attachCurrentSizeField(m);
 
     /* apply max number of element */
     // double cn = pc::applyMaxNumberElement(m, sizes, in);
@@ -1030,8 +1035,11 @@ namespace pc {
     apf::Field* shock_param = m->findField("Shock Param");
     apf::Field* surf_id = m->findField("Shock_ID");
     apf::Field* shock_vert = m->findField("shock_vert");
+    apf::Field* plan_field = m->findField("plan_vert");
+    apf::Field* shock_line = m->findField("shock_line");
+    apf::Field* shock_line_marker = m->findField("shock_line_marker");
 
-    // apf::Field* aniso_size = apf::createFieldOn(m,"aniso_size",apf::MATRIX);
+    apf::Field* aniso_size = apf::createFieldOn(m,"aniso_size",apf::MATRIX);
     // apf::Field* parab = apf::createFieldOn(m,"parab",apf::SCALAR);
     apf::Field* shk_id = apf::createField(m,"shk_id",apf::SCALAR,apf::getConstant(3));
     // apf::MeshEntity* elm;
@@ -1054,19 +1062,50 @@ namespace pc {
               tangent direction size defined by aspect ratio
       else - perform isotropic refinement by the VMS size
       */
-      apf::Adjacent adj_elm;
-      m->getAdjacent(v, m->getDimension(), adj_elm);
+      // apf::Adjacent adj_elm;
+      // m->getAdjacent(v, m->getDimension(), adj_elm);
+      // double planarity = 1;
+      // for(int i = 0; i < adj_elm.size(); i++){
+      //   double temp = apf::getScalar(plan_field,adj_elm[i],0);
+      //   if(temp < planarity){
+      //     planarity = temp;
+      //   }
+      // }
 
       double shock = apf::getScalar(shock_vert,v,0);
+      double planarity = apf::getScalar(plan_field,v,0);
+      double scale_factor = 2;
  
       apf::getVector(sizes,v,0,v_mag);
       pVertex meshVertex = reinterpret_cast<pVertex>(v);
       bool aniso = in.anisotropicShockAdaptation;
 
-      if(aniso && shock){
-        // anisotropic refinement based on PG direction
-        double aspect_ratio = in.anisotropicShockAR;
+      double plan_thres = 1;
+      bool check_plan = planarity < plan_thres;
 
+      apf::Vector3 pt;
+      m->getPoint(v,0,pt);
+      double iso_marker = apf::getScalar(shock_line_marker,v,0);
+      double aspect_ratio = in.anisotropicShockAR;
+
+      if(aniso && shock && iso_marker < 0.4){
+        apf::getComponents(PG_avg,v,0,&PG[0]);
+        apf::Vector3 n = PG.normalize();
+        apf::Vector3 t1;
+        apf::getVector(shock_line,v,0,t1);
+        apf::Vector3 t2 = apf::cross(n,t1).normalize();
+
+        n = n * v_mag[0] / aspect_ratio * scale_factor;
+        t1 = t1 * v_mag[0] * scale_factor;
+        t2 = t2 * v_mag[0] / aspect_ratio * scale_factor;
+
+        double anisoSize[3][3] = {{n[0],n[1],n[2]},{t1[0],t1[1],t1[2]},{t2[0],t2[1],t2[2]}}; 
+
+        MSA_setAnisoVertexSize(adapter, meshVertex, anisoSize);
+
+      }
+      else if(aniso && shock && check_plan){
+        // anisotropic refinement based on PG direction
         apf::getComponents(PG_avg,v,0,&PG[0]);
         double PG_mag = sqrt(PG[0]*PG[0]+PG[1]*PG[1]+PG[2]*PG[2]);
         double n1[3] = {PG[0]/PG_mag, PG[1]/PG_mag, PG[2]/PG_mag};
@@ -1094,9 +1133,9 @@ namespace pc {
         double t2_mag = sqrt(t2[0]*t2[0]+t2[1]*t2[1]+t2[2]*t2[2]);
         t2[0] /= t2_mag; t2[1] /= t2_mag; t2[2] /= t2_mag;
 
-        double n_val = v_mag[0]/aspect_ratio;
-        double t_val = v_mag[0];
-
+        double n_val = v_mag[0]/aspect_ratio*scale_factor;
+        double t_val = v_mag[0]*scale_factor;
+        
         n1[0] *= n_val; n1[1] *= n_val; n1[2] *= n_val;
         t1[0] *= t_val; t1[1] *= t_val; t1[2] *= t_val;
         t2[0] *= t_val; t2[1] *= t_val; t2[2] *= t_val;
@@ -1112,89 +1151,89 @@ namespace pc {
         Vecs[2] = apf::Vector3(t2[0],t2[1],t2[2]);
         an_size = apf::Matrix3x3(Vecs);
 
-        // apf::setMatrix(aniso_size,v,0,an_size);
+        apf::setMatrix(aniso_size,v,0,an_size);
 
         double anisoSize[3][3] = {{n1[0],n1[1],n1[2]},{t1[0],t1[1],t1[2]},{t2[0],t2[1],t2[2]}}; 
-
+        v_mag[0] = n_val; v_mag[1] = t_val; v_mag[2] = t_val;
         MSA_setAnisoVertexSize(adapter, meshVertex, anisoSize);
       }
       else {
         // isotropic refinement based on VMS error
         an_size = apf::Matrix3x3(v_mag[0],0,0,0,v_mag[0],0,0,0,v_mag[0]);
-        // apf::setMatrix(aniso_size,v,0,an_size);
-        MSA_setVertexSize(adapter, meshVertex, v_mag[0]);
+        apf::setMatrix(aniso_size,v,0,an_size);
+        MSA_setVertexSize(adapter, meshVertex, v_mag[0]*scale_factor);
       }
 
 
       // MS_setMaxAnisoRatio(pACase cs, double ratio);
-      if(false){ //test manually setting parabolic aniso
-        m->getPoint(v,0,pos);
-        double AR = 4*4;
-        double h_max = 0.005;
-        double h_min = h_max / AR;
+      // if(false){ //test manually setting parabolic aniso
+      //   m->getPoint(v,0,pos);
+      //   double AR = 4*4;
+      //   double h_max = 0.005;
+      //   double h_min = h_max / AR;
 
-        double r = 0.0025;
-        double y_apex = 0;
-        double x_apex = -4*r;
-        double a = 10*r;
-        double delta = 0.0025;
+      //   double r = 0.0025;
+      //   double y_apex = 0;
+      //   double x_apex = -4*r;
+      //   double a = 10*r;
+      //   double delta = 0.0025;
 
-        double n1[3] = {4*a, -2*(pos[1] - y_apex), 0};
-        double n_mag = sqrt(n1[0]*n1[0] + n1[1]*n1[1]+n1[2]*n1[2]);
-        n1[0] /= n_mag; n1[1] /= n_mag; n1[2] /= n_mag;
+      //   double n1[3] = {4*a, -2*(pos[1] - y_apex), 0};
+      //   double n_mag = sqrt(n1[0]*n1[0] + n1[1]*n1[1]+n1[2]*n1[2]);
+      //   n1[0] /= n_mag; n1[1] /= n_mag; n1[2] /= n_mag;
 
-        double e[3] = {1,0,0}; 
-        if(n1[1] < n1[0]){
-          if(n1[2] < n1[1]){
-            e[0] = 0;
-            e[2] = 1;
-          }
-          else{
-            e[0] = 0;
-            e[1] = 1;
-          } 
-        }
-        else if (n1[2] < n1[0]){
-          e[0] = 0;
-          e[2] = 1;
-        }
+      //   double e[3] = {1,0,0}; 
+      //   if(n1[1] < n1[0]){
+      //     if(n1[2] < n1[1]){
+      //       e[0] = 0;
+      //       e[2] = 1;
+      //     }
+      //     else{
+      //       e[0] = 0;
+      //       e[1] = 1;
+      //     } 
+      //   }
+      //   else if (n1[2] < n1[0]){
+      //     e[0] = 0;
+      //     e[2] = 1;
+      //   }
 
-        double t1[3] = {n1[1]*e[2]-e[1]*n1[2], -(n1[0]*e[2]-e[0]*n1[2]), n1[0]*e[1]-e[0]*n1[1]};
-        double t1_mag = sqrt(t1[0]*t1[0]+t1[1]*t1[1]+t1[2]*t1[2]);
-        t1[0] /= t1_mag; t1[1] /= t1_mag; t1[2] /= t1_mag;
-        double t2[3] = {n1[1]*t1[2]-t1[1]*n1[2], -(n1[0]*t1[2]-t1[0]*n1[2]), n1[0]*t1[1]-t1[0]*n1[1]};
-        double t2_mag = sqrt(t2[0]*t2[0]+t2[1]*t2[1]+t2[2]*t2[2]);
-        t2[0] /= t2_mag; t2[1] /= t2_mag; t2[2] /= t2_mag;
+      //   double t1[3] = {n1[1]*e[2]-e[1]*n1[2], -(n1[0]*e[2]-e[0]*n1[2]), n1[0]*e[1]-e[0]*n1[1]};
+      //   double t1_mag = sqrt(t1[0]*t1[0]+t1[1]*t1[1]+t1[2]*t1[2]);
+      //   t1[0] /= t1_mag; t1[1] /= t1_mag; t1[2] /= t1_mag;
+      //   double t2[3] = {n1[1]*t1[2]-t1[1]*n1[2], -(n1[0]*t1[2]-t1[0]*n1[2]), n1[0]*t1[1]-t1[0]*n1[1]};
+      //   double t2_mag = sqrt(t2[0]*t2[0]+t2[1]*t2[1]+t2[2]*t2[2]);
+      //   t2[0] /= t2_mag; t2[1] /= t2_mag; t2[2] /= t2_mag;
 
-        double n_val = h_min;
-        double t_val = h_max;
+      //   double n_val = h_min;
+      //   double t_val = h_max;
 
-        n1[0] *= n_val; n1[1] *= n_val; n1[2] *= n_val;
-        t1[0] *= t_val; t1[1] *= t_val; t1[2] *= t_val;
-        t2[0] *= t_val; t2[1] *= t_val; t2[2] *= t_val;
+      //   n1[0] *= n_val; n1[1] *= n_val; n1[2] *= n_val;
+      //   t1[0] *= t_val; t1[1] *= t_val; t1[2] *= t_val;
+      //   t2[0] *= t_val; t2[1] *= t_val; t2[2] *= t_val;
 
-        apf::Vector3 Vecs[3];
-        Vecs[0] = apf::Vector3(n1[0],n1[1],n1[2]);
-        Vecs[1] = apf::Vector3(t1[0],t1[1],t1[2]);
-        Vecs[2] = apf::Vector3(t2[0],t2[1],t2[2]);
-        an_size = apf::Matrix3x3(Vecs);
+      //   apf::Vector3 Vecs[3];
+      //   Vecs[0] = apf::Vector3(n1[0],n1[1],n1[2]);
+      //   Vecs[1] = apf::Vector3(t1[0],t1[1],t1[2]);
+      //   Vecs[2] = apf::Vector3(t2[0],t2[1],t2[2]);
+      //   an_size = apf::Matrix3x3(Vecs);
 
-        // apf::setMatrix(aniso_size,v,0,an_size);
+      //   // apf::setMatrix(aniso_size,v,0,an_size);
 
-        double anisoSize[3][3] = {{n1[0],n1[1],n1[2]},{t1[0],t1[1],t1[2]},{t2[0],t2[1],t2[2]}}; 
+      //   double anisoSize[3][3] = {{n1[0],n1[1],n1[2]},{t1[0],t1[1],t1[2]},{t2[0],t2[1],t2[2]}}; 
 
-        double x_calc = 1./4./a*(4*a*x_apex + (pos[1]-y_apex)*(pos[1]-y_apex));
-        // std::cout << pos[0] << "\t" << x_calc << std::endl;
-        // pVertex meshVertex = reinterpret_cast<pVertex>(v);
-        if (  abs(pos[0]-x_calc) < delta   ){
-          MSA_setAnisoVertexSize(adapter, meshVertex, anisoSize);
-          // apf::setScalar(parab,v,0,1);
-        }
-        else{
-          MSA_setVertexSize(adapter, meshVertex, h_max);
-          // apf::setScalar(parab,v,0,0);
-        }
-      }//end manual parabola test
+      //   double x_calc = 1./4./a*(4*a*x_apex + (pos[1]-y_apex)*(pos[1]-y_apex));
+      //   // std::cout << pos[0] << "\t" << x_calc << std::endl;
+      //   // pVertex meshVertex = reinterpret_cast<pVertex>(v);
+      //   if (  abs(pos[0]-x_calc) < delta   ){
+      //     MSA_setAnisoVertexSize(adapter, meshVertex, anisoSize);
+      //     // apf::setScalar(parab,v,0,1);
+      //   }
+      //   else{
+      //     MSA_setVertexSize(adapter, meshVertex, h_max);
+      //     // apf::setScalar(parab,v,0,0);
+      //   }
+      // }//end manual parabola test
     } //end iterate over vertices
     m->end(vit);
 
@@ -1262,6 +1301,8 @@ namespace pc {
       //mesh resampling hacks
       bool mesh_resample = false; // resample mesh from solution transfer in paraview
       if (mesh_resample && step == 1){ // just the initial step
+        std::cout << "Enter manual solution migration" << std::endl;
+
         // read in the resampled data
         std::ifstream in_stream("outpoints.csv");
         if (!in_stream.good())
@@ -1274,12 +1315,15 @@ namespace pc {
         std::string Lin_Parse;
         std::string delimin = ",";
 
-        std::map<int, std::vector<double>> resample_map; // vert_ID, solution vec
+        // std::map<int, std::vector<double>> resample_map; // vert_ID, solution vec
+        std::vector<std::vector<double>> resample_map;
 
+        std::cout << "Begin loop file" << std::endl;
         while (in_stream >> Lin_Parse)
         {
           std::vector<std::string> working_vec = ParseDeliminatedString(Lin_Parse, delimin);
           // populate map
+
           if (PCU_Comm_Self() == std::stoi(working_vec[5]))
           {
             std::vector<double> dropin;
@@ -1289,11 +1333,13 @@ namespace pc {
             dropin.push_back(std::stod(working_vec[3]));
             dropin.push_back(std::stod(working_vec[4]));
 
-            resample_map[std::stoi(working_vec[6])] = dropin;
+            // resample_map[std::stoi(working_vec[6])] = dropin;
 
+            resample_map.push_back(dropin);
             // if (!PCU_Comm_Self()) std::cout << working_vec[5] <<" " <<working_vec[6]<< " " << dropin[0] <<std::endl;
           }
         }
+        std::cout << "Begin iterate mesh to change solution" << std::endl;
 
         // solution can be changed here
         apf::MeshEntity *vert_tmp;
@@ -1307,6 +1353,12 @@ namespace pc {
           int v_ID = EN_id(ent1);
 
           std::vector<double> insert_vec = resample_map[v_ID];
+
+          // std::cout <<  insert_vec[0] << std::endl;
+          // std::cout <<  insert_vec[1] << std::endl;
+          // std::cout <<  insert_vec[2] << std::endl;
+          // std::cout <<  insert_vec[3] << std::endl;
+          // std::cout <<  insert_vec[4] << std::endl;
 
           solu_tmp[0] = insert_vec[0];
           solu_tmp[1] = insert_vec[1];
@@ -1568,7 +1620,37 @@ namespace pc {
         moment_err = sqrt(VMS_err[1]*VMS_err[1]
                           +VMS_err[2]*VMS_err[2]
                           +VMS_err[3]*VMS_err[3]);
-
+        //vertex level filtering
+        // bool in_range = false;
+        // apf::Adjacent Adj_vtx;
+        // m->getAdjacent(elm,0,Adj_vtx);
+        // for(size_t i = 0; i < Adj_vtx.size(); i++){
+        //   apf::getComponents(PG_avg, Adj_vtx[i], 0, &PG_tmp[0]);
+        //   double PG_mag = sqrt(PG_tmp[0]*PG_tmp[0] + PG_tmp[1]*PG_tmp[1]+PG_tmp[2]*PG_tmp[2]);
+          
+        //   if(PG_mag > P_thres_min && PG_mag < P_thres_max){
+        //     double shk_val = apf::getScalar(shk_det,Adj_vtx[i],0);
+        //     if(shk_val < 2.0 || shk_val > 0.2){
+        //       in_range=false;
+        //       break;
+        //     }
+        //   }
+        // }
+        // if(in_range){
+        //   apf::Vector3 CellCent = apf::getLinearCentroid(m, elm);
+        //   ShkLocs.push_back(CellCent);
+        //   pEntity ent = reinterpret_cast<pEntity>(elm);
+        //   int rID = EN_id(ent);
+        //   ShkIDs.push_back(rID);
+        //   ShkFilt.push_back(P_filter[3]);
+        //   apf::setScalar(Shock_Param, elm, 0, 1.0);
+        //   // apf::setScalar(Shock_IDs, elm, 0, rID);
+        //   apf::setScalar(Shock_IDs, elm, 0, 0);
+        //   ++num_shock_elms;
+        // }
+        
+        
+        if(true){
         //actual filtering
         if (P_thres_max > P_filter[3] && P_filter[3] > P_thres_min){//pressure filter, between max and min
           if ( VMS_thres_max > moment_err && moment_err > VMS_thres_min) {//similar VMS_filter
@@ -1586,6 +1668,12 @@ namespace pc {
               if (loc_check <= 1.0){
                 loc_lt=true;
               }
+              // if (loc_check >= 1.0){
+              //   loc_gt=true;
+              // }
+              // if (loc_check <= 1.0){
+              //   loc_lt=true;
+              // }
             }
 
             if (loc_gt && loc_lt){ // iso surface elements from chef    
@@ -1611,6 +1699,7 @@ namespace pc {
             }
           }
         }
+        }
       } //end iterate over elements to set shock parameter
       m->end(it);
 
@@ -1619,7 +1708,7 @@ namespace pc {
       if(shock_to_file){
         std::string ShkFile ="ShockElms-"+ std::to_string(PCU_Comm_Self()) + ".txt";
         std::ofstream ShockOut(ShkFile);
-        std::setprecision(std::numeric_limits<double>::digits10+1);
+        ShockOut << std::setprecision(std::numeric_limits<double>::digits10 + 1);
         if(!ShockOut.good()){
             std::cerr << "Can't open "<< ShkFile <<" to write.\n" <<std::endl;
             exit(1);
@@ -1637,111 +1726,129 @@ namespace pc {
         std::cout<< "Shock Elms count: " << num_shock_elms <<std::endl;     
       }
 
-      std::cerr << "Entering shock system ID and segmentation code " << std::endl;
-      /* Shock system ID and segmentation using Armadillo */
-      if(!PCU_Comm_Self()){ //proceed in serial 
-        std::vector<sElm> all_shock_elements;
-        double spacing = 0.001; //closeness parameter
-        
-        for(int i = 0; i < PCU_Comm_Peers();i++){
-          //loop over each file and add to working vector
-          ReadData(all_shock_elements,i,all_shock_elements.size());
-        }
-        GetNbs(all_shock_elements,spacing);
-        //need to add surface ID stuff here
+      if(true){
+        std::cerr << "Entering shock system ID and segmentation code " << std::endl;
+        /* Shock system ID and segmentation using Armadillo */
+        if(!PCU_Comm_Self()){ //proceed in serial 
+          std::vector<sElm> all_shock_elements;
+          double spacing = 0.1; //closeness parameter
+          
+          for(int i = 0; i < PCU_Comm_Peers();i++){
+            //loop over each file and add to working vector
+            ReadData(all_shock_elements,i,all_shock_elements.size());
+          }
+          GetNbs(all_shock_elements,spacing);
 
-        std::vector<int> SurfSizes;
-        std::cout << "Beging SurfaceSorter" << std::endl;
-        SurfSizes = SurfaceSorter(all_shock_elements);
-        std::cout << "SurfaceSorter complete" << std::endl;
-
-        int threshold = 15; //threshold to consider shock system as just noise
-        for (int i = 1; i < SurfSizes.size(); i++)
-        { // check surface sizes
-          if(SurfSizes[i] < threshold){
-            for(int j = 0; j < all_shock_elements.size(); j++){
-              if(all_shock_elements[j].SurfID == i){
-                all_shock_elements[j].SurfID = 0;
+          std::vector<int> SurfSizes;
+          std::cout << "Beginning SurfaceSorter" << std::endl;
+          SurfSizes = SurfaceSorter(all_shock_elements);
+          std::cout << "SurfaceSorter complete" << std::endl;
+ 
+          int threshold = 10; //threshold num elements to consider shock system as just noise
+          for (int i = 1; i < SurfSizes.size(); i++)
+          { // check surface sizes
+            if(SurfSizes[i] < threshold){
+              for(int j = 0; j < all_shock_elements.size(); j++){
+                if(all_shock_elements[j].SurfID == i){
+                  all_shock_elements[j].SurfID = 0;
+                }
               }
             }
-          }
-          else{
-            std::cout << i << " " << SurfSizes[i] << std::endl;
-          }
-        }
-      
-        //segmentation procedure
-        CalcPlanarity(all_shock_elements);
-        WriteData(all_shock_elements);
-      }
-
-      //add code to now read back in file, compare element centroid position with positions on current process
-      //if element is from that process, read the shock surface ID and write to the field data
-
-      PCU_Barrier();
-
-      std::string file = "processed_shock_elements.txt";
-      in_str = std::ifstream(file);
-      if(!in_str){
-        std::cerr << "Could not open " << file << " to read." << std::endl;
-      }
-
-      std::string parse;
-      string delimiter = ",";
-      int id_iter = 0;
-
-      if(!PCU_Comm_Self()){
-        std::cout << "Looping shock elements to add ID to field data" << std::endl;
-      }
-
-      while (in_str >> parse)
-      {
-        std::vector<std::string> work_vec;
-
-        std::string s = parse;
-        size_t pos = 0;
-        std::string token;
-        while ((pos = s.find(delimiter)) != std::string::npos)
-        {
-          token = s.substr(0, pos);
-          work_vec.push_back(token);
-          s.erase(0, pos + delimiter.length());
-        }
-        work_vec.push_back(s); // work vec has the x,y,z coords
-
-        sElm drop;
-        double x_pos = stod(work_vec[1]);
-        double y_pos = stod(work_vec[2]);
-        double z_pos = stod(work_vec[3]);
-        int surf_id = stoi(work_vec[4]);
-        double plan_ind = stod(work_vec[5]);
-
-        //iterate elements to see if there's a match
-        double eps = 1e-5; //tolerance for checking if same point
-        apf::MeshEntity* e;
-        apf::Vector3 pt; 
-        apf::MeshIterator* itr = m->begin(3);
-        while((e = m->iterate(itr))){
-          pt = apf::getLinearCentroid(m,e);
-          bool match = abs(pt[0] - x_pos) < eps && abs(pt[1] - y_pos) < eps 
-                    && abs(pt[2] - z_pos) < eps;
-          if(match){
-            apf::setScalar(Shock_IDs,e,0,surf_id);
-            apf::setScalar(plan_val,e,0,plan_ind);
-
-            //undo shock detection of elements that are just noise
-            if(surf_id == 0){
-              apf::setScalar(Shock_Param,e,0,0);
+            else{
+              std::cout << i << " " << SurfSizes[i] << std::endl;
             }
-            break;
+          }
+        
+          //segmentation procedure
+          CalcPlanarity(all_shock_elements);
+          WriteData(all_shock_elements);
+        }
+
+        //add code to now read back in file, compare element centroid position with positions on current process
+        //if element is from that process, read the shock surface ID and write to the field data
+
+        PCU_Barrier();
+
+        std::string file = "processed_shock_elements.txt";
+        in_str = std::ifstream(file);
+        if(!in_str){
+          std::cerr << "Could not open " << file << " to read." << std::endl;
+        }
+
+        std::string parse;
+        string delimiter = ",";
+        int id_iter = 0;
+
+        if(!PCU_Comm_Self()){
+          std::cout << "Looping shock elements to add ID to field data" << std::endl;
+        }
+
+        while (in_str >> parse)
+        {
+          std::vector<std::string> work_vec;
+
+          std::string s = parse;
+          size_t pos = 0;
+          std::string token;
+          while ((pos = s.find(delimiter)) != std::string::npos)
+          {
+            token = s.substr(0, pos);
+            work_vec.push_back(token);
+            s.erase(0, pos + delimiter.length());
+          }
+          work_vec.push_back(s); // work vec has the x,y,z coords
+
+          sElm drop;
+          double x_pos = stod(work_vec[1]);
+          double y_pos = stod(work_vec[2]);
+          double z_pos = stod(work_vec[3]);
+          int surf_id = stoi(work_vec[4]);
+          double plan_ind = stod(work_vec[5]);
+
+          //iterate elements to see if there's a match
+          double eps = 1e-7; //tolerance for checking if same point
+          apf::MeshEntity* e;
+          apf::Vector3 pt; 
+          apf::MeshIterator* itr = m->begin(3);
+          while((e = m->iterate(itr))){
+            pt = apf::getLinearCentroid(m,e);
+            bool match = abs(pt[0] - x_pos) < eps && abs(pt[1] - y_pos) < eps 
+                      && abs(pt[2] - z_pos) < eps;
+            if(match){
+              apf::setScalar(Shock_IDs,e,0,surf_id);
+              apf::setScalar(plan_val,e,0,plan_ind);
+
+              //undo shock detection of elements that are just noise
+              if(surf_id == 0){
+                // apf::setScalar(Shock_Param,e,0,0);
+              }
+              break;
+            }
           }
         }
+
+        cout << "["<< PCU_Comm_Self() << "]\tDone reading and adding to field data" << endl;
+
+        std::cerr << "Exiting shock system ID and segmentation code " << std::endl;
       }
-
-      cout << "["<< PCU_Comm_Self() << "]" << "Done reading and adding to field data" << endl;
-
-      std::cerr << "Exiting shock system ID and segmentation code " << std::endl;
       PCU_Barrier();
+
+      //routine to extend the shock detection result
+      extendShocks(m,in);
+
+      /* 
+      recalculate planarity after extension
+      */
+      
+      double spacing = 0.1;
+      calcPlanarity(m,spacing,in);
+
+      /*
+      create second PG field for special handling of 2 short-1 long dimension adaptation
+      where interactions are found (high planarity)
+      */
+      interactionHandling(m,in);
+
 
       /* Create vertex level shock indicator for aniso adaptation */
       // Mark vertices that have an adjacent shock containing element 
@@ -1790,6 +1897,58 @@ namespace pc {
       }
 
       apf::synchronize(shock_vert);
+
+      /* Vertex level planarity indicator */
+
+      PCU_Comm_Begin();
+      /* not implemented correctly need to fix
+      need to average only neighbor shock elements not all elements */
+      apf::Field* plan_vert = apf::createFieldOn(m,"plan_vert",apf::SCALAR);
+      v_itr = m->begin(0);
+      while((v_tmp = m->iterate(v_itr))){
+        double v_plan = 0;
+        apf::Adjacent elements;
+        m->getAdjacent(v_tmp,3,elements);
+        int count = 0;
+        for(int i = 0; i < elements.size(); ++i){
+          if(apf::getScalar(plan_val,elements[i],0) >= 0){
+            count++;
+            v_plan += apf::getScalar(plan_val,elements[i],0);
+          }
+        }
+        v_plan /= count;
+        apf::setScalar(plan_vert,v_tmp,0,v_plan);
+
+        if(!m->isOwned(v_tmp)){
+          apf::Copies remotes;
+          m->getRemotes(v_tmp,remotes);
+          int owningPart = m->getOwner(v_tmp);
+
+          PCU_COMM_PACK(owningPart,remotes[owningPart]); //send entity
+          PCU_COMM_PACK(owningPart,v_plan); //send int 
+        }
+      }
+      m->end(v_itr);
+
+      PCU_Comm_Send();
+
+      double v_plan_rec;
+      while(PCU_Comm_Receive()){
+        PCU_COMM_UNPACK(ent);
+        PCU_COMM_UNPACK(v_plan_rec);
+
+        if(!m->isOwned(ent)){
+          std::cerr << "ERROR: Data sent to non-owner entity" << std::endl;
+          std::exit(1);
+        }
+
+        double v_plan_curr = apf::getScalar(plan_vert,ent,0);
+        v_plan_curr = std::min(v_plan_curr,v_plan_rec);
+
+        apf::setScalar(plan_vert,ent,0,v_plan_curr);
+      }
+
+      apf::synchronize(plan_vert);
       /* End vertex level shock indicator */
 
 
@@ -1899,9 +2058,13 @@ namespace pc {
       // run the adapter *
       if(!PCU_Comm_Self())
         printf("do real mesh adapt\n");
-      MSA_adapt(adapter, progress);
+      if(step > 1)
+        MSA_adapt(adapter, progress);
+      // MSA_adapt(adapter, progress); //temporary to test solution migration
       MSA_delete(adapter);
 
+
+      if(step > 1) {
       // create Simmetrix improver *
       pVolumeMeshImprover vmi = VolumeMeshImprover_new(sim_pm);
       setupSimImprover(vmi, sim_fld_lst);
@@ -1915,6 +2078,7 @@ namespace pc {
 
       // load balance *
       pc::balanceEqualWeights(sim_pm, progress);
+      }
 
 
       // write mesh *

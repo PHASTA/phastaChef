@@ -53,6 +53,7 @@ macro(setup_exe exename srcname IC)
     pcTimeDepMesh.cc
     pcSmooth.cc
     pcError.cc
+    pcShock.cc
   )
 
   add_executable(${exename} ${src})
