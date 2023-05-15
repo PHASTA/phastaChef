@@ -921,61 +921,6 @@ namespace pc {
 
     if(!PCU_Comm_Self())
       std::cerr << "Begin sync mesh size" << std::endl;
-
-    // PCU_Comm_Begin();
-    // apf::Copies remotes;
-    // apf::NewArray<double> v_mag(apf::countComponents(sizes));
-    // apf::NewArray<double> v_mag_rec(apf::countComponents(sizes));
-    // apf::MeshEntity* vtx;
-    // apf::MeshIterator* vit = m->begin(0);
-
-    // while((vtx = m->iterate(vit))){
-    //   if(!m->isOwned(vtx)){
-    //     m->getRemotes(vtx,remotes);
-    //     int owningPart = m->getOwner(vtx);
-
-    //     apf::getComponents(sizes,vtx,0,&v_mag[0]);
-
-    //     PCU_COMM_PACK(owningPart,remotes[owningPart]);
-    //     PCU_COMM_PACK(owningPart,v_mag);
-    //   }
-    // }
-    // m->end(vit);
-
-    // PCU_Comm_Send();
-
-    // if(!PCU_Comm_Self())
-    //   std::cerr << "Messages sent" << std::endl;
-
-    // double new_size;
-    // while(PCU_Comm_Receive()){
-    //   PCU_COMM_UNPACK(vtx);
-    //   PCU_COMM_UNPACK(v_mag_rec);
-
-    //   if(!m->isOwned(vtx)){
-    //     std::cerr << "Error: Data sent to non-owner entity" << std::endl;
-    //     std::exit(1);
-    //   }
-
-    //   apf::getComponents(sizes,vtx,0,&v_mag[0]);
-
-    //   if(v_mag_rec[0] < v_mag[0]){
-    //     v_mag[0] = v_mag_rec[0];
-    //     v_mag[1] = v_mag_rec[1];
-    //     v_mag[2] = v_mag_rec[2];
-    //   }
-  
-    //   if(!PCU_Comm_Self())
-    //     std::cerr << "Comparison done" << std::endl;
-
-    //   apf::setComponents(sizes,vtx,0,&v_mag[0]);
-
-    //   if(!PCU_Comm_Self())
-    //     std::cerr << "Set components done" << std::endl;
-    // }
-
-    if(!PCU_Comm_Self())
-      std::cerr << "Call to syncrhonize" << std::endl;
     apf::synchronize(sizes);
   }
 
@@ -1040,15 +985,7 @@ namespace pc {
     apf::Field* shock_line_marker = m->findField("shock_line_marker");
 
     apf::Field* aniso_size = apf::createFieldOn(m,"aniso_size",apf::MATRIX);
-    // apf::Field* parab = apf::createFieldOn(m,"parab",apf::SCALAR);
     apf::Field* shk_id = apf::createField(m,"shk_id",apf::SCALAR,apf::getConstant(3));
-    // apf::MeshEntity* elm;
-    // apf::MeshIterator* eit = m->begin(3);
-    // while((elm = m->iterate(eit))){
-    //   int id = apf::getScalar(surf_id,elm,0);
-    //   apf::setScalar(shk_id,elm,0,id);
-    // }
-
 
     apf::Matrix3x3 an_size;
 
@@ -1056,39 +993,24 @@ namespace pc {
     apf::MeshEntity* v;
     apf::MeshIterator* vit = m->begin(0);
     while ((v = m->iterate(vit))) {
-      /*
-      Game plan: at each vertex, check if an adjacent element contains a shock
-      if yes - perform anisotropic refinement by PG direction and VMS size for thickness
-              tangent direction size defined by aspect ratio
-      else - perform isotropic refinement by the VMS size
-      */
-      // apf::Adjacent adj_elm;
-      // m->getAdjacent(v, m->getDimension(), adj_elm);
-      // double planarity = 1;
-      // for(int i = 0; i < adj_elm.size(); i++){
-      //   double temp = apf::getScalar(plan_field,adj_elm[i],0);
-      //   if(temp < planarity){
-      //     planarity = temp;
-      //   }
-      // }
+      //set isotropic/anisotropic size field at vertices
 
       double shock = apf::getScalar(shock_vert,v,0);
       double planarity = apf::getScalar(plan_field,v,0);
-      double scale_factor = 2;
+      double scale_factor = in.sizeScaleFactor;
  
       apf::getVector(sizes,v,0,v_mag);
       pVertex meshVertex = reinterpret_cast<pVertex>(v);
       bool aniso = in.anisotropicShockAdaptation;
-
-      double plan_thres = 1;
-      bool check_plan = planarity < plan_thres;
+      double aspect_ratio = in.anisotropicShockAR;
 
       apf::Vector3 pt;
       m->getPoint(v,0,pt);
       double iso_marker = apf::getScalar(shock_line_marker,v,0);
-      double aspect_ratio = in.anisotropicShockAR;
 
       if(aniso && shock && iso_marker < 0.4){
+        //this section is unverified
+        //vertices which get 2 short component, 1 long (intersecting shocks)
         apf::getComponents(PG_avg,v,0,&PG[0]);
         apf::Vector3 n = PG.normalize();
         apf::Vector3 t1;
@@ -1102,10 +1024,10 @@ namespace pc {
         double anisoSize[3][3] = {{n[0],n[1],n[2]},{t1[0],t1[1],t1[2]},{t2[0],t2[1],t2[2]}}; 
 
         MSA_setAnisoVertexSize(adapter, meshVertex, anisoSize);
-
       }
-      else if(aniso && shock && check_plan){
-        // anisotropic refinement based on PG direction
+      else if(aniso && shock){
+        // vertices which get 1 short component, 2 long
+        // rewrite to use apf::Vector calculations as opposed to by hand
         apf::getComponents(PG_avg,v,0,&PG[0]);
         double PG_mag = sqrt(PG[0]*PG[0]+PG[1]*PG[1]+PG[2]*PG[2]);
         double n1[3] = {PG[0]/PG_mag, PG[1]/PG_mag, PG[2]/PG_mag};
@@ -1163,90 +1085,12 @@ namespace pc {
         apf::setMatrix(aniso_size,v,0,an_size);
         MSA_setVertexSize(adapter, meshVertex, v_mag[0]*scale_factor);
       }
-
-
-      // MS_setMaxAnisoRatio(pACase cs, double ratio);
-      // if(false){ //test manually setting parabolic aniso
-      //   m->getPoint(v,0,pos);
-      //   double AR = 4*4;
-      //   double h_max = 0.005;
-      //   double h_min = h_max / AR;
-
-      //   double r = 0.0025;
-      //   double y_apex = 0;
-      //   double x_apex = -4*r;
-      //   double a = 10*r;
-      //   double delta = 0.0025;
-
-      //   double n1[3] = {4*a, -2*(pos[1] - y_apex), 0};
-      //   double n_mag = sqrt(n1[0]*n1[0] + n1[1]*n1[1]+n1[2]*n1[2]);
-      //   n1[0] /= n_mag; n1[1] /= n_mag; n1[2] /= n_mag;
-
-      //   double e[3] = {1,0,0}; 
-      //   if(n1[1] < n1[0]){
-      //     if(n1[2] < n1[1]){
-      //       e[0] = 0;
-      //       e[2] = 1;
-      //     }
-      //     else{
-      //       e[0] = 0;
-      //       e[1] = 1;
-      //     } 
-      //   }
-      //   else if (n1[2] < n1[0]){
-      //     e[0] = 0;
-      //     e[2] = 1;
-      //   }
-
-      //   double t1[3] = {n1[1]*e[2]-e[1]*n1[2], -(n1[0]*e[2]-e[0]*n1[2]), n1[0]*e[1]-e[0]*n1[1]};
-      //   double t1_mag = sqrt(t1[0]*t1[0]+t1[1]*t1[1]+t1[2]*t1[2]);
-      //   t1[0] /= t1_mag; t1[1] /= t1_mag; t1[2] /= t1_mag;
-      //   double t2[3] = {n1[1]*t1[2]-t1[1]*n1[2], -(n1[0]*t1[2]-t1[0]*n1[2]), n1[0]*t1[1]-t1[0]*n1[1]};
-      //   double t2_mag = sqrt(t2[0]*t2[0]+t2[1]*t2[1]+t2[2]*t2[2]);
-      //   t2[0] /= t2_mag; t2[1] /= t2_mag; t2[2] /= t2_mag;
-
-      //   double n_val = h_min;
-      //   double t_val = h_max;
-
-      //   n1[0] *= n_val; n1[1] *= n_val; n1[2] *= n_val;
-      //   t1[0] *= t_val; t1[1] *= t_val; t1[2] *= t_val;
-      //   t2[0] *= t_val; t2[1] *= t_val; t2[2] *= t_val;
-
-      //   apf::Vector3 Vecs[3];
-      //   Vecs[0] = apf::Vector3(n1[0],n1[1],n1[2]);
-      //   Vecs[1] = apf::Vector3(t1[0],t1[1],t1[2]);
-      //   Vecs[2] = apf::Vector3(t2[0],t2[1],t2[2]);
-      //   an_size = apf::Matrix3x3(Vecs);
-
-      //   // apf::setMatrix(aniso_size,v,0,an_size);
-
-      //   double anisoSize[3][3] = {{n1[0],n1[1],n1[2]},{t1[0],t1[1],t1[2]},{t2[0],t2[1],t2[2]}}; 
-
-      //   double x_calc = 1./4./a*(4*a*x_apex + (pos[1]-y_apex)*(pos[1]-y_apex));
-      //   // std::cout << pos[0] << "\t" << x_calc << std::endl;
-      //   // pVertex meshVertex = reinterpret_cast<pVertex>(v);
-      //   if (  abs(pos[0]-x_calc) < delta   ){
-      //     MSA_setAnisoVertexSize(adapter, meshVertex, anisoSize);
-      //     // apf::setScalar(parab,v,0,1);
-      //   }
-      //   else{
-      //     MSA_setVertexSize(adapter, meshVertex, h_max);
-      //     // apf::setScalar(parab,v,0,0);
-      //   }
-      // }//end manual parabola test
     } //end iterate over vertices
     m->end(vit);
-
-    /* sync mesh size over partitions */
-    // pc::syncMeshSize(m, sizes);
 
     /* use current size field */
     if(!PCU_Comm_Self())
       printf("Start mesh adapt of setting size field\n");
-
-    /* remove fields that aren't needed for output */
-    if(m->findField("parab")) apf::destroyField(m->findField("parab"));    
-    if(m->findField("shock_vert")) apf::destroyField(m->findField("shock_vert"));    
 
     /* write error and mesh size */
     pc::writeSequence(m, in.timeStepNumber, "error_mesh_size_");
@@ -1299,7 +1143,8 @@ namespace pc {
      
 
       //mesh resampling hacks
-      bool mesh_resample = false; // resample mesh from solution transfer in paraview
+      // bool mesh_resample = false; // resample mesh from solution transfer in paraview
+      int mesh_resample = in.manualMeshResample;
       if (mesh_resample && step == 1){ // just the initial step
         std::cout << "Enter manual solution migration" << std::endl;
 
@@ -1466,66 +1311,7 @@ namespace pc {
 
       //synchronize data on all processes
       apf::synchronize(PG_avg);
-      // apf::synchronize(num_elms);
       apf::destroyField(num_elms);    
-
-
-      /*
-      Verification code for PG parallel implementation
-      - manually check calculation at a couple of nodes on capsule mesh
-      */
-      bool verify = false;
-      if(verify){
-        std::vector<apf::Vector3> test_points;
-        test_points.push_back(apf::Vector3(0.02761936967552711,0.002656329198976054,-0.01381257900898625));
-        test_points.push_back(apf::Vector3(0.01395862371794598,0.04375,-0.01329952834624482));
-        test_points.push_back(apf::Vector3(0.03056206933225488,0.002906680097775706,-0.01940581952224469));
-        test_points.push_back(apf::Vector3(-0.004149733625824178,-0.005578124905005098,0.003800701247837794));
-        std::vector<apf::Vector3> calc_PG;
-        calc_PG.push_back(apf::Vector3(-148329.5814892917,394113.773062053,-1272923.024116426));
-        calc_PG.push_back(apf::Vector3(-149.573553748554,-1046.695409188947,115.6703377753061));
-        calc_PG.push_back(apf::Vector3(-1429689.208438647,332382.4595561386,-2767507.861050387));
-        calc_PG.push_back(apf::Vector3(-27418.32882550262,-4250.69794072089,-9216.980973738549));
-        apf::Vector3 pos,PG;
-        double tol = 1e-14;
-
-        int PID = PCU_Comm_Self();
-
-        for(int i = 0; i < test_points.size(); ++i){
-          // PCU_Comm_Begin();
-          v_itr = m->begin(0);
-          while((v_tmp = m->iterate(v_itr))){
-            m->getPoint(v_tmp,0,pos);
-
-            if(abs(pos[0] - test_points[i][0]) < tol &&
-               abs(pos[1] - test_points[i][1]) < tol &&
-               abs(pos[2] - test_points[i][2]) < tol){
-              apf::getComponents(PG_avg,v_tmp,0,&PG[0]);
-
-              
-              apf::Adjacent elements;
-              apf::NewArray<double> temp(apf::countComponents(P_Filt));
-              m->getAdjacent(v_tmp,3,elements);
-              int num_adj = elements.getSize();
-
-              if(m->isOwned(v_tmp)){
-                std::cout << PID<<"Pos:"<< i << "\t" << pos[0] << "\t" << pos[1] << "\t" << pos[2] << std::endl;
-                std::cout << PID<<"PG_para"<< i << "\t"<<calc_PG[i][0] << "\t" << calc_PG[i][1] << "\t" << calc_PG[i][2] << std::endl;
-                std::cout << PID<<"PG_code"<< i << "\t" << PG[0] << "\t" << PG[1] << "\t" << PG[2] << std::endl << std::endl;
-              }
-
-              for(int j = 0; j < num_adj; j++){
-                apf::getComponents(P_Filt,elements[j],0,&temp[0]);
-                std::cout << PID<<"Adj" << i << "\t" << temp[0] << "\t" << temp[1] << "\t" << temp[2] << std::endl;
-              }
-            }
-          }
-          m->end(v_itr);              
-        } //end for test_points
-      } //end if verify
-      /*
-      End pressure gradient parallel comms
-      */
 
       //iterate over vertices and calculate normal mach number (Lovely & Haimes), store in shk_det
       apf::Vector3 PG_tmp = apf::Vector3(0.0,0.0,0.0);
@@ -1619,38 +1405,8 @@ namespace pc {
         double moment_err = 0.0;
         moment_err = sqrt(VMS_err[1]*VMS_err[1]
                           +VMS_err[2]*VMS_err[2]
-                          +VMS_err[3]*VMS_err[3]);
-        //vertex level filtering
-        // bool in_range = false;
-        // apf::Adjacent Adj_vtx;
-        // m->getAdjacent(elm,0,Adj_vtx);
-        // for(size_t i = 0; i < Adj_vtx.size(); i++){
-        //   apf::getComponents(PG_avg, Adj_vtx[i], 0, &PG_tmp[0]);
-        //   double PG_mag = sqrt(PG_tmp[0]*PG_tmp[0] + PG_tmp[1]*PG_tmp[1]+PG_tmp[2]*PG_tmp[2]);
-          
-        //   if(PG_mag > P_thres_min && PG_mag < P_thres_max){
-        //     double shk_val = apf::getScalar(shk_det,Adj_vtx[i],0);
-        //     if(shk_val < 2.0 || shk_val > 0.2){
-        //       in_range=false;
-        //       break;
-        //     }
-        //   }
-        // }
-        // if(in_range){
-        //   apf::Vector3 CellCent = apf::getLinearCentroid(m, elm);
-        //   ShkLocs.push_back(CellCent);
-        //   pEntity ent = reinterpret_cast<pEntity>(elm);
-        //   int rID = EN_id(ent);
-        //   ShkIDs.push_back(rID);
-        //   ShkFilt.push_back(P_filter[3]);
-        //   apf::setScalar(Shock_Param, elm, 0, 1.0);
-        //   // apf::setScalar(Shock_IDs, elm, 0, rID);
-        //   apf::setScalar(Shock_IDs, elm, 0, 0);
-        //   ++num_shock_elms;
-        // }
+                          +VMS_err[3]*VMS_err[3]);      
         
-        
-        if(true){
         //actual filtering
         if (P_thres_max > P_filter[3] && P_filter[3] > P_thres_min){//pressure filter, between max and min
           if ( VMS_thres_max > moment_err && moment_err > VMS_thres_min) {//similar VMS_filter
@@ -1668,12 +1424,6 @@ namespace pc {
               if (loc_check <= 1.0){
                 loc_lt=true;
               }
-              // if (loc_check >= 1.0){
-              //   loc_gt=true;
-              // }
-              // if (loc_check <= 1.0){
-              //   loc_lt=true;
-              // }
             }
 
             if (loc_gt && loc_lt){ // iso surface elements from chef    
@@ -1698,7 +1448,6 @@ namespace pc {
               ++num_shock_elms;
             }
           }
-        }
         }
       } //end iterate over elements to set shock parameter
       m->end(it);
@@ -1726,7 +1475,8 @@ namespace pc {
         std::cout<< "Shock Elms count: " << num_shock_elms <<std::endl;     
       }
 
-      if(true){
+      // if(true){
+      if(in.shockIDSegment){
         std::cerr << "Entering shock system ID and segmentation code " << std::endl;
         /* Shock system ID and segmentation using Armadillo */
         if(!PCU_Comm_Self()){ //proceed in serial 
@@ -1833,21 +1583,23 @@ namespace pc {
       }
       PCU_Barrier();
 
-      //routine to extend the shock detection result
-      extendShocks(m,in);
+      if(in.extendShocks){
+        //routine to extend the shock detection result
+        extendShocks(m,in);
 
-      /* 
-      recalculate planarity after extension
-      */
-      
-      double spacing = 0.1;
-      calcPlanarity(m,spacing,in);
+        /* 
+        recalculate planarity after extension
+        */
+        
+        double spacing = 0.1;
+        calcPlanarity(m,spacing,in);
 
-      /*
-      create second PG field for special handling of 2 short-1 long dimension adaptation
-      where interactions are found (high planarity)
-      */
-      interactionHandling(m,in);
+        /*
+        create second PG field for special handling of 2 short-1 long dimension adaptation
+        where interactions are found (high planarity)
+        */
+        interactionHandling(m,in);
+      }
 
 
       /* Create vertex level shock indicator for aniso adaptation */
