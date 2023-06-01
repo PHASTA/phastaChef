@@ -1006,7 +1006,10 @@ namespace pc {
 
       apf::Vector3 pt;
       m->getPoint(v,0,pt);
-      double iso_marker = apf::getScalar(shock_line_marker,v,0);
+      double iso_marker = 1;
+      if(in.extendShocks){
+        iso_marker = apf::getScalar(shock_line_marker,v,0);
+      }
 
       if(aniso && shock && iso_marker < 0.4){
         //this section is unverified
